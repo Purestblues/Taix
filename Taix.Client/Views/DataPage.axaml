@@ -178,8 +178,11 @@ xmlns:Charts="using:Taix.Client.Controls.Charts"
 
                             <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
                                 <!-- 24 小时表盘 -->
-                                <timeline:ClockRing HorizontalAlignment="Stretch"
-                                                    VerticalAlignment="Stretch"
+                                <timeline:ClockRing HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    MaxWidth="470"
+                                                    MaxHeight="470"
+                                                    Thickness="32"
                                                     Margin="0,4,10,4"
                                                     Segments="{Binding DayClock.Segments}"
                                                     TickMode="{Binding DayClock.TickMode}"
@@ -267,89 +270,89 @@ xmlns:Charts="using:Taix.Client.Controls.Charts"
                 </Grid>
             </TabItem>
             <TabItem>
-                <Grid RowDefinitions="Auto,*">
-                    <Border Height="270"
-                            Margin="0,0,0,10"
-                            IsVisible="{Binding WeekClock.HasData}"
-                            Background="{DynamicResource SettingPanelBgBrush}"
-                            CornerRadius="{StaticResource RadiusMedium}">
-                        <timeline:ClockRing Segments="{Binding WeekClock.Segments}"
-                                            TickMode="{Binding WeekClock.TickMode}"
-                                            RangeStart="{Binding WeekClock.RangeStart}"
-                                            RangeEnd="{Binding WeekClock.RangeEnd}"
-                                            UseCategoryColor="{Binding UseCategoryColor}"
-                                            CenterText="{Binding WeekClock.CenterText}"
-                                            CenterCaption="{Binding WeekClock.CenterCaption}"
-                                            EmptyText="{DynamicResource NoData}"
-                                            TextBrush="{DynamicResource StandardTextBrush}"
-                                            MutedTextBrush="{DynamicResource SubTextBrush}"
-                                            TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
-                                            ClickCommand="{Binding ToDetailCommand}" />
-                    </Border>
-                    <Charts:ListChart Grid.Row="1"
+                <Grid ColumnDefinitions="*,420">
+                    <timeline:ClockRing HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        MaxWidth="470"
+                                        MaxHeight="470"
+                                        Thickness="32"
+                                        Margin="0,0,14,0"
+                                        IsVisible="{Binding WeekClock.HasData}"
+                                        Segments="{Binding WeekClock.Segments}"
+                                        TickMode="{Binding WeekClock.TickMode}"
+                                        RangeStart="{Binding WeekClock.RangeStart}"
+                                        RangeEnd="{Binding WeekClock.RangeEnd}"
+                                        UseCategoryColor="{Binding UseCategoryColor}"
+                                        CenterText="{Binding WeekClock.CenterText}"
+                                        CenterCaption="{Binding WeekClock.CenterCaption}"
+                                        EmptyText="{DynamicResource NoData}"
+                                        TextBrush="{DynamicResource StandardTextBrush}"
+                                        MutedTextBrush="{DynamicResource SubTextBrush}"
+                                        TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
+                                        ClickCommand="{Binding ToDetailCommand}" />
+                    <Charts:ListChart Grid.Column="1"
                                IsShowBadge="True"
                                IsSearch="True"
                                MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
                                Data="{Binding WeekData}"
-                               Margin="0,10,0,0"
                                ClickCommand="{Binding ToDetailCommand}" />
                 </Grid>
             </TabItem>
             <TabItem>
-                <Grid RowDefinitions="Auto,*">
-                    <Border Height="270"
-                            Margin="0,0,0,10"
-                            IsVisible="{Binding MonthClock.HasData}"
-                            Background="{DynamicResource SettingPanelBgBrush}"
-                            CornerRadius="{StaticResource RadiusMedium}">
-                        <timeline:ClockRing Segments="{Binding MonthClock.Segments}"
-                                            TickMode="{Binding MonthClock.TickMode}"
-                                            RangeStart="{Binding MonthClock.RangeStart}"
-                                            RangeEnd="{Binding MonthClock.RangeEnd}"
-                                            UseCategoryColor="{Binding UseCategoryColor}"
-                                            CenterText="{Binding MonthClock.CenterText}"
-                                            CenterCaption="{Binding MonthClock.CenterCaption}"
-                                            EmptyText="{DynamicResource NoData}"
-                                            TextBrush="{DynamicResource StandardTextBrush}"
-                                            MutedTextBrush="{DynamicResource SubTextBrush}"
-                                            TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
-                                            ClickCommand="{Binding ToDetailCommand}" />
-                    </Border>
-                    <Charts:ListChart Grid.Row="1"
+                <Grid ColumnDefinitions="*,420">
+                    <timeline:ClockRing HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        MaxWidth="470"
+                                        MaxHeight="470"
+                                        Thickness="32"
+                                        Margin="0,0,14,0"
+                                        IsVisible="{Binding MonthClock.HasData}"
+                                        Segments="{Binding MonthClock.Segments}"
+                                        TickMode="{Binding MonthClock.TickMode}"
+                                        RangeStart="{Binding MonthClock.RangeStart}"
+                                        RangeEnd="{Binding MonthClock.RangeEnd}"
+                                        UseCategoryColor="{Binding UseCategoryColor}"
+                                        CenterText="{Binding MonthClock.CenterText}"
+                                        CenterCaption="{Binding MonthClock.CenterCaption}"
+                                        EmptyText="{DynamicResource NoData}"
+                                        TextBrush="{DynamicResource StandardTextBrush}"
+                                        MutedTextBrush="{DynamicResource SubTextBrush}"
+                                        TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
+                                        ClickCommand="{Binding ToDetailCommand}" />
+                    <Charts:ListChart Grid.Column="1"
                                IsShowBadge="True"
                                IsSearch="True"
                                MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
                                Data="{Binding MonthData}"
-                               Margin="0,10,0,0"
                                ClickCommand="{Binding ToDetailCommand}" />
                 </Grid>
             </TabItem>
             <TabItem>
-                <Grid RowDefinitions="Auto,*">
-                    <Border Height="270"
-                            Margin="0,0,0,10"
-                            IsVisible="{Binding YearClock.HasData}"
-                            Background="{DynamicResource SettingPanelBgBrush}"
-                            CornerRadius="{StaticResource RadiusMedium}">
-                        <timeline:ClockRing Segments="{Binding YearClock.Segments}"
-                                            TickMode="{Binding YearClock.TickMode}"
-                                            RangeStart="{Binding YearClock.RangeStart}"
-                                            RangeEnd="{Binding YearClock.RangeEnd}"
-                                            UseCategoryColor="{Binding UseCategoryColor}"
-                                            CenterText="{Binding YearClock.CenterText}"
-                                            CenterCaption="{Binding YearClock.CenterCaption}"
-                                            EmptyText="{DynamicResource NoData}"
-                                            TextBrush="{DynamicResource StandardTextBrush}"
-                                            MutedTextBrush="{DynamicResource SubTextBrush}"
-                                            TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
-                                            ClickCommand="{Binding ToDetailCommand}" />
-                    </Border>
-                    <Charts:ListChart Grid.Row="1"
+                <Grid ColumnDefinitions="*,420">
+                    <timeline:ClockRing HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        MaxWidth="470"
+                                        MaxHeight="470"
+                                        Thickness="32"
+                                        Margin="0,0,14,0"
+                                        IsVisible="{Binding YearClock.HasData}"
+                                        Segments="{Binding YearClock.Segments}"
+                                        TickMode="{Binding YearClock.TickMode}"
+                                        RangeStart="{Binding YearClock.RangeStart}"
+                                        RangeEnd="{Binding YearClock.RangeEnd}"
+                                        UseCategoryColor="{Binding UseCategoryColor}"
+                                        CenterText="{Binding YearClock.CenterText}"
+                                        CenterCaption="{Binding YearClock.CenterCaption}"
+                                        EmptyText="{DynamicResource NoData}"
+                                        TextBrush="{DynamicResource StandardTextBrush}"
+                                        MutedTextBrush="{DynamicResource SubTextBrush}"
+                                        TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
+                                        ClickCommand="{Binding ToDetailCommand}" />
+                    <Charts:ListChart Grid.Column="1"
                                IsShowBadge="True"
                                IsSearch="True"
                                MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
                                Data="{Binding YearData}"
-                               Margin="0,10,0,0"
                                ClickCommand="{Binding ToDetailCommand}" />
                 </Grid>
             </TabItem>

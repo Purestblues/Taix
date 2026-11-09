@@ -75,6 +75,7 @@ public class ClockRing : Control, ICustomHitTest
     private readonly List<(ClockSegment Segment, double Start, double Sweep)> _hitMap = [];
     private readonly Dictionary<string, IBrush> _brushCache = new(StringComparer.OrdinalIgnoreCase);
     private ClockSegment? _hoveredSegment;
+    private double? _hoverFraction;
     private IBrush? _fallbackBrush;
 
     static ClockRing()
@@ -197,9 +198,31 @@ public class ClockRing : Control, ICustomHitTest
     /// </summary>
     public bool HitTest(Point point) => new Rect(Bounds.Size).Contains(point);
 
+    /// <summary>
+    /// 表盘永远是正方形：取可用宽高里较小的一边。
+    /// 不自报尺寸的话，控件在居中布局里会被压成 0×0（Stretch 才靠父容器撑开）。
+    /// </summary>
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        var side = Math.Min(availableSize.Width, availableSize.Height);
+        if (double.IsInfinity(side)) side = 420;
+        if (side <= 0) side = 420;
+
+        return new Size(side, side);
+    }
+
+    /// <summary>
+    /// 表盘中间是空心的，而 Avalonia 的命中测试只认「画过的地方」：
+    /// 不铺一层底色，悬停就会时灵时不灵（点在环上算，点进圈里不算）。
+    /// alpha = 1 肉眼看不出来，但足以让整个矩形进入命中区域。
+    /// </summary>
+    private static readonly IBrush HitTestFill = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
+
     public override void Render(DrawingContext context)
     {
         base.Render(context);
+
+        context.FillRectangle(HitTestFill, new Rect(Bounds.Size));
 
         var width = Bounds.Width;
         var height = Bounds.Height;
@@ -235,10 +258,37 @@ public class ClockRing : Control, ICustomHitTest
             };
 
             DrawArc(context, center, radius, start, sweep, pen);
-            _hitMap.Add((segment, start, sweep));
+
+            // 注意两点：
+            // 1) 绘制用标准数学角（0° = 3 点方向），命中用「从 12 点开始顺时针」，差 90°，这里归一化；
+            // 2) 命中存的是**真实**扫角，不是加了 MinSweep 的绘制扫角——否则几秒钟的碎片
+            //    会各自「吃」掉 1° 左右，密集时段里点哪儿都会命中几分钟前的那一条。
+            _hitMap.Add((segment, (start + 90 + 360) % 360, rawSweep));
         }
 
+        // 后台刷新会整批换掉扇区（对象都变了），按鼠标所在角度重新认一次，
+        // 否则每次数据刷新都会把悬停状态清空，看起来就是「悬停没反应」。
+        if (_hoverFraction is { } hoverFraction)
+            _hoveredSegment = FindSegmentByFraction(hoverFraction);
+
+        DrawHoverMarker(context, center, radius, thickness);
         DrawCenter(context, center, segments.Count > 0);
+    }
+
+    /// <summary>鼠标在环带上时，画一根短线标出当前位置——空档里也有反馈，不然像没反应</summary>
+    private void DrawHoverMarker(DrawingContext context, Point center, double radius, double thickness)
+    {
+        if (_hoverFraction is not { } fraction) return;
+
+        var pen = new Pen(MutedTextBrush ?? new SolidColorBrush(Color.FromArgb(120, 128, 128, 128)), 2)
+        {
+            LineCap = PenLineCap.Round
+        };
+
+        DrawTickLine(context, pen, center,
+            radius - thickness / 2 - 3,
+            radius + thickness / 2 + 3,
+            fraction);
     }
 
     #region 刻度
@@ -331,6 +381,11 @@ public class ClockRing : Control, ICustomHitTest
                 ? hovered.CategoryName
                 : hovered.RangeText;
         }
+        else if (_hoverFraction is { } fraction && hasData)
+        {
+            main = FormatHoverLabel(fraction);
+            caption = EmptyText;
+        }
         else if (!hasData)
         {
             main = EmptyText;
@@ -356,24 +411,90 @@ public class ClockRing : Control, ICustomHitTest
         context.DrawText(captionText, new Point(center.X - captionText.Width / 2, captionY));
     }
 
+    private ClockSegment? FindSegmentByFraction(double fraction) =>
+        FindSegmentByAngle(fraction * 360d);
+
     #region 交互
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
+        UpdateHover(e.GetPosition(this));
+    }
 
-        var segment = HitTestSegment(e.GetPosition(this));
-        HoveredSegment = segment;
-        Cursor = segment?.Data != null || segment?.CategoryData != null
-            ? new Cursor(StandardCursorType.Hand)
-            : Cursor.Default;
+    protected override void OnPointerEntered(PointerEventArgs e)
+    {
+        base.OnPointerEntered(e);
+        UpdateHover(e.GetPosition(this));
     }
 
     protected override void OnPointerExited(PointerEventArgs e)
     {
         base.OnPointerExited(e);
+
         HoveredSegment = null;
+        _hoverFraction = null;
         Cursor = Cursor.Default;
+        InvalidateVisual();
+    }
+
+    private void UpdateHover(Point position)
+    {
+        var fraction = GetFractionOnRing(position);
+        var segment = fraction == null ? null : HitTestSegment(position);
+
+        _hoverFraction = fraction;
+        HoveredSegment = segment;
+
+        Cursor = segment?.Data != null || segment?.CategoryData != null
+            ? new Cursor(StandardCursorType.Hand)
+            : Cursor.Default;
+
+        InvalidateVisual();
+    }
+
+    /// <summary>指针落在环带上时返回 0~1 的圆周比例，否则返回 null</summary>
+    private double? GetFractionOnRing(Point position)
+    {
+        var thickness = Math.Max(6, Thickness);
+        var radius = Math.Min(Bounds.Width, Bounds.Height) / 2 - thickness / 2 - LabelSpace;
+        if (radius <= 4) return null;
+
+        var center = new Point(Bounds.Width / 2, Bounds.Height / 2);
+        var dx = position.X - center.X;
+        var dy = position.Y - center.Y;
+        var distance = Math.Sqrt(dx * dx + dy * dy);
+
+        if (distance < radius - thickness / 2 - 8 || distance > radius + thickness / 2 + 8)
+            return null;
+
+        var angle = Math.Atan2(dy, dx) * 180d / Math.PI;
+        return ((angle + 90 + 360) % 360) / 360d;
+    }
+
+    /// <summary>把圆周比例翻译成刻度文案：日看时刻、周/月看日期、年看月份</summary>
+    private string FormatHoverLabel(double fraction)
+    {
+        var start = RangeStart;
+
+        switch (TickMode)
+        {
+            case ClockTickMode.Hour:
+                return start.AddSeconds(fraction * 86400d).ToString("HH:mm");
+
+            case ClockTickMode.Day:
+            {
+                var days = Math.Max(1, (RangeEnd.Date - start.Date).Days + 1);
+                var index = Math.Min(days - 1, (int)(fraction * days));
+                return start.AddDays(index).ToString("M/d");
+            }
+
+            default:
+            {
+                var index = Math.Min(11, (int)(fraction * 12));
+                return start.AddMonths(index).ToString("yyyy-MM");
+            }
+        }
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
@@ -403,19 +524,36 @@ public class ClockRing : Control, ICustomHitTest
         var dy = position.Y - center.Y;
         var distance = Math.Sqrt(dx * dx + dy * dy);
 
-        if (distance < radius - thickness / 2 - 3 || distance > radius + thickness / 2 + 3)
+        // 容差放宽到 8：环带只有 20~30px，贴着边缘划过去也要能触发
+        if (distance < radius - thickness / 2 - 8 || distance > radius + thickness / 2 + 8)
             return null;
 
         var angle = Math.Atan2(dy, dx) * 180d / Math.PI;
         angle = (angle + 90 + 360) % 360;
 
+        return FindSegmentByAngle(angle);
+    }
+
+    private ClockSegment? FindSegmentByAngle(double angleFromTop)
+    {
+        ClockSegment? nearest = null;
+        var nearestDistance = double.MaxValue;
+
         foreach (var (segment, start, sweep) in _hitMap)
         {
-            var offset = (angle - start + 360) % 360;
+            var offset = (angleFromTop - start + 360) % 360;
             if (offset <= sweep) return segment;
+
+            // 没落在任何一段里：允许吸附到 0.6° 内最近的一段，几秒的碎片也点得到
+            var distance = Math.Min(offset - sweep, 360 - offset);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = segment;
+            }
         }
 
-        return null;
+        return nearestDistance <= 0.6 ? nearest : null;
     }
 
     #endregion
