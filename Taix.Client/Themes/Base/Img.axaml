@@ -16,10 +16,22 @@
                         Height="{TemplateBinding Height}"
                         CornerRadius="{TemplateBinding Radius}"
                         ClipToBounds="True">
-                    <Image Stretch="Fill"
-                           Width="{TemplateBinding Width}"
-                           Height="{TemplateBinding Height}"
-                           Source="{Binding Resource,RelativeSource={RelativeSource TemplatedParent}}" />
+                    <Grid>
+                        <Image Stretch="Fill"
+                               Width="{TemplateBinding Width}"
+                               Height="{TemplateBinding Height}"
+                               Source="{Binding Resource,RelativeSource={RelativeSource TemplatedParent}}" />
+                        <!-- 图标解码失败时降级成“首字母色块”，比默认图标更好认 -->
+                        <Border Background="{Binding FallbackBrush, RelativeSource={RelativeSource TemplatedParent}}"
+                                IsVisible="{Binding IsFallbackVisible, RelativeSource={RelativeSource TemplatedParent}}">
+                            <Viewbox Margin="2" Stretch="Uniform">
+                                <TextBlock Text="{Binding FallbackGlyph, RelativeSource={RelativeSource TemplatedParent}}"
+                                           Foreground="White"
+                                           FontWeight="SemiBold"
+                                           FontSize="16" />
+                            </Viewbox>
+                        </Border>
+                    </Grid>
                 </Border>
             </ControlTemplate>
         </Setter>

@@ -25,6 +25,7 @@ public static class ChartDataMapper
                 Tag = Time.ToString(item.Time),
                 PopupText = appModel.File,
                 Icon = appModel.IconFile,
+                FallbackText = appModel.GetDisplayName(),
                 DateTime = item.Date
             };
 
@@ -57,7 +58,8 @@ public static class ChartDataMapper
                 Value = item.Duration,
                 Tag = Time.ToString(item.Duration),
                 PopupText = item.Domain,
-                Icon = item.IconFile
+                Icon = item.IconFile,
+                FallbackText = item.Domain
             };
 
             if (includeBadges)
@@ -91,6 +93,7 @@ public static class ChartDataMapper
                 Tag = Time.ToString(item.Time),
                 PopupText = item.AppModel.File,
                 Icon = item.AppModel.IconFile,
+                FallbackText = item.AppModel.GetDisplayName(),
                 DateTime = DateTime.SpecifyKind(item.DataTime, DateTimeKind.Utc).ToLocalTime()
             };
 

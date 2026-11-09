@@ -112,6 +112,7 @@
                                                               Width="20"
                                                               Height="20"
                                                               DecodeWidth="20"
+                                                              FallbackText="{Binding Name}"
                                                               HorizontalAlignment="Center"
                                                               VerticalAlignment="Center" />
                                                 </Border>

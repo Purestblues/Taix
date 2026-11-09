@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Taix.Client.Librarys;
 using Taix.Client.Shared.Event;
 using Taix.Client.Shared.Models.Config;
 using Taix.Client.Shared.Servicers.Interfaces;
@@ -101,31 +102,35 @@ public class ThemeServicer : IThemeServicer
         if (definition.SolidBackground is { } solid)
         {
             app.Resources["WindowBackground"] = new SolidColorBrush(solid);
-            return;
-        }
-
-        var isLight = definition.Variant == ThemeVariant.Light ||
-                      (definition.Variant == ThemeVariant.Default && app.ActualThemeVariant != ThemeVariant.Dark);
-
-        var gradientKey = config.General.WindowGradientScheme switch
-        {
-            1 => "WindowBackgroundModern",
-            2 => "WindowBackgroundClassic",
-            3 => "WindowBackgroundOriginal",
-            _ => null,
-        };
-
-        var actualVariant = app.ActualThemeVariant;
-        if (gradientKey != null &&
-            app.Resources.TryGetResource(gradientKey, actualVariant, out var gradient) &&
-            gradient is IBrush gradientBrush)
-        {
-            app.Resources["WindowBackground"] = gradientBrush;
         }
         else
         {
-            app.Resources["WindowBackground"] = new SolidColorBrush(isLight ? LightSolid : DarkSolid);
+            var isLight = definition.Variant == ThemeVariant.Light ||
+                          (definition.Variant == ThemeVariant.Default && app.ActualThemeVariant != ThemeVariant.Dark);
+
+            var gradientKey = config.General.WindowGradientScheme switch
+            {
+                1 => "WindowBackgroundModern",
+                2 => "WindowBackgroundClassic",
+                3 => "WindowBackgroundOriginal",
+                _ => null,
+            };
+
+            var actualVariant = app.ActualThemeVariant;
+            if (gradientKey != null &&
+                app.Resources.TryGetResource(gradientKey, actualVariant, out var gradient) &&
+                gradient is IBrush gradientBrush)
+            {
+                app.Resources["WindowBackground"] = gradientBrush;
+            }
+            else
+            {
+                app.Resources["WindowBackground"] = new SolidColorBrush(isLight ? LightSolid : DarkSolid);
+            }
         }
+
+        // 图表配色取决于背景与主题色，换主题后要重新解析
+        ChartColorHelper.NotifyThemeChanged();
     }
 
     private static AppTheme GetTheme(int index) =>

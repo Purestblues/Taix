@@ -48,6 +48,11 @@ public class ChartsDataModel : UINotifyPropertyChanged
     public string Icon { get; set; }
 
     /// <summary>
+    /// 图标加载失败时的占位文字（域名 / 应用名，只取首字符）
+    /// </summary>
+    public string FallbackText { get; set; }
+
+    /// <summary>
     /// 时间（仅在类型为Month样式时有效）
     /// </summary>
     public DateTime DateTime { get; set; }

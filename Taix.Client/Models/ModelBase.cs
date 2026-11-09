@@ -14,6 +14,12 @@ namespace Taix.Client.Models;
 
 public class ModelBase : UINotifyPropertyChanged, IDisposable
 {
+    /// <summary>
+    /// 数据变更通知的合并窗口：应用切换 / 分类调整会连续触发事件，
+    /// 每次都重拉一遍全量数据既浪费请求又会让列表和图表反复重绘。
+    /// </summary>
+    private static readonly TimeSpan RefreshDebounce = TimeSpan.FromMilliseconds(500);
+
     private SelectItemModel _showType;
     private bool _isLoading;
     private int _loadingCount;
@@ -188,7 +194,7 @@ public class ModelBase : UINotifyPropertyChanged, IDisposable
     private void SubscribeRefresh(IObservable<Unit> source, Func<Task> refreshAsync)
     {
         source
-            .Throttle(TimeSpan.FromMilliseconds(100))
+            .Throttle(RefreshDebounce)
             .ObserveOn(AvaloniaContextScheduler.Instance)
             .Do(_ => CancelAndResetLoadToken())
             .Select(_ => RxObservable.FromAsync(_ => refreshAsync()))

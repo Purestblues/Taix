@@ -67,6 +67,16 @@ public class Imager
                 return GetDefaultBitmap(defaultPath);
             }
 
+            // WebFavicons 里有一批 0 字节的下载失败产物，送进解码器会抛异常、刷满日志，
+            // 直接当作“该站点没有图标”处理
+            if (bytes.Length == 0)
+            {
+                Logger.Debug($"[Imager] 跳过 0 字节文件: {filePath}");
+                if (!noCache)
+                    Cache.MarkFailed(cacheKey);
+                return GetDefaultBitmap(defaultPath);
+            }
+
             Logger.Debug($"[Imager] 文件读取完成 [{sw.ElapsedMilliseconds}ms]: {filePath}, size={bytes.Length} bytes");
 
             Bitmap bitmap;
@@ -100,7 +110,8 @@ public class Imager
         }
         catch (Exception ex)
         {
-            Logger.Error($"[Imager] 异步加载图片异常 [{sw.ElapsedMilliseconds}ms]: {filePath}", ex);
+            // 损坏的 ico/png 会让解码器抛异常，属于可预期的数据问题，不值得当错误刷日志
+            Logger.Debug($"[Imager] 图片无法解码，已降级: {filePath} ({ex.GetType().Name})");
             if (!noCache)
                 Cache.MarkFailed(cacheKey);
             return GetDefaultBitmap(defaultPath);

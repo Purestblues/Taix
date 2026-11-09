@@ -64,6 +64,8 @@ public partial class IndexPageViewModel : IndexPageModel
 
         InitializeStaticData();
 
+        ChartColorHelper.ThemeChanged += OnThemeChanged;
+
         RefreshOnChange(
             _appEventService.AppChanged,
             _appEventService.WebSiteChanged,
@@ -171,23 +173,18 @@ public partial class IndexPageViewModel : IndexPageModel
     }
 
     /// <summary>
-    /// 一次取齐榜单 + 概览 + 图表所需数据（全部并发，避免串行请求把首页拖慢）
+    /// 一次取齐榜单 + 概览 + 图表所需数据。
+    /// 榜单接口已经把每个应用 / 网站的时长带回来了，总数与数量直接在本地算，
+    /// 不再为「一个数字」单独发请求（首屏 16 个请求 → 10 个）。
     /// </summary>
     private async Task LoadRangeAsync(DateTime start, DateTime end,
         DateTime prevStart, DateTime prevEnd, bool isWeek, CancellationToken cancellationToken)
     {
         var appListTask = _dataService.GetDateRangelogListAsync(start, end, cancellationToken: cancellationToken);
         var webListTask = _webDataService.GetDateRangeWebSiteListAsync(start, end, cancellationToken: cancellationToken);
+        var prevAppListTask = _dataService.GetDateRangelogListAsync(prevStart, prevEnd, cancellationToken: cancellationToken);
+        var prevWebListTask = _webDataService.GetDateRangeWebSiteListAsync(prevStart, prevEnd, cancellationToken: cancellationToken);
 
-        var appTotalTask = _dataService.GetRangeTotalDataAsync(start, end, cancellationToken);
-        var prevAppTotalTask = _dataService.GetRangeTotalDataAsync(prevStart, prevEnd, cancellationToken);
-        var appCountTask = _dataService.GetDateRangeAppCountAsync(start, end, cancellationToken);
-        var prevAppCountTask = _dataService.GetDateRangeAppCountAsync(prevStart, prevEnd, cancellationToken);
-
-        var webTimeTask = _webDataService.GetBrowseDurationTotalAsync(start, end, cancellationToken);
-        var prevWebTimeTask = _webDataService.GetBrowseDurationTotalAsync(prevStart, prevEnd, cancellationToken);
-        var siteCountTask = _webDataService.GetBrowseSitesTotalAsync(start, end, cancellationToken);
-        var prevSiteCountTask = _webDataService.GetBrowseSitesTotalAsync(prevStart, prevEnd, cancellationToken);
         var pageCountTask = _webDataService.GetBrowsePagesTotalAsync(start, end, cancellationToken);
         var prevPageCountTask = _webDataService.GetBrowsePagesTotalAsync(prevStart, prevEnd, cancellationToken);
 
@@ -199,42 +196,46 @@ public partial class IndexPageViewModel : IndexPageModel
         var webColumnTask = _webDataService.GetBrowseDataByCategoryStatisticsAsync(start, end, cancellationToken);
         var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
 
-        await Task.WhenAll(appListTask, webListTask, appTotalTask, prevAppTotalTask, appCountTask, prevAppCountTask,
-            webTimeTask, prevWebTimeTask, siteCountTask, prevSiteCountTask, pageCountTask, prevPageCountTask,
-            columnTask, categoriesTask, webColumnTask, webCategoriesTask);
+        await Task.WhenAll(appListTask, webListTask, prevAppListTask, prevWebListTask,
+            pageCountTask, prevPageCountTask, columnTask, categoriesTask, webColumnTask, webCategoriesTask);
         cancellationToken.ThrowIfCancellationRequested();
+
+        var appLogs = (await appListTask)?.ToList() ?? [];
+        var webSites = (await webListTask)?.ToList() ?? [];
+        var prevAppLogs = (await prevAppListTask)?.ToList() ?? [];
+        var prevWebSites = (await prevWebListTask)?.ToList() ?? [];
 
         // 榜单
         CompareCaption = isWeek ? ResourceStrings.CategoryVsLastWeek : ResourceStrings.CategoryVsYesterday;
 
-        var appChartData = ChartDataMapper.MapFromDailyLogs(await appListTask);
+        var appChartData = ChartDataMapper.MapFromDailyLogs(appLogs);
         WeekData = appChartData;
         AppFrequentUseData = appChartData.Take(FrequentUseNum).ToList();
         AppMoreData = appChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();
 
-        var webChartData = ChartDataMapper.MapFromWebSites(await webListTask);
+        var webChartData = ChartDataMapper.MapFromWebSites(webSites);
         WebFrequentUseData = webChartData.Take(FrequentUseNum).ToList();
         WebMoreData = webChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();
 
-        // 概览卡片
-        var appTotal = (await appTotalTask)?.Sum() ?? 0;
-        var prevAppTotal = (await prevAppTotalTask)?.Sum() ?? 0;
-        var webTime = await webTimeTask;
-        var prevWebTime = await prevWebTimeTask;
+        // 概览卡片（总数 = 榜单各行之和，与图表口径一致）
+        var appTotal = appLogs.Sum(m => (double)m.Time);
+        var prevAppTotal = prevAppLogs.Sum(m => (double)m.Time);
+        var webTime = webSites.Sum(m => (double)m.Duration);
+        var prevWebTime = prevWebSites.Sum(m => (double)m.Duration);
 
         TotalTime = appTotal + webTime;
         LastTotalTime = prevAppTotal + prevWebTime;
         TotalTimeText = Time.ToString((int)TotalTime);
 
-        AppCount = await appCountTask;
-        LastAppCount = await prevAppCountTask;
+        AppCount = appLogs.Count;
+        LastAppCount = prevAppLogs.Count;
 
         WebTime = webTime;
         LastWebTime = prevWebTime;
         WebTimeText = Time.ToString((int)webTime);
 
-        WebSiteCount = await siteCountTask;
-        LastWebSiteCount = await prevSiteCountTask;
+        WebSiteCount = webSites.Count;
+        LastWebSiteCount = prevWebSites.Count;
         WebPageCount = await pageCountTask;
         LastWebPageCount = await prevPageCountTask;
 
@@ -269,7 +270,7 @@ public partial class IndexPageViewModel : IndexPageModel
             {
                 Name = visual.Name,
                 Icon = visual.Icon,
-                Color = visual.Color,
+                Color = ChartColorHelper.Resolve(visual.Color, visual.IsSystem),
                 Values = column.Values ?? []
             });
         }
@@ -296,10 +297,11 @@ public partial class IndexPageViewModel : IndexPageModel
         ChartDonutCaption = useWeb ? ResourceStrings.Website : ResourceStrings.App;
     }
 
-    private sealed record CategoryVisual(string Name, string? Icon, string Color);
+    private sealed record CategoryVisual(string Name, string? Icon, string? Color, bool IsSystem);
 
+    /// <summary>没匹配到分类的桶：按系统分类处理，最终落到主题色</summary>
     private static CategoryVisual UnknownCategory =>
-        new(ResourceStrings.Uncategorized, null, ChartColorHelper.AccentHex);
+        new(ResourceStrings.Uncategorized, null, null, true);
 
     private static Dictionary<int, CategoryVisual> BuildAppCategoryMap(IReadOnlyList<CategoryModel>? categories)
     {
@@ -308,10 +310,12 @@ public partial class IndexPageViewModel : IndexPageModel
 
         foreach (var item in categories)
         {
+            // 只存原始色，解析放到 ApplyChartSeries：换主题时同一份数据能直接重算
             map[item.ID] = new CategoryVisual(
                 item.Name ?? ResourceStrings.Uncategorized,
                 item.IconFile,
-                ChartColorHelper.Resolve(item.Color, item.IsSystem));
+                item.Color,
+                item.IsSystem);
         }
 
         return map;
@@ -327,10 +331,18 @@ public partial class IndexPageViewModel : IndexPageModel
             map[item.ID] = new CategoryVisual(
                 item.Name ?? ResourceStrings.Uncategorized,
                 item.IconFile,
-                ChartColorHelper.Resolve(item.Color, item.IsSystem));
+                item.Color,
+                item.IsSystem);
         }
 
         return map;
+    }
+
+    /// <summary>主题切换后按新背景重算分类色，数据本身不用重新请求</summary>
+    private void OnThemeChanged()
+    {
+        if (_appColumns.Count == 0 && _webColumns.Count == 0) return;
+        ApplyChartSeries();
     }
 
     private static string[] HourLabels24()
@@ -359,6 +371,7 @@ public partial class IndexPageViewModel : IndexPageModel
 
     public override void Dispose()
     {
+        ChartColorHelper.ThemeChanged -= OnThemeChanged;
         WeekData = [];
         AppFrequentUseData = [];
         AppMoreData = [];

@@ -59,6 +59,8 @@ public partial class ChartPageViewModel : ChartPageModel
 
         Initialize();
 
+        ChartColorHelper.ThemeChanged += OnThemeChanged;
+
         RefreshOnChange(
             _appEventService.AppChanged,
             _appEventService.WebSiteChanged,
@@ -165,6 +167,13 @@ public partial class ChartPageViewModel : ChartPageModel
     public override Task RefreshAsync() => ExecuteAsync(LoadDataAsync);
 
 
+
+    /// <summary>主题切换后分类色要按新背景重算：重拉当前页面数据（本地服务，开销可忽略）</summary>
+    private void OnThemeChanged()
+    {
+        if ((Data?.Count ?? 0) == 0 && (WebBrowseStatisticsData?.Count ?? 0) == 0) return;
+        _ = ExecuteAsync(LoadDataAsync);
+    }
 
     private void OnToDetail(object obj)
     {
@@ -651,6 +660,7 @@ public partial class ChartPageViewModel : ChartPageModel
 
     public override void Dispose()
     {
+        ChartColorHelper.ThemeChanged -= OnThemeChanged;
         Data = [];
         TopData = [];
         base.Dispose();
