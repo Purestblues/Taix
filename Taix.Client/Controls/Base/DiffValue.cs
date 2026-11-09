@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Media;
 
 namespace Taix.Client.Controls.Base;
 
@@ -30,6 +31,14 @@ public class DiffValue : StackPanel
             nameof(Type),
             o => o.Type,
             (o, v) => o.Type = v);
+
+    /// <summary>上升使用的颜色</summary>
+    public static readonly StyledProperty<IBrush?> PositiveBrushProperty =
+        AvaloniaProperty.Register<DiffValue, IBrush?>(nameof(PositiveBrush));
+
+    /// <summary>下降使用的颜色</summary>
+    public static readonly StyledProperty<IBrush?> NegativeBrushProperty =
+        AvaloniaProperty.Register<DiffValue, IBrush?>(nameof(NegativeBrush));
 
     private double _lastValue;
 
@@ -62,6 +71,18 @@ public class DiffValue : StackPanel
         set => SetAndRaise(TypeProperty, ref _type, value);
     }
 
+    public IBrush? PositiveBrush
+    {
+        get => GetValue(PositiveBrushProperty);
+        set => SetValue(PositiveBrushProperty, value);
+    }
+
+    public IBrush? NegativeBrush
+    {
+        get => GetValue(NegativeBrushProperty);
+        set => SetValue(NegativeBrushProperty, value);
+    }
+
     protected override Type StyleKeyOverride => typeof(DiffValue);
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -69,7 +90,9 @@ public class DiffValue : StackPanel
         base.OnPropertyChanged(change);
         if (change.Property == TypeProperty ||
             change.Property == LastValueProperty ||
-            change.Property == ValueProperty)
+            change.Property == ValueProperty ||
+            change.Property == PositiveBrushProperty ||
+            change.Property == NegativeBrushProperty)
         {
             var control = change.Sender as DiffValue;
             control.Render();
@@ -96,12 +119,14 @@ public class DiffValue : StackPanel
         if (result > 0)
         {
             icon.IconType = IconTypes.ArrowUp8;
+            if (PositiveBrush is { } up) icon.Foreground = text.Foreground = up;
             Children.Add(icon);
             Children.Add(text);
         }
         else if (result < 0)
         {
             icon.IconType = IconTypes.ArrowDown8;
+            if (NegativeBrush is { } down) icon.Foreground = text.Foreground = down;
             Children.Add(icon);
             Children.Add(text);
         }

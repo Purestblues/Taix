@@ -7,7 +7,9 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Documents;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Taix.Client.Controls.Base;
 using Taix.Client.Controls.Charts.Model;
@@ -57,6 +59,12 @@ public class ListChart : TemplatedControl
     public static readonly DirectProperty<ListChart, double> DataMaxValueProperty =
         AvaloniaProperty.RegisterDirect<ListChart, double>(
             nameof(DataMaxValue), o => o.DataMaxValue, (o, v) => o.DataMaxValue = v);
+
+    /// <summary>
+    /// 进度条颜色，不设置时跟随主题默认值
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> BarBrushProperty =
+        AvaloniaProperty.Register<ListChart, IBrush?>(nameof(BarBrush));
 
     private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(150);
 
@@ -127,6 +135,12 @@ public class ListChart : TemplatedControl
     {
         get => _dataMaxValue;
         set => SetAndRaise(DataMaxValueProperty, ref _dataMaxValue, value);
+    }
+
+    public IBrush? BarBrush
+    {
+        get => GetValue(BarBrushProperty);
+        set => SetValue(BarBrushProperty, value);
     }
 
     protected override Type StyleKeyOverride => typeof(ListChart);

@@ -27,6 +27,251 @@ public partial class IndexPageModel : ModelBase
     private SelectItemModel _selectedPeriod;
     private List<SelectItemModel> _periodOptions;
 
+    private string _compareCaption = string.Empty;
+
+    /// <summary>
+    /// 对比文字的周期描述（比昨日 / 比上周）
+    /// </summary>
+    [PageState]
+    public string CompareCaption
+    {
+        get => _compareCaption;
+        set
+        {
+            _compareCaption = value;
+            OnPropertyChanged();
+        }
+    }
+
+    #region 概览卡片
+
+    private double _totalTime;
+    private double _lastTotalTime;
+    private string _totalTimeText = "0";
+    private double _appCount;
+    private double _lastAppCount;
+    private double _webTime;
+    private double _lastWebTime;
+    private string _webTimeText = "0";
+    private double _webSiteCount;
+    private double _lastWebSiteCount;
+    private double _webPageCount;
+    private double _lastWebPageCount;
+
+    /// <summary>
+    /// 总使用时长（应用+网站，秒）
+    /// </summary>
+    [PageState]
+    public double TotalTime
+    {
+        get => _totalTime;
+        set
+        {
+            _totalTime = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 上一个周期的总使用时长（用于对比）
+    /// </summary>
+    [PageState]
+    public double LastTotalTime
+    {
+        get => _lastTotalTime;
+        set
+        {
+            _lastTotalTime = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public string TotalTimeText
+    {
+        get => _totalTimeText;
+        set
+        {
+            _totalTimeText = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public double AppCount
+    {
+        get => _appCount;
+        set
+        {
+            _appCount = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public double LastAppCount
+    {
+        get => _lastAppCount;
+        set
+        {
+            _lastAppCount = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public double WebTime
+    {
+        get => _webTime;
+        set
+        {
+            _webTime = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public double LastWebTime
+    {
+        get => _lastWebTime;
+        set
+        {
+            _lastWebTime = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public string WebTimeText
+    {
+        get => _webTimeText;
+        set
+        {
+            _webTimeText = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public double WebSiteCount
+    {
+        get => _webSiteCount;
+        set
+        {
+            _webSiteCount = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public double LastWebSiteCount
+    {
+        get => _lastWebSiteCount;
+        set
+        {
+            _lastWebSiteCount = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public double WebPageCount
+    {
+        get => _webPageCount;
+        set
+        {
+            _webPageCount = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public double LastWebPageCount
+    {
+        get => _lastWebPageCount;
+        set
+        {
+            _lastWebPageCount = value;
+            OnPropertyChanged();
+        }
+    }
+
+    #endregion
+
+    #region 图表
+
+    private List<ChartsDataModel> _hourSeries = [];
+    private string[] _hourLabels = [];
+    private string _hourTotalText = "0";
+    private List<ChartsDataModel> _categorySeries = [];
+    private string _categoryTotalText = "0";
+
+    /// <summary>
+    /// 时段分布序列（每项为一条分类，Values 与 HourLabels 对齐）
+    /// </summary>
+    [PageState(DataCache = true)]
+    public List<ChartsDataModel> HourSeries
+    {
+        get => _hourSeries;
+        set
+        {
+            _hourSeries = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 时段分布底部刻度
+    /// </summary>
+    [PageState(DataCache = true)]
+    public string[] HourLabels
+    {
+        get => _hourLabels;
+        set
+        {
+            _hourLabels = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState(DataCache = true)]
+    public string HourTotalText
+    {
+        get => _hourTotalText;
+        set
+        {
+            _hourTotalText = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 分类占比序列（Value 为分类总时长）
+    /// </summary>
+    [PageState(DataCache = true)]
+    public List<ChartsDataModel> CategorySeries
+    {
+        get => _categorySeries;
+        set
+        {
+            _categorySeries = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState(DataCache = true)]
+    public string CategoryTotalText
+    {
+        get => _categoryTotalText;
+        set
+        {
+            _categoryTotalText = value;
+            OnPropertyChanged();
+        }
+    }
+
+    #endregion
+
     /// <summary>
     /// 周期选项（今日/本周）
     /// </summary>

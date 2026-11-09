@@ -8,6 +8,7 @@
     <ControlTheme x:Key="{x:Type controls:ListChart}" TargetType="controls:ListChart">
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BarBrush" Value="{DynamicResource ChartTypeListProgressBarBrush}" />
         <Styles>
             <Style Selector="controls|ListChart[IsSearch=True] /template/ Grid#SearchHeader">
                 <Setter Property="IsVisible" Value="True" />
@@ -101,6 +102,7 @@
                                     <controls:ChartsItemTypeList
                                         IconSize="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=IconSize}"
                                         Data="{Binding}"
+                                        BarBrush="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=BarBrush}"
                                         MaxValue="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=DataMaxValue}"
                                         IsShowBadge="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=IsShowBadge}" />
                                 </Border>

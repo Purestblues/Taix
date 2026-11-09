@@ -5,6 +5,8 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Threading;
 using Taix.Client.Controls.Base;
 using Taix.Client.Controls.Charts.Model;
 
@@ -60,6 +62,12 @@ public class ChartsItemTypeList : TemplatedControl
             o => o.IconSize,
             (o, v) => o.IconSize = v);
 
+    /// <summary>
+    /// 进度条颜色，不设置时用主题里的 ChartTypeListProgressBarBrush
+    /// </summary>
+    public static readonly StyledProperty<IBrush?> BarBrushProperty =
+        AvaloniaProperty.Register<ChartsItemTypeList, IBrush?>(nameof(BarBrush));
+
     private ChartsDataModel _data;
 
     private double _iconSize;
@@ -106,6 +114,12 @@ public class ChartsItemTypeList : TemplatedControl
     {
         get => _iconSize;
         set => SetAndRaise(IconSizeProperty, ref _iconSize, value);
+    }
+
+    public IBrush? BarBrush
+    {
+        get => GetValue(BarBrushProperty);
+        set => SetValue(BarBrushProperty, value);
     }
 
     protected override Type StyleKeyOverride => typeof(ChartsItemTypeList);
@@ -177,6 +191,10 @@ public class ChartsItemTypeList : TemplatedControl
         ValueTextObj.LayoutUpdated += _layoutUpdatedHandler;
 
         ValueTextObj.Text = Data.Tag;
+
+        // 从 0 长到实际宽度（模板上配了 Width 的过渡）
+        ValueBlockObj.Width = 0;
+        Dispatcher.UIThread.Post(UpdateValueBlockWidth, DispatcherPriority.Loaded);
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)

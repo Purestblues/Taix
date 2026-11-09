@@ -13,6 +13,7 @@
         </ControlTheme.Resources>
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Margin" Value="0,5" />
+        <Setter Property="BarBrush" Value="{DynamicResource ChartTypeListProgressBarBrush}" />
         <Styles>
             <Style Selector="controls|ChartsItemTypeList">
                 <Style Selector="^[IsLoading=True]">
@@ -156,10 +157,16 @@
                                     x:Name="ValueBlockObj"
                                     RadiusX="4"
                                     RadiusY="4"
-                                    Fill="{DynamicResource ChartTypeListProgressBarBrush}"
+                                    Fill="{TemplateBinding BarBrush}"
                                     Height="8"
                                     VerticalAlignment="Center"
-                                    HorizontalAlignment="Left" />
+                                    HorizontalAlignment="Left">
+                                    <Rectangle.Transitions>
+                                        <Transitions>
+                                            <DoubleTransition Property="Width" Duration="0:0:0.55" Easing="CubicEaseOut" />
+                                        </Transitions>
+                                    </Rectangle.Transitions>
+                                </Rectangle>
 
                                 <TextBlock x:Name="ValueTextObj" VerticalAlignment="Center"
                                            Foreground="{DynamicResource SubTextBrush}" FontSize="12" Margin="5,0,0,0" />
