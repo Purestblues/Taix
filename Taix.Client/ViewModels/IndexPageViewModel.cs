@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Media;
 using Taix.Client.Controls.Charts.Model;
 using Taix.Client.Controls.Select;
 using Taix.Client.Events;
@@ -35,6 +34,13 @@ public partial class IndexPageViewModel : IndexPageModel
     private readonly IAppConfig _appConfig;
     private readonly IStateService _stateService;
     private readonly IAppEventService _appEventService;
+
+    // 图表原始数据缓存（切应用/网站时本地重建，不重复请求）
+    private IReadOnlyList<ColumnDataModel> _appColumns = [];
+    private IReadOnlyList<ColumnDataModel> _webColumns = [];
+    private IReadOnlyList<CategoryModel>? _appColumnCategories;
+    private IReadOnlyList<WebSiteCategoryModel>? _webColumnCategories;
+    private bool _isWeek;
 
     public IndexPageViewModel(
         IData data,
@@ -105,6 +111,28 @@ public partial class IndexPageViewModel : IndexPageModel
             }
         ];
         MoreType = MoreTypeOptions[0];
+
+        ChartTypeOptions =
+        [
+            new SelectItemModel
+            {
+                Id = 0,
+                Name = Application.Current?.FindResource("App") as string ?? "App"
+            },
+            new SelectItemModel
+            {
+                Id = 1,
+                Name = Application.Current?.FindResource("Website") as string ?? "Website"
+            }
+        ];
+        ChartType = ChartTypeOptions[0];
+
+        // 切应用/网站不需要重新请求，直接用已经缓存的分类×时段数据重建序列
+        WhenPropertyChanged(this, x => x.ChartType, _ =>
+        {
+            ApplyChartSeries();
+            return Task.CompletedTask;
+        });
     }
 
     public override Task OnNavigatedToAsync()
@@ -168,9 +196,12 @@ public partial class IndexPageViewModel : IndexPageModel
             : _dataService.GetCategoryHoursDataAsync(start, cancellationToken);
         var categoriesTask = _categoryService.GetCategoriesAsync(cancellationToken);
 
+        var webColumnTask = _webDataService.GetBrowseDataByCategoryStatisticsAsync(start, end, cancellationToken);
+        var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
+
         await Task.WhenAll(appListTask, webListTask, appTotalTask, prevAppTotalTask, appCountTask, prevAppCountTask,
             webTimeTask, prevWebTimeTask, siteCountTask, prevSiteCountTask, pageCountTask, prevPageCountTask,
-            columnTask, categoriesTask);
+            columnTask, categoriesTask, webColumnTask, webCategoriesTask);
         cancellationToken.ThrowIfCancellationRequested();
 
         // 榜单
@@ -207,43 +238,46 @@ public partial class IndexPageViewModel : IndexPageModel
         WebPageCount = await pageCountTask;
         LastWebPageCount = await prevPageCountTask;
 
-        BuildChartSeries(await columnTask, await categoriesTask, isWeek);
+        // 原始矩阵先存起来，切换"应用/网站"时只需本地重建，不再打服务端
+        _isWeek = isWeek;
+        _appColumns = await columnTask ?? [];
+        _webColumns = await webColumnTask ?? [];
+        _appColumnCategories = await categoriesTask;
+        _webColumnCategories = await webCategoriesTask;
+
+        ApplyChartSeries();
     }
 
     /// <summary>
-    /// 把服务端的分类×时段矩阵拆成“时段堆叠序列”与“分类占比序列”
+    /// 把缓存的服务端"分类×时段矩阵"拆成时段堆叠序列与分类占比序列。
+    /// 切应用/网站、或数据刷新后都走这里。
     /// </summary>
-    private void BuildChartSeries(IReadOnlyList<ColumnDataModel> columns, IReadOnlyList<CategoryModel> categories, bool isWeek)
+    private void ApplyChartSeries()
     {
-        var unknownName = Application.Current?.FindResource("Uncategorized") as string ?? "Unknown";
+        var useWeb = ChartType?.Id == 1;
 
-        var categoryMap = new Dictionary<int, CategoryModel>();
-        if (categories != null)
-            foreach (var item in categories)
-                categoryMap[item.ID] = item;
+        var columns = useWeb ? _webColumns : _appColumns;
+        var visuals = useWeb ? BuildWebCategoryMap(_webColumnCategories) : BuildAppCategoryMap(_appColumnCategories);
 
-        var series = new List<ChartsDataModel>(columns?.Count ?? 0);
-        if (columns != null)
+        var series = new List<ChartsDataModel>(columns.Count);
+        foreach (var column in columns)
         {
-            foreach (var column in columns)
-            {
-                if (!categoryMap.TryGetValue(column.CategoryID, out var category) || category == null)
-                    category = new CategoryModel { Name = unknownName, Color = "#C6C1D6", IconFile = string.Empty };
+            if (!visuals.TryGetValue(column.CategoryID, out var visual))
+                visual = UnknownCategory;
 
-                series.Add(new ChartsDataModel
-                {
-                    Name = category.Name,
-                    Icon = category.IconFile,
-                    Color = ResolveSeriesColor(category),
-                    Values = column.Values ?? []
-                });
-            }
+            series.Add(new ChartsDataModel
+            {
+                Name = visual.Name,
+                Icon = visual.Icon,
+                Color = visual.Color,
+                Values = column.Values ?? []
+            });
         }
 
         series = series.OrderByDescending(m => m.Values.Sum()).ToList();
 
         HourSeries = series;
-        HourLabels = isWeek ? WeekDayLabels() : HourLabels24();
+        HourLabels = _isWeek ? WeekDayLabels() : HourLabels24();
         HourTotalText = Time.ToString((int)series.Sum(m => m.Values.Sum()));
 
         CategorySeries = series
@@ -259,6 +293,44 @@ public partial class IndexPageViewModel : IndexPageModel
             .ToList();
 
         CategoryTotalText = Time.ToString((int)CategorySeries.Sum(m => m.Value));
+        ChartDonutCaption = useWeb ? ResourceStrings.Website : ResourceStrings.App;
+    }
+
+    private sealed record CategoryVisual(string Name, string? Icon, string Color);
+
+    private static CategoryVisual UnknownCategory =>
+        new(ResourceStrings.Uncategorized, null, ChartColorHelper.AccentHex);
+
+    private static Dictionary<int, CategoryVisual> BuildAppCategoryMap(IReadOnlyList<CategoryModel>? categories)
+    {
+        var map = new Dictionary<int, CategoryVisual>();
+        if (categories == null) return map;
+
+        foreach (var item in categories)
+        {
+            map[item.ID] = new CategoryVisual(
+                item.Name ?? ResourceStrings.Uncategorized,
+                item.IconFile,
+                ChartColorHelper.Resolve(item.Color, item.IsSystem));
+        }
+
+        return map;
+    }
+
+    private static Dictionary<int, CategoryVisual> BuildWebCategoryMap(IReadOnlyList<WebSiteCategoryModel>? categories)
+    {
+        var map = new Dictionary<int, CategoryVisual>();
+        if (categories == null) return map;
+
+        foreach (var item in categories)
+        {
+            map[item.ID] = new CategoryVisual(
+                item.Name ?? ResourceStrings.Uncategorized,
+                item.IconFile,
+                ChartColorHelper.Resolve(item.Color, item.IsSystem));
+        }
+
+        return map;
     }
 
     private static string[] HourLabels24()
@@ -267,37 +339,6 @@ public partial class IndexPageViewModel : IndexPageModel
         for (var i = 0; i < 24; i++) labels[i] = i.ToString();
         return labels;
     }
-
-    /// <summary>
-    /// 分类色太浅时图形基本看不见（系统分类“未分类”默认是 #e4e3df），
-    /// 这里把系统分类换成主题色、其他过浅颜色逐步压暗，保证图表可读
-    /// </summary>
-    private static string ResolveSeriesColor(CategoryModel category)
-    {
-        if (category.IsSystem &&
-            Application.Current?.TryFindResource("ThemeColor", out var accent) == true &&
-            accent is Color themeColor)
-        {
-            return $"#{themeColor.R:X2}{themeColor.G:X2}{themeColor.B:X2}";
-        }
-
-        var raw = category.Color;
-        if (string.IsNullOrWhiteSpace(raw)) return "#C6C1D6";
-        if (!Color.TryParse(raw, out var color)) return raw;
-
-        var factor = 1d;
-        for (var i = 0; i < 3 && Luminance(color) > 0.82; i++)
-        {
-            factor *= 0.68;
-            color = Color.FromArgb(color.A,
-                (byte)(color.R * factor), (byte)(color.G * factor), (byte)(color.B * factor));
-        }
-
-        return $"#{color.R:X2}{color.G:X2}{color.B:X2}";
-    }
-
-    private static double Luminance(Color color) =>
-        (0.2126 * color.R + 0.7152 * color.G + 0.0722 * color.B) / 255d;
 
     private static string[] WeekDayLabels() =>
     [

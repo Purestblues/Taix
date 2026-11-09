@@ -347,7 +347,7 @@ public partial class ChartPageViewModel : ChartPageModel
                 Name = category.Name,
                 Icon = category.IconFile,
                 Values = item.Values,
-                Color = category.Color,
+                Color = ChartColorHelper.Resolve(category.Color, category.IsSystem),
                 ColumnNames = columnNames
             });
         }
@@ -528,7 +528,7 @@ public partial class ChartPageViewModel : ChartPageModel
                 Name = item.Name,
                 Value = item.Value,
                 Data = item,
-                Color = category.Color,
+                Color = ChartColorHelper.Resolve(category.Color, category.IsSystem),
                 PopupText = item.Name + " " + Time.ToString((int)item.Value),
                 Icon = category.IconFile
             });
@@ -574,7 +574,7 @@ public partial class ChartPageViewModel : ChartPageModel
                     Name = category.Name,
                     Icon = category.IconFile,
                     Values = item.Values,
-                    Color = category.Color,
+                    Color = ChartColorHelper.Resolve(category.Color, category.IsSystem),
                     ColumnNames = colNames
                 });
 #pragma warning restore CS8601

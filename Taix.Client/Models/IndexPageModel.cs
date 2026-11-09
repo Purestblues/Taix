@@ -196,9 +196,45 @@ public partial class IndexPageModel : ModelBase
         }
     }
 
+    /// <summary>
+    /// 图表展示的是应用还是网站
+    /// </summary>
+    [PageState(LookupFrom = nameof(ChartTypeOptions))]
+    public SelectItemModel ChartType
+    {
+        get => _chartType;
+        set
+        {
+            _chartType = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 图表类型选项（0=应用/1=网站）
+    /// </summary>
+    public List<SelectItemModel> ChartTypeOptions { get; set; } = [];
+
+    /// <summary>
+    /// 环形图中心标注（应用 / 网站）
+    /// </summary>
+    [PageState]
+    public string ChartDonutCaption
+    {
+        get => _chartDonutCaption;
+        set
+        {
+            _chartDonutCaption = value;
+            OnPropertyChanged();
+        }
+    }
+
     #endregion
 
     #region 图表
+
+    private string _chartDonutCaption = string.Empty;
+    private SelectItemModel _chartType;
 
     private List<ChartsDataModel> _hourSeries = [];
     private string[] _hourLabels = [];

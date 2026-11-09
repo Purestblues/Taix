@@ -443,8 +443,9 @@
                      用户以为最外侧就是窗口边缘，拖那里却是死区（WM_NCHITTEST 返回 HTCLIENT）。
                      这一层把窗口矩形最外层 16 也铺成缩放热区，配合模板内原有的 8 内边距热区，
                      两条带子连起来才是连续的拖拽区。最大化/系统标题栏时隐藏。 -->
-                <Panel x:Name="OuterResizeFrame" ZIndex="10001" IsHitTestVisible="True"
-                       Background="Transparent">
+                <!-- 注意：这里不能给 Panel 设 Background，否则整块窗口都会变成可命中区域，
+                     把内容区的点击全部吞掉。让子 Border 各自覆盖最外圈 16 就够。 -->
+                <Panel x:Name="OuterResizeFrame" ZIndex="10001" IsHitTestVisible="True">
                     <Border Height="16" VerticalAlignment="Top" HorizontalAlignment="Stretch"
                             Background="Transparent"
                             WindowDecorationProperties.ElementRole="ResizeN" />
