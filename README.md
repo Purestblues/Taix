@@ -39,6 +39,8 @@ Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全�
 
 本仓库是 [NLick47/Taix](https://github.com/NLick47/Taix) 的个人 fork，改动集中在客户端（Avalonia），后续发版产物见 [Releases](https://github.com/Purestblues/Taix/releases)。
 
+后续计划与已知问题清单见 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
+
 相对上游，当前已有的改动：
 
 - 概览页重做：总览卡片（总使用时长 / 应用量 / 站点 / 网页，带比昨日、比上周）、使用时段堆叠柱图、分类占比环形图，图表区可在应用 / 网站之间切换
