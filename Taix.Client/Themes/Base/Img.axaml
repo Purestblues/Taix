@@ -17,7 +17,7 @@
                         CornerRadius="{TemplateBinding Radius}"
                         ClipToBounds="True">
                     <Grid>
-                        <Image Stretch="Fill"
+                        <controls:SafeImage Stretch="Fill"
                                Width="{TemplateBinding Width}"
                                Height="{TemplateBinding Height}"
                                Source="{Binding Resource,RelativeSource={RelativeSource TemplatedParent}}" />

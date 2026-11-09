@@ -388,6 +388,9 @@
     <system:String x:Key="Days">days</system:String>
     <system:String x:Key="DaysFormat">{0} days</system:String>
     <system:String x:Key="TimelineHint">Scroll to zoom · Shift+drag to select · Double-click to reset</system:String>
+    <system:String x:Key="ClockHint">Hover for the time range · Click a slice to open the app</system:String>
+    <system:String x:Key="ClockLegendOther">Other</system:String>
+    <system:String x:Key="ClockLegendTitle">Share</system:String>
     <system:String x:Key="TimelineTotalDuration">Total Duration</system:String>
     <system:String x:Key="TimelineAppColor">App</system:String>
     <system:String x:Key="TimelineCategoryColor">Category</system:String>

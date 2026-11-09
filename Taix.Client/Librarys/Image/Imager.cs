@@ -31,6 +31,9 @@ public class Imager
         return Cache.TryGet(BuildCacheKey(filePath, decodeWidth, decodeHeight), out bitmap);
     }
 
+    /// <summary>
+    /// 位图由缓存统一持有、交给 GC 回收，控件不参与释放。
+    /// </summary>
     public static void Release(Bitmap? bitmap) { }
 
     public static bool IsFailed(string filePath, int decodeWidth = 0, int decodeHeight = 0)
@@ -302,6 +305,10 @@ public class Imager
                     return existing;
                 }
 
+                // 淘汰只丢引用，绝不 Dispose：同一张位图可能还挂在若干个 Img 控件上，
+                // 一旦被释放，下一次渲染会在 Avalonia.Controls.Image.Render 里抛
+                // ObjectDisposedException（Ref<IBitmapImpl>），直接崩掉整个进程。
+                // 位图没有其他引用时由 GC 回收，代价远小于一次闪退。
                 while (_cache.Count >= _capacity)
                 {
                     var last = _lru.Last;
@@ -309,10 +316,7 @@ public class Imager
 
                     var oldKey = last.Value;
                     _lru.RemoveLast();
-                    if (_cache.Remove(oldKey, out var oldBitmap))
-                    {
-                        oldBitmap?.Dispose();
-                    }
+                    _cache.Remove(oldKey);
                 }
 
                 _cache[key] = bitmap;
@@ -326,14 +330,13 @@ public class Imager
             _failed[key] = 0;
         }
 
+        /// <summary>
+        /// 只清空引用，不 Dispose——原因同淘汰逻辑：位图可能正在被控件渲染。
+        /// </summary>
         public void Clear()
         {
             lock (_lock)
             {
-                foreach (var bitmap in _cache.Values)
-                {
-                    bitmap?.Dispose();
-                }
                 _cache.Clear();
                 _lru.Clear();
             }

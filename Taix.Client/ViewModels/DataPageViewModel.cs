@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Styling;
-using Avalonia.Threading;
 using Taix.Client.Base.Color;
 using Taix.Client.Controls.Charts.Model;
 using Taix.Client.Controls.Timeline;
@@ -35,9 +34,6 @@ public partial class DataPageViewModel : DataPageModel
     private readonly IAppEventService _appEventService;
 
 
-    private List<ChartsDataModel> _dayAppRawData = [];
-    private CancellationTokenSource? _updateFilterCts;
-    private bool _suppressTimelineFilterUpdate;
 
     public DataPageViewModel(
         IData data,
@@ -53,6 +49,7 @@ public partial class DataPageViewModel : DataPageModel
         _appEventService = appEventService;
 
         ToDetailCommand = AsyncRelayCommand.Create<object>(OnToDetail).DisposeWith(Disposables);
+        ClockLegendClickCommand = AsyncRelayCommand.Create<object>(OnClockLegendClick).DisposeWith(Disposables);
         RefreshCommand = AsyncRelayCommand.CreateFromTask<object>(OnRefreshAsync).DisposeWith(Disposables);
         ToggleHeaderCommand = AsyncRelayCommand.Create(() => { IsHeaderExpanded = !IsHeaderExpanded; })
             .DisposeWith(Disposables);
@@ -66,14 +63,15 @@ public partial class DataPageViewModel : DataPageModel
         ChartColorHelper.ThemeChanged += OnThemeChanged;
     }
 
-    /// <summary>主题变了：时间轴与图表都要按新背景重算颜色（时间轴配色还跟明暗有关）</summary>
+    /// <summary>主题变了：环形时钟的配色要按新背景重算（分类色靠 ChartColorHelper）</summary>
     private void OnThemeChanged()
     {
-        if (DaySessions.Count == 0 && MultiTrackItems.Count == 0) return;
+        if (!DayClock.HasData && !WeekClock.HasData && !MonthClock.HasData && !YearClock.HasData) return;
         _ = RefreshAsync();
     }
 
     public ICommand ToDetailCommand { get; }
+    public ICommand ClockLegendClickCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand ToggleHeaderCommand { get; }
 
@@ -99,8 +97,6 @@ public partial class DataPageViewModel : DataPageModel
         WeekDate = DateTime.Now.Date;
         MonthDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
         YearDate = new DateTime(DateTime.Now.Year, 1, 1);
-        TimelineStartHour = 0.0;
-        TimelineEndHour = 24.0;
 
         WhenPropertyChanged(this, x => x.DayDate, date => OnDateChangedAsync(date, 0));
         WhenPropertyChanged(this, x => x.WeekDate, date => OnDateChangedAsync(date, 1));
@@ -152,15 +148,14 @@ public partial class DataPageViewModel : DataPageModel
             await LoadDataAsync(YearDate, 3);
         });
 
-        WhenPropertyChanged(this, x => x.TimelineStartHour, async _ =>
+        // 配色模式只影响扇区取色与图例口径，数据不用重拉：扇区里两种颜色都已备好
+        WhenPropertyChanged(this, x => x.UseCategoryColor, _ =>
         {
-            if (!_suppressTimelineFilterUpdate)
-                await DebounceUpdateFilteredDataAsync();
-        });
-        WhenPropertyChanged(this, x => x.TimelineEndHour, async _ =>
-        {
-            if (!_suppressTimelineFilterUpdate)
-                await DebounceUpdateFilteredDataAsync();
+            DayClock = RebuildLegend(DayClock);
+            WeekClock = RebuildLegend(WeekClock);
+            MonthClock = RebuildLegend(MonthClock);
+            YearClock = RebuildLegend(YearClock);
+            return Task.CompletedTask;
         });
 
         SelectedPeriod = PeriodOptions[0];
@@ -212,7 +207,7 @@ public partial class DataPageViewModel : DataPageModel
 
         switch (obj)
         {
-            case MultiTrackTimelineItem { AppModel: AppModel app }:
+            case ClockSegment { Data: AppModel app }:
                 _navigationService.NavigateTo(nameof(DetailPage), DetailNavigationContext.Create(app, TabbarSelectedIndex, date));
                 break;
             case ChartsDataModel { Data: DailyLogModel { AppModel: not null } model }:
@@ -224,22 +219,54 @@ public partial class DataPageViewModel : DataPageModel
         }
     }
 
+    /// <summary>点图例：应用 → 应用详情；分类 → 该分类的汇总页</summary>
+    private void OnClockLegendClick(object obj)
+    {
+        switch (obj)
+        {
+            case ClockLegendItem { Data: AppModel app }:
+            {
+                var date = TabbarSelectedIndex switch { 0 => DayDate, 1 => WeekDate, 2 => MonthDate, 3 => YearDate, _ => DateTime.Now };
+                _navigationService.NavigateTo(nameof(DetailPage), DetailNavigationContext.Create(app, TabbarSelectedIndex, date));
+                break;
+            }
+            case ClockLegendItem { CategoryData: Shared.Models.CategoryModel category }:
+                _navigationService.NavigateTo(nameof(CategorySummaryPage),
+                    CategorySummaryNavigationContext.Create(CategorySummaryKind.App, category.ID, category.Name));
+                break;
+        }
+    }
+
     private Task LoadDataAsync(DateTime date, int dataType)
     {
         return ExecuteAsync(async ct =>
         {
             var (start, end) = GetDateRange(date, dataType);
             List<ChartsDataModel> chartData;
+
             if (ShowType.Id == 0)
             {
-                var result = await _dataService.GetDateRangelogListAsync(start, end, cancellationToken: ct);
+                var result = (await _dataService.GetDateRangelogListAsync(start, end, cancellationToken: ct)).ToList();
                 ct.ThrowIfCancellationRequested();
                 chartData = await Task.Run(() => ChartDataMapper.MapFromDailyLogs(result, includeBadges: true), ct);
 
-                if (dataType == 0)
+                switch (dataType)
                 {
-                    _dayAppRawData = chartData;
-                    await LoadTimelineDataAsync(date, ct);
+                    case 0:
+                        Data = chartData;
+                        DayClock = await BuildDayClockAsync(date, ct);
+                        break;
+                    case 1:
+                        WeekClock = await BuildHourlyClockAsync(start, end, ClockTickMode.Day,
+                            ResourceStrings.ThisWeek, ct);
+                        break;
+                    case 2:
+                        MonthClock = await BuildHourlyClockAsync(start, end, ClockTickMode.Day,
+                            ResourceStrings.ThisMonth, ct);
+                        break;
+                    case 3:
+                        YearClock = await BuildMonthlyClockAsync(start, end, ct);
+                        break;
                 }
             }
             else
@@ -247,26 +274,23 @@ public partial class DataPageViewModel : DataPageModel
                 var result = await _webDataService.GetWebSiteLogListAsync(start, end, ct);
                 ct.ThrowIfCancellationRequested();
                 chartData = await Task.Run(() => ChartDataMapper.MapFromWebSites(result, includeBadges: true), ct);
+
+                if (dataType == 0) Data = chartData;
+
+                // 网站维度没有会话级时间轴，环形时钟一律置空（页面会隐藏表盘）
+                switch (dataType)
+                {
+                    case 0: DayClock = ClockRingData.Empty; break;
+                    case 1: WeekClock = ClockRingData.Empty; break;
+                    case 2: MonthClock = ClockRingData.Empty; break;
+                    case 3: YearClock = ClockRingData.Empty; break;
+                }
             }
 
             ct.ThrowIfCancellationRequested();
 
             switch (dataType)
             {
-                case 0:
-                    if (ShowType.Id == 0)
-                    {
-                        await UpdateFilteredDataAsync();
-                    }
-                    else
-                    {
-                        Data = chartData;
-                        TimelineUsageItems = [];
-                        MultiTrackItems = [];
-                        DaySessions = [];
-                        _dayAppRawData = [];
-                    }
-                    break;
                 case 1: WeekData = chartData; break;
                 case 2: MonthData = chartData; break;
                 case 3: YearData = chartData; break;
@@ -274,273 +298,266 @@ public partial class DataPageViewModel : DataPageModel
         });
     }
 
-    #region 时间轴
+    #region 环形时钟
 
-    private const int IdleGapSeconds = 60;
+    /// <summary>图例只列前几名，剩下的合并成「其他」</summary>
+    private const int ClockLegendTopCount = 5;
 
-    private async Task LoadTimelineDataAsync(DateTime date, CancellationToken ct)
+    private static bool IsDarkTheme() => Application.Current?.ActualThemeVariant == ThemeVariant.Dark;
+
+    /// <summary>服务端的会话 / 小时桶时间戳是 UTC，画到表盘上必须先换成本地时间</summary>
+    private static DateTime ToLocal(DateTime utc) =>
+        utc.Kind == DateTimeKind.Local ? utc : DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime();
+
+    /// <summary>当天：直接用会话，扇区就是真实使用时段</summary>
+    private async Task<ClockRingData> BuildDayClockAsync(DateTime date, CancellationToken ct)
     {
         var dayStart = date.Date;
-        var dayEnd = dayStart.AddDays(1).AddSeconds(-1);
+        var dayEnd = dayStart.AddDays(1);
+        var periodSeconds = (dayEnd - dayStart).TotalSeconds;
 
-        var sessions = await _dataService.GetAppSessionsAsync(dayStart, dayEnd, ct);
+        var sessions = await _dataService.GetAppSessionsAsync(dayStart, dayEnd.AddSeconds(-1), ct);
         ct.ThrowIfCancellationRequested();
-        DaySessions = sessions.ToList();
 
-        var isDark = Application.Current?.ActualThemeVariant == ThemeVariant.Dark;
-        var daySessions = DaySessions;
+        var isDark = IsDarkTheme();
+        var segments = new List<ClockSegment>();
 
-        var items = await Task.Run(() =>
+        foreach (var session in sessions.Where(s => s.AppModel != null).OrderBy(s => s.StartTime))
         {
-            var list = new List<TimelineUsageItem>();
-            DateTime? cursor = null;
-            foreach (var session in daySessions.Where(s => s.AppModel != null).OrderBy(s => s.StartTime))
+            var start = ToLocal(session.StartTime);
+            var end = ToLocal(session.EndTime);
+            if (end <= dayStart || start >= dayEnd) continue;
+
+            var clipStart = start < dayStart ? dayStart : start;
+            var clipEnd = end > dayEnd ? dayEnd : end;
+            var seconds = (clipEnd - clipStart).TotalSeconds;
+            if (seconds <= 0) continue;
+
+            segments.Add(new ClockSegment
             {
-                var startLocal = DateTime.SpecifyKind(session.StartTime, DateTimeKind.Utc).ToLocalTime();
-                var endLocal = DateTime.SpecifyKind(session.EndTime, DateTimeKind.Utc).ToLocalTime();
+                StartFraction = (clipStart - dayStart).TotalSeconds / periodSeconds,
+                EndFraction = (clipEnd - dayStart).TotalSeconds / periodSeconds,
+                Name = session.AppModel!.GetDisplayName() ?? "Unknown",
+                CategoryName = session.AppModel.Category?.Name,
+                Color = TimelineColorService.GetColor(session.AppModel.GetDisplayName(), isDark),
+                CategoryColor = ResolveCategoryColor(session.AppModel.Category, isDark),
+                RangeText = $"{clipStart:HH:mm} ~ {clipEnd:HH:mm}",
+                Seconds = seconds,
+                Data = session.AppModel,
+                CategoryData = session.AppModel.Category
+            });
+        }
 
-                if (cursor.HasValue && (startLocal - cursor.Value).TotalSeconds >= IdleGapSeconds)
-                {
-                    list.Add(new TimelineUsageItem
-                    {
-                        Name = ResourceStrings.IdleTime, Color = "#484f58",
-                        CategoryName = ResourceStrings.SystemCategory, CategoryColor = "#8b949e",
-                        Start = cursor.Value, End = startLocal,
-                        IsIdle = true
-                    });
-                }
-
-                var appName = session.AppModel?.GetDisplayName() ?? "Unknown";
-                var categoryName = session.AppModel?.Category?.Name ?? "Unknown";
-                var category = session.AppModel?.Category;
-                var paletteColor = TimelineColorService.GetColor(appName, isDark);
-                // 分类色走统一规则（按当前主题背景算对比度），否则“未分类”在深色主题下几乎看不见
-                var categoryColor = category != null
-                    ? ChartColorHelper.Resolve(category.Color, category.IsSystem)
-                    : TimelineColorService.GetColor(categoryName, isDark);
-                list.Add(new TimelineUsageItem
-                {
-                    Name = appName,
-                    Color = paletteColor,
-                    CategoryName = categoryName,
-                    CategoryColor = categoryColor,
-                    Start = startLocal,
-                    End = endLocal,
-                    Data = session
-                });
-                cursor = endLocal;
-            }
-
-            if (cursor.HasValue && (dayEnd - cursor.Value).TotalSeconds >= IdleGapSeconds)
-            {
-                list.Add(new TimelineUsageItem
-                {
-                    Name = ResourceStrings.IdleTime, Color = "#484f58",
-                    CategoryName = ResourceStrings.SystemCategory, CategoryColor = "#8b949e",
-                    Start = cursor.Value, End = dayEnd,
-                    IsIdle = true
-                });
-            }
-
-            if (list.Count == 0)
-            {
-                list.Add(new TimelineUsageItem
-                {
-                    Name = ResourceStrings.IdleTime, Color = "#484f58",
-                    CategoryName = ResourceStrings.SystemCategory, CategoryColor = "#8b949e",
-                    Start = dayStart, End = dayEnd,
-                    IsIdle = true
-                });
-            }
-
-            return list;
-        }, ct);
-
-        TimelineUsageItems = items;
+        return BuildRingData(segments, ClockTickMode.Hour, dayStart, dayEnd, ResourceStrings.Today);
     }
 
-    private async Task DebounceUpdateFilteredDataAsync()
+    /// <summary>
+    /// 周 / 月：服务端只有「应用 × 小时」的桶，所以一个小时的弧长按该小时的
+    /// 应用占比拆开——位置仍是真实时段，只是小时内不再区分先后。
+    /// </summary>
+    private async Task<ClockRingData> BuildHourlyClockAsync(DateTime rangeStart, DateTime rangeEnd,
+        ClockTickMode tickMode, string caption, CancellationToken ct)
     {
-        _updateFilterCts?.Cancel();
-        _updateFilterCts?.Dispose();
-        _updateFilterCts = new CancellationTokenSource();
-        var token = _updateFilterCts.Token;
-        try
+        var hours = await _dataService.GetHoursRangeLogListAsync(rangeStart, rangeEnd, ct);
+        ct.ThrowIfCancellationRequested();
+
+        var periodSeconds = Math.Max(1, (rangeEnd - rangeStart).TotalSeconds);
+        var isDark = IsDarkTheme();
+        var segments = new List<ClockSegment>();
+
+        var slots = hours
+            .Where(h => h.AppModel != null && h.Time > 0)
+            .Select(h => (Model: h, LocalTime: TruncateToHour(ToLocal(h.DataTime))))
+            .Where(x => x.LocalTime >= rangeStart && x.LocalTime < rangeEnd)
+            .GroupBy(x => x.LocalTime);
+
+        foreach (var slot in slots)
         {
-            await Task.Delay(50, token);
-            if (!token.IsCancellationRequested)
-                await UpdateFilteredDataAsync();
+            var slotStart = slot.Key;
+            var slotTotal = slot.Sum(x => x.Model.Time);
+            if (slotTotal <= 0) continue;
+
+            var slotFraction = (slotStart - rangeStart).TotalSeconds / periodSeconds;
+            var slotWidth = 3600d / periodSeconds;
+            var cursor = 0d;
+
+            foreach (var item in slot.OrderByDescending(x => x.Model.Time))
+            {
+                var model = item.Model;
+                var share = (double)model.Time / slotTotal;
+                var startFraction = slotFraction + slotWidth * cursor;
+                cursor += share;
+
+                segments.Add(new ClockSegment
+                {
+                    StartFraction = startFraction,
+                    EndFraction = slotFraction + slotWidth * cursor,
+                    Name = model.AppModel!.GetDisplayName() ?? "Unknown",
+                    CategoryName = model.AppModel.Category?.Name,
+                    Color = TimelineColorService.GetColor(model.AppModel.GetDisplayName(), isDark),
+                    CategoryColor = ResolveCategoryColor(model.AppModel.Category, isDark),
+                    RangeText = $"{slotStart:M/d HH:00} · {FormatDuration(model.Time)}",
+                    Seconds = model.Time,
+                    Data = model.AppModel,
+                    CategoryData = model.AppModel.Category
+                });
+            }
         }
-        catch (OperationCanceledException)
-        {
-            // ignored
-        }
+
+        return BuildRingData(segments, tickMode, rangeStart, rangeEnd, caption);
     }
 
-    private async Task UpdateFilteredDataAsync()
+    /// <summary>
+    /// 年：按月拆分，一个月里再按应用占比铺开。
+    /// 服务端的范围查询只按应用汇总、不给到天，所以逐月各查一次（12 个并行请求，都是小包），
+    /// 换成整年的小时桶会是几 MB 的响应，不划算。
+    /// </summary>
+    private async Task<ClockRingData> BuildMonthlyClockAsync(DateTime rangeStart, DateTime rangeEnd,
+        CancellationToken ct)
     {
-        if (ShowType.Id != 0)
+        var periodSeconds = Math.Max(1, (rangeEnd - rangeStart).TotalSeconds);
+        var isDark = IsDarkTheme();
+        var segments = new List<ClockSegment>();
+
+        var months = Enumerable.Range(0, 12)
+            .Select(i => new DateTime(rangeStart.Year, i + 1, 1))
+            .ToList();
+
+        var results = await Task.WhenAll(months.Select(month =>
+            _dataService.GetDateRangelogListAsync(month, month.AddMonths(1).AddSeconds(-1),
+                cancellationToken: ct)));
+        ct.ThrowIfCancellationRequested();
+
+        for (var i = 0; i < months.Count; i++)
         {
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            var slotStart = months[i];
+            var rows = results[i].Where(d => d.AppModel != null && d.Time > 0).ToList();
+            var slotTotal = rows.Sum(d => d.Time);
+            if (slotTotal <= 0) continue;
+
+            var slotFraction = (slotStart - rangeStart).TotalSeconds / periodSeconds;
+            var slotWidth = (slotStart.AddMonths(1) - slotStart).TotalSeconds / periodSeconds;
+            var cursor = 0d;
+
+            foreach (var item in rows.OrderByDescending(d => d.Time))
             {
-                MultiTrackItems = [];
-                MultiTrackTotalDurationText = "";
-            });
-            return;
-        }
+                var appModel = item.AppModel!;
+                var share = (double)item.Time / slotTotal;
+                var startFraction = slotFraction + slotWidth * cursor;
+                cursor += share;
 
-        if (DaySessions.Count == 0)
-        {
-            await Dispatcher.UIThread.InvokeAsync(() =>
-            {
-                Data = _dayAppRawData;
-                MultiTrackItems = [];
-                MultiTrackTotalDurationText = "";
-            });
-            return;
-        }
-
-        var referenceDate = DayDate.Date;
-        var startHour = Math.Min(TimelineStartHour, TimelineEndHour);
-        var endHour = Math.Max(TimelineStartHour, TimelineEndHour);
-        var startTime = referenceDate.AddHours(startHour);
-        var endTime = referenceDate.AddHours(endHour);
-
-        var daySessions = DaySessions;
-        var isDark = Application.Current?.ActualThemeVariant == ThemeVariant.Dark;
-        var utcStart = startTime.ToUniversalTime();
-        var utcEnd = endTime.ToUniversalTime();
-        var result = await Task.Run(() =>
-        {
-            // Step 1: 过滤 + 剪裁 + 转本地时间
-            var rawFiltered = daySessions
-                .Where(s => s.AppModel != null && s.EndTime > utcStart && s.StartTime < utcEnd)
-                .Select(s =>
+                segments.Add(new ClockSegment
                 {
-                    var clipStart = s.StartTime < utcStart ? utcStart : s.StartTime;
-                    var clipEnd = s.EndTime > utcEnd ? utcEnd : s.EndTime;
-                    var clipDuration = (int)(clipEnd - clipStart).TotalSeconds;
-                    var localClipStart = ClipUtcToLocal(clipStart, referenceDate);
-                    var localClipEnd = ClipUtcToLocal(clipEnd, referenceDate);
-                    return (Session: s, ClipDuration: clipDuration, LocalStart: localClipStart, LocalEnd: localClipEnd);
-                })
-                .ToList();
+                    StartFraction = startFraction,
+                    EndFraction = slotFraction + slotWidth * cursor,
+                    Name = appModel.GetDisplayName() ?? "Unknown",
+                    CategoryName = appModel.Category?.Name,
+                    Color = TimelineColorService.GetColor(appModel.GetDisplayName(), isDark),
+                    CategoryColor = ResolveCategoryColor(appModel.Category, isDark),
+                    RangeText = $"{slotStart:yyyy-MM} · {FormatDuration(item.Time)}",
+                    Seconds = item.Time,
+                    Data = appModel,
+                    CategoryData = appModel.Category
+                });
+            }
+        }
 
-            if (rawFiltered.Count == 0)
-                return (Data: new List<ChartsDataModel>(), MultiTrackItems: new List<MultiTrackTimelineItem>(), TotalDurationText: "");
+        return BuildRingData(segments, ClockTickMode.Month, rangeStart, rangeEnd, ResourceStrings.ThisYear);
+    }
 
-            // Step 2: 图表数据
-            var chartData = ChartDataMapper.MapFromDailyLogs(
-                rawFiltered.GroupBy(x => x.Session.AppModel!.ID)
-                    .Select(g =>
-                    {
-                        var first = g.First();
-                        return new DailyLogModel
-                        {
-                            AppModel = first.Session.AppModel,
-                            Time = g.Sum(x => x.ClipDuration),
-                            Date = DayDate
-                        };
-                    }),
-                includeBadges: true);
+    private static string ResolveCategoryColor(Shared.Models.CategoryModel? category, bool isDark)
+    {
+        return category != null
+            ? ChartColorHelper.Resolve(category.Color, category.IsSystem)
+            : TimelineColorService.GetColor(ResourceStrings.SystemCategory, isDark);
+    }
 
-            // Step 3: 多轨道数据
-            var totalDurationSec = rawFiltered.Sum(x => x.ClipDuration);
-            var totalDurationText = FormatDuration(totalDurationSec);
-            var mtItems = BuildMultiTrackItems(rawFiltered, isDark);
+    private static DateTime TruncateToHour(DateTime time) =>
+        new(time.Year, time.Month, time.Day, time.Hour, 0, 0);
 
-            return (Data: chartData, MultiTrackItems: mtItems, TotalDurationText: totalDurationText);
+    private ClockRingData BuildRingData(List<ClockSegment> segments, ClockTickMode tickMode,
+        DateTime rangeStart, DateTime rangeEnd, string caption)
+    {
+        var totalSeconds = segments.Sum(s => s.Seconds);
+
+        return new ClockRingData
+        {
+            Segments = segments,
+            Legend = BuildLegend(segments),
+            CenterText = totalSeconds > 0 ? FormatDuration(totalSeconds) : string.Empty,
+            CenterCaption = totalSeconds > 0 ? caption : string.Empty,
+            TickMode = tickMode,
+            RangeStart = rangeStart,
+            RangeEnd = rangeEnd
+        };
+    }
+
+    /// <summary>只重算图例（应用 / 分类口径），扇区列表原样复用</summary>
+    private ClockRingData RebuildLegend(ClockRingData source)
+    {
+        if (!source.HasData) return source;
+
+        return new ClockRingData
+        {
+            Segments = source.Segments,
+            Legend = BuildLegend(source.Segments),
+            CenterText = source.CenterText,
+            CenterCaption = source.CenterCaption,
+            TickMode = source.TickMode,
+            RangeStart = source.RangeStart,
+            RangeEnd = source.RangeEnd
+        };
+    }
+
+    /// <summary>图例跟配色模式走：应用色时列应用，分类色时列分类</summary>
+    private List<ClockLegendItem> BuildLegend(List<ClockSegment> segments)
+    {
+        var total = segments.Sum(s => s.Seconds);
+        if (total <= 0) return [];
+
+        var useCategory = UseCategoryColor;
+        var groups = segments
+            .GroupBy(s => useCategory ? s.CategoryName ?? ResourceStrings.SystemCategory : s.Name)
+            .Select(g => new
+            {
+                Name = g.Key,
+                Seconds = g.Sum(s => s.Seconds),
+                Color = useCategory ? g.First().CategoryColor : g.First().Color,
+                Data = useCategory ? null : g.First().Data,
+                CategoryData = useCategory ? g.First().CategoryData : null
+            })
+            .OrderByDescending(g => g.Seconds)
+            .ToList();
+
+        var legend = new List<ClockLegendItem>();
+        var top = groups.Take(ClockLegendTopCount).ToList();
+
+        foreach (var group in top)
+        {
+            legend.Add(new ClockLegendItem
+            {
+                Name = group.Name,
+                Color = group.Color,
+                DurationText = FormatDuration(group.Seconds),
+                ShareText = $"{(int)Math.Round(group.Seconds / total * 100)}%",
+                Data = group.Data,
+                CategoryData = group.CategoryData
+            });
+        }
+
+        var restSeconds = groups.Skip(ClockLegendTopCount).Sum(g => g.Seconds);
+        if (restSeconds <= 0) return legend;
+
+        legend.Add(new ClockLegendItem
+        {
+            Name = ResourceStrings.ClockLegendOther,
+            Color = "#8b949e",
+            DurationText = FormatDuration(restSeconds),
+            ShareText = $"{(int)Math.Round(restSeconds / total * 100)}%",
+            IsOther = true
         });
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
-        {
-            Data = result.Data;
-            MultiTrackItems = result.MultiTrackItems;
-            MultiTrackTotalDurationText = result.TotalDurationText;
-        }, DispatcherPriority.Background);
-    }
-
-    private static List<MultiTrackTimelineItem> BuildMultiTrackItems(
-        List<(AppSessionModel Session, int ClipDuration, DateTime LocalStart, DateTime LocalEnd)> rawFiltered,
-        bool isDark)
-    {
-        return rawFiltered
-            .GroupBy(x => x.Session.AppModel!.GetDisplayName() ?? "Unknown")
-            .Select(g =>
-            {
-                var first = g.First();
-                var appModel = first.Session.AppModel;
-                var paletteColor = TimelineColorService.GetColor(g.Key, isDark);
-
-                var rawSegments = g
-                    .Select(x => new MultiTrackSegment
-                    {
-                        Start = x.LocalStart,
-                        End = x.LocalEnd,
-                        Color = paletteColor,
-                        DurationMinutes = (int)(x.LocalEnd - x.LocalStart).TotalMinutes,
-                        ActualDurationSeconds = x.ClipDuration,
-                    });
-
-                var segments = MergeSegments(rawSegments);
-
-                var appDurationSec = g.Sum(x => x.ClipDuration);
-
-                return new MultiTrackTimelineItem
-                {
-                    Name = g.Key,
-                    Icon = appModel?.IconFile,
-                    Color = paletteColor,
-                    CategoryName = appModel?.Category?.Name,
-                    TotalDuration = TimeSpan.FromSeconds(appDurationSec),
-                    Segments = segments,
-                    AppModel = appModel,
-                };
-            })
-            .OrderByDescending(i => i.TotalDuration)
-            .ToList();
-    }
-
-    private static List<MultiTrackSegment> MergeSegments(IEnumerable<MultiTrackSegment> source, int mergeGapSec = 60)
-    {
-        var sorted = source.OrderBy(s => s.Start).ToList();
-        if (sorted.Count <= 1) return sorted;
-
-        var merged = new List<MultiTrackSegment> { sorted[0] };
-
-        for (var i = 1; i < sorted.Count; i++)
-        {
-            var cur = sorted[i];
-            var last = merged[^1];
-            var gap = (cur.Start - last.End).TotalSeconds;
-
-            if (gap < mergeGapSec)
-            {
-                // 只扩展不缩小，处理重叠/相邻
-                if (cur.End > last.End)
-                {
-                    last.End = cur.End;
-                    last.DurationMinutes = (int)(last.End - last.Start).TotalMinutes;
-                    last.ActualDurationSeconds += cur.ActualDurationSeconds;  // 累加实际使用时长
-                }
-            }
-            else
-            {
-                merged.Add(cur);
-            }
-        }
-
-        return merged;
-    }
-
-    private static bool IsIdleItem(TimelineUsageItem item) =>
-        TimelineHelpers.IsIdleItem(item.Name);
-
-
-    private static DateTime ClipUtcToLocal(DateTime utcTime, DateTime referenceDate)
-    {
-        var local = utcTime.ToLocalTime();
-        return referenceDate.Date + local.TimeOfDay;
+        return legend;
     }
 
     #endregion

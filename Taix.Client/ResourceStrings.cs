@@ -140,6 +140,9 @@ public static class ResourceStrings
     public static string NoChangesMade => GetStringValue("NoChangesMade");
     public static string TimeRangeSelectionError => GetStringValue("TimeRangeSelectionError");
     public static string TimelineAppColor => GetStringValue("TimelineAppColor");
+    public static string ClockHint => GetStringValue("ClockHint");
+    public static string ClockLegendOther => GetStringValue("ClockLegendOther");
+    public static string ClockLegendTitle => GetStringValue("ClockLegendTitle");
     public static string TimelineCategoryColor => GetStringValue("TimelineCategoryColor");
     public static string DeleteConfirmation => GetStringValue("DeleteConfirmation");
     public static string WantPerformAction => GetStringValue("WantPerformAction");

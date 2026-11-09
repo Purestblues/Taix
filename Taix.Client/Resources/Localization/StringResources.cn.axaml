@@ -402,6 +402,9 @@
     <system:String x:Key="Days">天</system:String>
     <system:String x:Key="DaysFormat">{0}天</system:String>
     <system:String x:Key="TimelineHint">滚轮缩放 · Shift+拖拽选择 · 双击重置</system:String>
+    <system:String x:Key="ClockHint">悬停看时段 · 点击扇区进入应用详情</system:String>
+    <system:String x:Key="ClockLegendOther">其他</system:String>
+    <system:String x:Key="ClockLegendTitle">占比</system:String>
     <system:String x:Key="TimelineTotalDuration">轨道总时长</system:String>
     <system:String x:Key="TimelineAppColor">应用</system:String>
     <system:String x:Key="TimelineCategoryColor">分类</system:String>

@@ -42,57 +42,38 @@ public partial class DataPageModel : ModelBase
         set => base.ShowType = value;
     }
 
-    #region 时间轴
+    #region 环形时钟
 
-    private List<TimelineUsageItem> _timelineUsageItems = [];
+    private ClockRingData _dayClock = ClockRingData.Empty;
     [PageState(DataCache = true)]
-    public List<TimelineUsageItem> TimelineUsageItems
+    public ClockRingData DayClock
     {
-        get => _timelineUsageItems;
-        set { _timelineUsageItems = value; OnPropertyChanged(); }
+        get => _dayClock;
+        set { _dayClock = value; OnPropertyChanged(); }
     }
 
-    private List<MultiTrackTimelineItem> _multiTrackItems = [];
+    private ClockRingData _weekClock = ClockRingData.Empty;
     [PageState(DataCache = true)]
-    public List<MultiTrackTimelineItem> MultiTrackItems
+    public ClockRingData WeekClock
     {
-        get => _multiTrackItems;
-        set { _multiTrackItems = value; OnPropertyChanged(); }
+        get => _weekClock;
+        set { _weekClock = value; OnPropertyChanged(); }
     }
 
-    private List<AppSessionModel> _daySessions = [];
-
+    private ClockRingData _monthClock = ClockRingData.Empty;
     [PageState(DataCache = true)]
-    public List<AppSessionModel> DaySessions
+    public ClockRingData MonthClock
     {
-        get => _daySessions;
-        set { _daySessions = value; OnPropertyChanged(); }
+        get => _monthClock;
+        set { _monthClock = value; OnPropertyChanged(); }
     }
 
-    private double _timelineStartHour;
-    [PageState]
-    public double TimelineStartHour
+    private ClockRingData _yearClock = ClockRingData.Empty;
+    [PageState(DataCache = true)]
+    public ClockRingData YearClock
     {
-        get => _timelineStartHour;
-        set
-        {
-            _timelineStartHour = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(TimelineRangeText));
-        }
-    }
-
-    private double _timelineEndHour = 24.0;
-    [PageState]
-    public double TimelineEndHour
-    {
-        get => _timelineEndHour;
-        set
-        {
-            _timelineEndHour = value;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(TimelineRangeText));
-        }
+        get => _yearClock;
+        set { _yearClock = value; OnPropertyChanged(); }
     }
 
     private bool _useCategoryColor;
@@ -121,31 +102,6 @@ public partial class DataPageModel : ModelBase
         new() { Id = 0, Name = ResourceStrings.TimelineAppColor },
         new() { Id = 1, Name = ResourceStrings.TimelineCategoryColor }
     ];
-
-    private string _multiTrackTotalDurationText = "";
-    [PageState]
-    public string MultiTrackTotalDurationText
-    {
-        get => _multiTrackTotalDurationText;
-        set { _multiTrackTotalDurationText = value; OnPropertyChanged(); }
-    }
-
-    public string TimelineRangeText
-    {
-        get
-        {
-            var start = Math.Min(_timelineStartHour, _timelineEndHour);
-            var end = Math.Max(_timelineStartHour, _timelineEndHour);
-            var startTime = DateTime.Today.AddHours(start);
-            var endTime = DateTime.Today.AddHours(end);
-            var startStr = startTime.ToString("HH:mm");
-            var endStr = endTime.ToString("HH:mm");
-            // 24:00 不显示为 00:00
-            if (Math.Abs(end - 24.0) < 0.001 && endStr == "00:00")
-                endStr = "24:00";
-            return $"{startStr} ~ {endStr}";
-        }
-    }
 
     #endregion
 
