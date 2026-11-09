@@ -35,6 +35,54 @@ Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全�
 
 ![内存占用](a1.png)
 
+## Fork 维护说明
+
+本仓库是 [NLick47/Taix](https://github.com/NLick47/Taix) 的个人 fork，改动集中在客户端（Avalonia），后续发版产物见 [Releases](https://github.com/Purestblues/Taix/releases)。
+
+相对上游，当前已有的改动：
+
+- 概览页重做：总览卡片（总使用时长 / 应用量 / 站点 / 网页，带比昨日、比上周）、使用时段堆叠柱图、分类占比环形图，图表区可在应用 / 网站之间切换
+- 图表配色统一：系统分类「未分类」默认色接近背景色，现改为跟随主题色，其余过浅颜色自动压暗（统计页同样生效）
+- 窗口修复：双击标题栏最大化/还原、窗口最外缘可拖拽缩放、不再把满屏尺寸当成正常尺寸保存
+- 图标修复：客户端改在 `<exe>\Data\AppIcons` 查找（此前只在 `<exe>\AppIcons` 找，导致全部回退默认图标）
+
+### 维护脚本
+
+两个脚本都在 `script/` 下，需要 Windows PowerShell 5.1 及以上。
+
+| 脚本 | 用途 |
+| --- | --- |
+| `script/dev-run.ps1` | 本地运行改动后的客户端（自动补齐图标目录后 `dotnet run -c Debug`） |
+| `script/release.ps1` | 一条命令打 tag 并触发 GitHub Actions 发 Release |
+
+#### 本地调试
+
+```powershell
+.\script\dev-run.ps1              # 编译并启动
+.\script\dev-run.ps1 -NoBuild     # 跳过编译直接启动
+```
+
+- 开发运行时的数据目录是 `Taix.Client\bin\Debug\net10.0\`，图标目录为空时脚本会从安装目录（默认 `D:/Program Files/taix`）复制 `Data/AppIcons` 与 `WebFavicons`；安装位置不同时用 `-InstallDir` 指定
+- 调试版直接连本机已在运行的 taix-server（`127.0.0.1:37091`），不需要另起后端
+- DEBUG 构建没有单实例锁，可与安装版同时运行；Release 构建有互斥锁，不能与安装版共存
+
+#### 发布新版本
+
+```powershell
+.\script\release.ps1 -Version 1.3.4-fork.2 -DryRun          # 只预检，打印将执行的命令
+.\script\release.ps1 -Version 1.3.4-fork.2                  # 正常发版
+.\script\release.ps1 -Version 1.3.4-fork.2 -Commit -Watch   # 代提交改动并等待构建完成
+```
+
+预检会拦下这些情况：不在 `main` 分支、工作区不干净（除非加 `-Commit`）、tag 已存在、Release 已存在。
+
+> ⚠️ 在 fork 上 `git push` 一个 tag **不会**触发 Actions，脚本内部改用
+> `gh workflow run release.yml --ref <tag>`；`--ref` 必须指向 tag，`github.ref` 才是 `refs/tags/...`，
+> workflow 里的 release job 才会执行并上传产物。
+
+> 本地打不出 `Setup.exe`：安装器（cargo）与客户端 AOT 发布都需要 MSVC 链接器（VS Build Tools），
+> 因此发版统一走 GitHub Actions 的 windows-latest / macos-latest。
+
 ## 对Tai数据兼容
 
 - 在 1.2.0 前支持 Tai 最新版本的 db 文件，1.2.0 及后的新版本暂不确定。不过当前程序有对旧版数据有较为完整的数据迁移步骤，理论上是支持的
