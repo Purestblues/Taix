@@ -11,6 +11,7 @@ using Taix.Client.Controls.Base;
 using Taix.Client.Controls.Window;
 using Taix.Client.Foundation;
 using Taix.Client.Foundation.Rx;
+using Taix.Client.Librarys;
 using Taix.Client.Logging;
 using Taix.Client.Models;
 using Taix.Client.Servicers.Interfaces;
@@ -69,6 +70,15 @@ public class CategoryPageViewModel : CategoryPageModel
         ApplyDirectoryMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyDirectoryMatchAsync).DisposeWith(Disposables);
         ApplyUrlMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyUrlMatchAsync).DisposeWith(Disposables);
         WhenPropertyChanged(this, x => x.ShowType, _ => ExecuteAsync(LoadDataCoreAsync)).DisposeWith(Disposables);
+
+        ChartColorHelper.ThemeChanged += OnThemeChanged;
+    }
+
+    /// <summary>主题切换后分类圆点要按新背景重算</summary>
+    private void OnThemeChanged()
+    {
+        if (Data.Count == 0 && WebCategoryData.Count == 0) return;
+        _ = RefreshAsync();
     }
 
     public override async Task OnNavigatedToAsync()
@@ -863,6 +873,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
     public override void Dispose()
     {
+        ChartColorHelper.ThemeChanged -= OnThemeChanged;
         Data?.Clear();
         WebCategoryData?.Clear();
         EditDirectories?.Clear();

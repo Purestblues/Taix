@@ -62,6 +62,15 @@ public partial class DataPageViewModel : DataPageModel
             _appEventService.AppChanged,
             _appEventService.WebSiteChanged,
             RefreshAsync);
+
+        ChartColorHelper.ThemeChanged += OnThemeChanged;
+    }
+
+    /// <summary>主题变了：时间轴与图表都要按新背景重算颜色（时间轴配色还跟明暗有关）</summary>
+    private void OnThemeChanged()
+    {
+        if (DaySessions.Count == 0 && MultiTrackItems.Count == 0) return;
+        _ = RefreshAsync();
     }
 
     public ICommand ToDetailCommand { get; }
@@ -70,6 +79,7 @@ public partial class DataPageViewModel : DataPageModel
 
     public override void Dispose()
     {
+        ChartColorHelper.ThemeChanged -= OnThemeChanged;
         base.Dispose();
     }
 
@@ -302,9 +312,12 @@ public partial class DataPageViewModel : DataPageModel
 
                 var appName = session.AppModel?.GetDisplayName() ?? "Unknown";
                 var categoryName = session.AppModel?.Category?.Name ?? "Unknown";
+                var category = session.AppModel?.Category;
                 var paletteColor = TimelineColorService.GetColor(appName, isDark);
-                var categoryColor = session.AppModel?.Category?.Color
-                                    ?? TimelineColorService.GetColor(categoryName, isDark);
+                // 分类色走统一规则（按当前主题背景算对比度），否则“未分类”在深色主题下几乎看不见
+                var categoryColor = category != null
+                    ? ChartColorHelper.Resolve(category.Color, category.IsSystem)
+                    : TimelineColorService.GetColor(categoryName, isDark);
                 list.Add(new TimelineUsageItem
                 {
                     Name = appName,

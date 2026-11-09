@@ -150,6 +150,7 @@
     <system:String x:Key="CategoryVsLastWeek">比上周</system:String>
     <system:String x:Key="CategoryVsLastMonth">比上月同期</system:String>
     <system:String x:Key="CategoryVsLastYear">比去年同期</system:String>
+    <system:String x:Key="CategoryVsPrevious">比上期</system:String>
     <system:String x:Key="CategoryPeakDay">单日峰值</system:String>
     <system:String x:Key="CategoryColumnHint">点击柱子查看该时段，再次点击返回全部</system:String>
     <system:String x:Key="CategoryOverview">周期概览</system:String>

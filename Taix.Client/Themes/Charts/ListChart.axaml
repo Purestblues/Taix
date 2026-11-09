@@ -103,6 +103,7 @@
                                         IconSize="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=IconSize}"
                                         Data="{Binding}"
                                         BarBrush="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=BarBrush}"
+                                        BadgeClickCommand="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=BadgeClickCommand}"
                                         MaxValue="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=DataMaxValue}"
                                         IsShowBadge="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ListChart}}, Path=IsShowBadge}" />
                                 </Border>

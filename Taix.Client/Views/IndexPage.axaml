@@ -11,6 +11,7 @@
              xmlns:models="using:Taix.Client.Controls.Charts.Model"
              xmlns:base="using:Taix.Client.Controls.Base"
              xmlns:select="using:Taix.Client.Controls.Select"
+             xmlns:toggle="using:Taix.Client.Controls.Toggle"
              xmlns:conv="using:Taix.Client.Controls.Converters"
              xmlns:platform="clr-namespace:Taix.Client.Platform"
              x:Class="Taix.Client.Views.IndexPage">
@@ -98,6 +99,16 @@
                                   SelectedItem="{Binding SelectedPeriod,Mode=TwoWay}"
                                   Options="{Binding PeriodOptions}" />
             </Grid>
+
+            <!-- 自定义范围：选「自定义」时才展开 -->
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
+                        Margin="0,0,0,10"
+                        IsVisible="{Binding IsCustomRange}">
+                <select:DateSelect Date="{Binding CustomStart,Mode=TwoWay}" VerticalAlignment="Center" />
+                <TextBlock Text="{DynamicResource To}" VerticalAlignment="Center"
+                           FontSize="12" Foreground="{DynamicResource SubTextBrush}" />
+                <select:DateSelect Date="{Binding CustomEnd,Mode=TwoWay}" VerticalAlignment="Center" />
+            </StackPanel>
 
             <!-- ═══ 总览卡片 ═══ -->
             <Grid x:Name="StatCardsPanel" ColumnDefinitions="*,10,*,10,*,10,*">
@@ -196,11 +207,19 @@
 
                 <Border Grid.Column="0" Classes="card" Padding="16,12">
                     <Grid RowDefinitions="Auto,*">
-                        <TextBlock Text="{DynamicResource CategoryHourly}" FontSize="13" />
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="{DynamicResource CategoryHourly}" FontSize="13" VerticalAlignment="Center" />
+                            <toggle:Toggle Grid.Column="1"
+                                           OnText="{Binding CompareCaption}"
+                                           OffText="{Binding CompareCaption}"
+                                           IsChecked="{Binding IsCompareEnabled,Mode=TwoWay}"
+                                           IsVisible="{Binding IsCompareSupported}" />
+                        </Grid>
 
                         <Charts:StackedBarChart Grid.Row="1" Margin="0,10,0,0"
                                                 Series="{Binding HourSeries}"
                                                 Labels="{Binding HourLabels}"
+                                                CompareValues="{Binding CompareValues}"
                                                 EmptyText="{DynamicResource NoData}"
                                                 TextBrush="{DynamicResource SubTextBrush}"
                                                 MutedTextBrush="{DynamicResource SubTextBrush}"
@@ -279,6 +298,8 @@
                                           Margin="0,2,0,0" IsCanScroll="False"
                                           BarBrush="{DynamicResource ThemeBrush}"
                                           Data="{Binding AppFrequentUseData}"
+                                          IsShowBadge="True"
+                                          BadgeClickCommand="{Binding CategoryClickCommand}"
                                           ClickCommand="{Binding ToDetailCommand}"
                                           MenuType="App" />
                     </StackPanel>
@@ -304,6 +325,8 @@
                                           Margin="0,2,0,0" IsCanScroll="False"
                                           BarBrush="{DynamicResource ThemeBrush}"
                                           Data="{Binding WebFrequentUseData}"
+                                          IsShowBadge="True"
+                                          BadgeClickCommand="{Binding CategoryClickCommand}"
                                           ClickCommand="{Binding ToDetailCommand}"
                                           MenuType="WebSite" />
                     </StackPanel>

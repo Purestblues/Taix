@@ -146,6 +146,7 @@
     <system:String x:Key="CategoryVsYesterday">vs yesterday</system:String>
     <system:String x:Key="CategoryVsLastWeek">vs last week</system:String>
     <system:String x:Key="CategoryVsLastMonth">vs same period last month</system:String>
+    <system:String x:Key="CategoryVsPrevious">vs previous period</system:String>
     <system:String x:Key="CategoryVsLastYear">vs same period last year</system:String>
     <system:String x:Key="CategoryPeakDay">Peak day</system:String>
     <system:String x:Key="CategoryColumnHint">Click a column for that period, click again for all</system:String>

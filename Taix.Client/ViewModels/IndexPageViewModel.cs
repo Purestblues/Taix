@@ -38,9 +38,9 @@ public partial class IndexPageViewModel : IndexPageModel
     // 图表原始数据缓存（切应用/网站时本地重建，不重复请求）
     private IReadOnlyList<ColumnDataModel> _appColumns = [];
     private IReadOnlyList<ColumnDataModel> _webColumns = [];
+    private double[] _compareTotalsAll = [];
     private IReadOnlyList<CategoryModel>? _appColumnCategories;
     private IReadOnlyList<WebSiteCategoryModel>? _webColumnCategories;
-    private bool _isWeek;
 
     public IndexPageViewModel(
         IData data,
@@ -60,6 +60,7 @@ public partial class IndexPageViewModel : IndexPageModel
         _appEventService = appEventService;
 
         ToDetailCommand = AsyncRelayCommand.Create<object>(OnToDetail).DisposeWith(Disposables);
+        CategoryClickCommand = AsyncRelayCommand.Create<object>(OnCategoryClick).DisposeWith(Disposables);
         RefreshCommand = AsyncRelayCommand.CreateFromTask<object>(OnRefreshAsync).DisposeWith(Disposables);
 
         InitializeStaticData();
@@ -73,6 +74,7 @@ public partial class IndexPageViewModel : IndexPageModel
     }
 
     public ICommand ToDetailCommand { get; }
+    public ICommand CategoryClickCommand { get; }
     public ICommand RefreshCommand { get; }
 
 
@@ -93,11 +95,18 @@ public partial class IndexPageViewModel : IndexPageModel
             {
                 Id = 1,
                 Name = Application.Current?.FindResource("ThisWeek") as string ?? "This Week"
+            },
+            new SelectItemModel
+            {
+                Id = 2,
+                Name = ResourceStrings.Custom
             }
         ];
         SelectedPeriod = PeriodOptions[0];
 
         WhenPropertyChanged(this, x => x.TabbarSelectedIndex, _ => LoadDataAsync());
+        WhenPropertyChanged(this, x => x.CustomStart, _ => OnCustomRangeChangedAsync());
+        WhenPropertyChanged(this, x => x.CustomEnd, _ => OnCustomRangeChangedAsync());
 
         MoreTypeOptions =
         [
@@ -155,19 +164,44 @@ public partial class IndexPageViewModel : IndexPageModel
 
     public override Task RefreshAsync() => LoadDataAsync();
 
+    /// <summary>换日期只在意「自定义」模式下重新拉数据，其他周期不受影响</summary>
+    private Task OnCustomRangeChangedAsync() =>
+        TabbarSelectedIndex == 2 ? LoadDataAsync() : Task.CompletedTask;
+
     private Task LoadDataAsync()
     {
         return ExecuteAsync(async ct =>
         {
-            if (TabbarSelectedIndex == 0)
+            var today = DateTime.Now.Date;
+            switch (TabbarSelectedIndex)
             {
-                var today = DateTime.Now.Date;
-                await LoadRangeAsync(today, today, today.AddDays(-1), today.AddDays(-1), false, ct);
-            }
-            else if (TabbarSelectedIndex == 1)
-            {
-                var week = Time.GetThisWeekDate();
-                await LoadRangeAsync(week[0], week[1], week[0].AddDays(-7), week[1].AddDays(-7), true, ct);
+                case 0:
+                    await LoadRangeAsync(today, today, today.AddDays(-1), today.AddDays(-1), true,
+                        ResourceStrings.CategoryVsYesterday, HourLabels24(), ct);
+                    break;
+                case 1:
+                {
+                    var week = Time.GetThisWeekDate();
+                    await LoadRangeAsync(week[0], week[1], week[0].AddDays(-7), week[1].AddDays(-7), false,
+                        ResourceStrings.CategoryVsLastWeek, WeekDayLabels(), ct);
+                    break;
+                }
+                default:
+                {
+                    var start = CustomStart;
+                    var end = CustomEnd;
+                    if (end < start) (start, end) = (end, start);
+
+                    // 再长就不像图了，最多 366 天
+                    if ((end - start).TotalDays > 365) end = start.AddDays(365);
+
+                    var days = (end - start).Days + 1;
+                    var isHourly = days == 1;
+                    var labels = isHourly ? HourLabels24() : DayLabels(start, days);
+                    await LoadRangeAsync(start, end, start.AddDays(-days), start.AddDays(-1), isHourly,
+                        ResourceStrings.CategoryVsPrevious, labels, ct);
+                    break;
+                }
             }
         });
     }
@@ -175,10 +209,11 @@ public partial class IndexPageViewModel : IndexPageModel
     /// <summary>
     /// 一次取齐榜单 + 概览 + 图表所需数据。
     /// 榜单接口已经把每个应用 / 网站的时长带回来了，总数与数量直接在本地算，
-    /// 不再为「一个数字」单独发请求（首屏 16 个请求 → 10 个）。
+    /// 不再为「一个数字」单独发请求（首屏 16 个请求 → 10 个，再加 1 个对比周期数据）。
     /// </summary>
     private async Task LoadRangeAsync(DateTime start, DateTime end,
-        DateTime prevStart, DateTime prevEnd, bool isWeek, CancellationToken cancellationToken)
+        DateTime prevStart, DateTime prevEnd, bool isHourly, string compareCaption, string[] labels,
+        CancellationToken cancellationToken)
     {
         var appListTask = _dataService.GetDateRangelogListAsync(start, end, cancellationToken: cancellationToken);
         var webListTask = _webDataService.GetDateRangeWebSiteListAsync(start, end, cancellationToken: cancellationToken);
@@ -188,16 +223,22 @@ public partial class IndexPageViewModel : IndexPageModel
         var pageCountTask = _webDataService.GetBrowsePagesTotalAsync(start, end, cancellationToken);
         var prevPageCountTask = _webDataService.GetBrowsePagesTotalAsync(prevStart, prevEnd, cancellationToken);
 
-        var columnTask = isWeek
-            ? _dataService.GetCategoryRangeDataAsync(start, end, cancellationToken)
-            : _dataService.GetCategoryHoursDataAsync(start, cancellationToken);
+        var columnTask = isHourly
+            ? _dataService.GetCategoryHoursDataAsync(start, cancellationToken)
+            : _dataService.GetCategoryRangeDataAsync(start, end, cancellationToken);
         var categoriesTask = _categoryService.GetCategoriesAsync(cancellationToken);
 
         var webColumnTask = _webDataService.GetBrowseDataByCategoryStatisticsAsync(start, end, cancellationToken);
         var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
 
+        // 时段对比：只取「上一个周期的分类×时段矩阵」，总时长在本地按列汇总
+        var compareColumnTask = isHourly
+            ? _dataService.GetCategoryHoursDataAsync(prevStart, cancellationToken)
+            : _dataService.GetCategoryRangeDataAsync(prevStart, prevEnd, cancellationToken);
+
         await Task.WhenAll(appListTask, webListTask, prevAppListTask, prevWebListTask,
-            pageCountTask, prevPageCountTask, columnTask, categoriesTask, webColumnTask, webCategoriesTask);
+            pageCountTask, prevPageCountTask, columnTask, categoriesTask, webColumnTask, webCategoriesTask,
+            compareColumnTask);
         cancellationToken.ThrowIfCancellationRequested();
 
         var appLogs = (await appListTask)?.ToList() ?? [];
@@ -206,14 +247,15 @@ public partial class IndexPageViewModel : IndexPageModel
         var prevWebSites = (await prevWebListTask)?.ToList() ?? [];
 
         // 榜单
-        CompareCaption = isWeek ? ResourceStrings.CategoryVsLastWeek : ResourceStrings.CategoryVsYesterday;
+        CompareCaption = compareCaption;
+        HourLabels = labels;
 
-        var appChartData = ChartDataMapper.MapFromDailyLogs(appLogs);
+        var appChartData = ChartDataMapper.MapFromDailyLogs(appLogs, includeBadges: true);
         WeekData = appChartData;
         AppFrequentUseData = appChartData.Take(FrequentUseNum).ToList();
         AppMoreData = appChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();
 
-        var webChartData = ChartDataMapper.MapFromWebSites(webSites);
+        var webChartData = ChartDataMapper.MapFromWebSites(webSites, includeBadges: true);
         WebFrequentUseData = webChartData.Take(FrequentUseNum).ToList();
         WebMoreData = webChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();
 
@@ -240,11 +282,13 @@ public partial class IndexPageViewModel : IndexPageModel
         LastWebPageCount = await prevPageCountTask;
 
         // 原始矩阵先存起来，切换"应用/网站"时只需本地重建，不再打服务端
-        _isWeek = isWeek;
         _appColumns = await columnTask ?? [];
         _webColumns = await webColumnTask ?? [];
         _appColumnCategories = await categoriesTask;
         _webColumnCategories = await webCategoriesTask;
+
+        // 对比列：上一个周期的每桶总量（网站维度没有小时级数据，那边不展示对比）
+        _compareTotalsAll = SumByBucket(await compareColumnTask, labels.Length);
 
         ApplyChartSeries();
     }
@@ -278,7 +322,9 @@ public partial class IndexPageViewModel : IndexPageModel
         series = series.OrderByDescending(m => m.Values.Sum()).ToList();
 
         HourSeries = series;
-        HourLabels = _isWeek ? WeekDayLabels() : HourLabels24();
+        // 网站维度没有上一周期的同粒度数据，不显示对比柱
+        IsCompareSupported = !useWeb;
+        CompareValues = useWeb ? [] : _compareTotalsAll;
         HourTotalText = Time.ToString((int)series.Sum(m => m.Values.Sum()));
 
         CategorySeries = series
@@ -352,11 +398,49 @@ public partial class IndexPageViewModel : IndexPageModel
         return labels;
     }
 
+    /// <summary>把「分类×时段矩阵」按列加总成每个时段的对比总量</summary>
+    private static double[] SumByBucket(IReadOnlyList<ColumnDataModel>? columns, int count)
+    {
+        var totals = new double[count];
+        if (columns == null) return totals;
+
+        foreach (var column in columns)
+        {
+            var values = column.Values;
+            if (values == null) continue;
+
+            var length = Math.Min(values.Length, count);
+            for (var i = 0; i < length; i++) totals[i] += values[i];
+        }
+
+        return totals;
+    }
+
     private static string[] WeekDayLabels() =>
     [
         ResourceStrings.Monday, ResourceStrings.Tuesday, ResourceStrings.Wednesday,
         ResourceStrings.Thursday, ResourceStrings.Friday, ResourceStrings.Saturday, ResourceStrings.Sunday
     ];
+
+    /// <summary>自定义范围：每根柱子对应一天，刻度用 M/d</summary>
+    private static string[] DayLabels(DateTime start, int days)
+    {
+        var labels = new string[days];
+        for (var i = 0; i < days; i++)
+            labels[i] = start.AddDays(i).ToString("M/d");
+
+        return labels;
+    }
+
+    /// <summary>点分类徽章 → 该分类在这段时间的汇总</summary>
+    private void OnCategoryClick(object obj)
+    {
+        if (obj is not ChartBadgeModel badge || badge.CategoryId <= 0) return;
+
+        var kind = badge.IsWebCategory ? CategorySummaryKind.Web : CategorySummaryKind.App;
+        _navigationService.NavigateTo(nameof(CategorySummaryPage),
+            CategorySummaryNavigationContext.Create(kind, badge.CategoryId, badge.Name));
+    }
 
     private void OnToDetail(object obj)
     {
@@ -372,6 +456,8 @@ public partial class IndexPageViewModel : IndexPageModel
     public override void Dispose()
     {
         ChartColorHelper.ThemeChanged -= OnThemeChanged;
+        _compareTotalsAll = [];
+        CompareValues = [];
         WeekData = [];
         AppFrequentUseData = [];
         AppMoreData = [];

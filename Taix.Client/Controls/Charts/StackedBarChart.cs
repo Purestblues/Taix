@@ -51,6 +51,16 @@ public class StackedBarChart : Control
     public static readonly StyledProperty<string?> EmptyTextProperty =
         AvaloniaProperty.Register<StackedBarChart, string?>(nameof(EmptyText));
 
+    /// <summary>
+    /// 对比序列（如「昨日同小时」总量），与 Series 的列一一对应；
+    /// 不为空时在每根柱子后面画一根淡色柱，用来读出相对高低
+    /// </summary>
+    public static readonly StyledProperty<IEnumerable<double>?> CompareValuesProperty =
+        AvaloniaProperty.Register<StackedBarChart, IEnumerable<double>?>(nameof(CompareValues));
+
+    public static readonly StyledProperty<IBrush?> CompareBrushProperty =
+        AvaloniaProperty.Register<StackedBarChart, IBrush?>(nameof(CompareBrush));
+
     private const double LabelRowHeight = 18;
     private const double TopPadding = 16;
     private const double MinLabelSpacing = 26;
@@ -66,7 +76,8 @@ public class StackedBarChart : Control
     static StackedBarChart()
     {
         AffectsRender<StackedBarChart>(SeriesProperty, LabelsProperty, ProgressProperty,
-            TextBrushProperty, MutedTextBrushProperty, AxisBrushProperty, HoverBrushProperty, EmptyTextProperty);
+            TextBrushProperty, MutedTextBrushProperty, AxisBrushProperty, HoverBrushProperty, EmptyTextProperty,
+            CompareValuesProperty, CompareBrushProperty);
     }
 
     public IEnumerable<ChartsDataModel>? Series
@@ -115,6 +126,18 @@ public class StackedBarChart : Control
     {
         get => GetValue(EmptyTextProperty);
         set => SetValue(EmptyTextProperty, value);
+    }
+
+    public IEnumerable<double>? CompareValues
+    {
+        get => GetValue(CompareValuesProperty);
+        set => SetValue(CompareValuesProperty, value);
+    }
+
+    public IBrush? CompareBrush
+    {
+        get => GetValue(CompareBrushProperty);
+        set => SetValue(CompareBrushProperty, value);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -169,7 +192,21 @@ public class StackedBarChart : Control
             for (var i = 0; i < count; i++) totals[i] += values[i];
         }
 
+        var compare = CompareValues?.ToArray();
+        var compareTotals = new double[columnCount];
+        var hasCompare = false;
+        if (compare is { Length: > 0 })
+        {
+            var count = Math.Min(compare.Length, columnCount);
+            for (var i = 0; i < count; i++)
+            {
+                compareTotals[i] = compare[i];
+                if (compare[i] > 0) hasCompare = true;
+            }
+        }
+
         var maxTotal = totals.Length == 0 ? 0 : totals.Max();
+        if (hasCompare) maxTotal = Math.Max(maxTotal, compareTotals.Max());
         if (maxTotal <= 0)
         {
             DrawEmpty(context, width, height);
@@ -186,6 +223,24 @@ public class StackedBarChart : Control
         {
             var hoverRect = new Rect(slot * _hoverIndex + 1, TopPadding - 6, slot - 2, plotHeight + 6);
             context.DrawRectangle(hover, null, new RoundedRect(hoverRect, 5));
+        }
+
+        // 对比柱：画在当前柱后面、并且略宽一圈，只看轮廓就能读出高低差
+        if (hasCompare)
+        {
+            var ghostBrush = CompareBrush ?? new SolidColorBrush(Color.FromArgb(46, 128, 128, 128));
+            var ghostWidth = Math.Min(barWidth + 8, slot - 2);
+            for (var i = 0; i < columnCount; i++)
+            {
+                if (compareTotals[i] <= 0) continue;
+
+                var ghostHeight = compareTotals[i] / maxTotal * plotHeight * progress;
+                if (ghostHeight < 1) continue;
+
+                var gx = slot * i + (slot - ghostWidth) / 2;
+                var rect = new Rect(gx, baseline - ghostHeight, ghostWidth, ghostHeight);
+                context.DrawRectangle(ghostBrush, null, new RoundedRect(rect, Math.Min(4, ghostHeight / 2)));
+            }
         }
 
         for (var i = 0; i < columnCount; i++)

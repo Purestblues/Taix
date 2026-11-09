@@ -1,10 +1,14 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:base="clr-namespace:Taix.Client.Controls.Base"
+                    xmlns:converter="using:Taix.Client.Controls.Converters"
                     xmlns:controls="using:Taix.Client.Controls.Charts">
 
     <ControlTheme x:Key="{x:Type controls:ChartsItemTypeCard}"
                   TargetType="controls:ChartsItemTypeCard">
+        <ControlTheme.Resources>
+            <converter:HextoColorConverter x:Key="HextoColorConverter" />
+        </ControlTheme.Resources>
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="Margin" Value="8" />
 
@@ -90,6 +94,23 @@
                                         Background="{DynamicResource ChartCardPillBgBrush}">
                                     <TextBlock x:Name="ValueTextObj" Foreground="{DynamicResource ChartCardPillTextBrush}" FontSize="11" FontWeight="SemiBold" />
                                 </Border>
+
+                                <!-- 分类：小圆点 + 名称，卡片右上角 -->
+                                <StackPanel Orientation="Horizontal" Spacing="4"
+                                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                                            Margin="0,12,10,0"
+                                            IsVisible="{Binding Data.CategoryName,
+                                                RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}},
+                                                Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <Border Width="6" Height="6" CornerRadius="3" VerticalAlignment="Center"
+                                            Background="{Binding Data.CategoryColor,
+                                                RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}},
+                                                Converter={StaticResource HextoColorConverter}}" />
+                                    <TextBlock Text="{Binding Data.CategoryName, RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}}}"
+                                               FontSize="10" MaxWidth="62" TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource ChartCardPillTextBrush}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
                             </Grid>
                         </Border>
                     </Border>

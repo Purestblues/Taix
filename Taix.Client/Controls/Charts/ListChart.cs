@@ -44,6 +44,13 @@ public class ListChart : TemplatedControl
         AvaloniaProperty.RegisterDirect<ListChart, ICommand>(
             nameof(ClickCommand), o => o.ClickCommand, (o, v) => o.ClickCommand = v);
 
+    /// <summary>
+    /// 点击分类徽章时的命令，参数为 <see cref="ChartBadgeModel"/>
+    /// </summary>
+    public static readonly DirectProperty<ListChart, ICommand?> BadgeClickCommandProperty =
+        AvaloniaProperty.RegisterDirect<ListChart, ICommand?>(
+            nameof(BadgeClickCommand), o => o.BadgeClickCommand, (o, v) => o.BadgeClickCommand = v);
+
     public static readonly DirectProperty<ListChart, ContextMenuType> MenuTypeProperty =
         AvaloniaProperty.RegisterDirect<ListChart, ContextMenuType>(
             nameof(MenuType), o => o.MenuType, (o, v) => o.MenuType = v);
@@ -72,6 +79,7 @@ public class ListChart : TemplatedControl
     private bool _isSearch;
     private bool _isCanScroll = true;
     private ICommand? _clickCommand;
+    private ICommand? _badgeClickCommand;
     private ContextMenuType _menuType;
     private bool _isShowBadge;
     private double _iconSize = 25;
@@ -111,6 +119,12 @@ public class ListChart : TemplatedControl
     {
         get => _clickCommand;
         set => SetAndRaise(ClickCommandProperty, ref _clickCommand, value);
+    }
+
+    public ICommand? BadgeClickCommand
+    {
+        get => _badgeClickCommand;
+        set => SetAndRaise(BadgeClickCommandProperty, ref _badgeClickCommand, value);
     }
 
     public ContextMenuType MenuType

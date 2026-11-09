@@ -53,6 +53,16 @@ public class ChartsDataModel : UINotifyPropertyChanged
     public string FallbackText { get; set; }
 
     /// <summary>
+    /// 所属分类名称（卡片上展示用，已经过对比度处理）
+    /// </summary>
+    public string? CategoryName { get; set; }
+
+    /// <summary>
+    /// 所属分类颜色（与图表同一套配色规则）
+    /// </summary>
+    public string? CategoryColor { get; set; }
+
+    /// <summary>
     /// 时间（仅在类型为Month样式时有效）
     /// </summary>
     public DateTime DateTime { get; set; }

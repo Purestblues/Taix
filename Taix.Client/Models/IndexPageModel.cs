@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Avalonia.Controls;
 using Taix.Client.Controls.Charts.Model;
@@ -308,6 +309,59 @@ public partial class IndexPageModel : ModelBase
 
     #endregion
 
+    #region 时段对比
+
+    private double[] _compareTotals = [];
+    private bool _isCompareEnabled = true;
+    private bool _isCompareSupported = true;
+
+    /// <summary>
+    /// 当前维度是否支持时段对比（网站维度没有同粒度数据）
+    /// </summary>
+    [PageState]
+    public bool IsCompareSupported
+    {
+        get => _isCompareSupported;
+        set
+        {
+            if (_isCompareSupported == value) return;
+            _isCompareSupported = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 是否叠加对比柱（如“比昨日”）
+    /// </summary>
+    [PageState]
+    public bool IsCompareEnabled
+    {
+        get => _isCompareEnabled;
+        set
+        {
+            if (_isCompareEnabled == value) return;
+            _isCompareEnabled = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CompareValues));
+        }
+    }
+
+    /// <summary>
+    /// 对比时段的总量（与 HourLabels 对齐）；关闭开关或切换到网站维度时自动变空
+    /// </summary>
+    [PageState(DataCache = true)]
+    public double[] CompareValues
+    {
+        get => _isCompareEnabled ? _compareTotals : [];
+        set
+        {
+            _compareTotals = value ?? [];
+            OnPropertyChanged();
+        }
+    }
+
+    #endregion
+
     /// <summary>
     /// 周期选项（今日/本周）
     /// </summary>
@@ -348,8 +402,49 @@ public partial class IndexPageModel : ModelBase
         {
             _tabbarSelectedIndex = value;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsCustomRange));
         }
     }
+
+    private DateTime _customStart = DateTime.Now.Date.AddDays(-6);
+    private DateTime _customEnd = DateTime.Now.Date;
+
+    /// <summary>
+    /// 自定义范围的起始日期
+    /// </summary>
+    [PageState]
+    public DateTime CustomStart
+    {
+        get => _customStart;
+        set
+        {
+            var date = value.Date;
+            if (_customStart == date) return;
+            _customStart = date;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 自定义范围的结束日期
+    /// </summary>
+    [PageState]
+    public DateTime CustomEnd
+    {
+        get => _customEnd;
+        set
+        {
+            var date = value.Date;
+            if (_customEnd == date) return;
+            _customEnd = date;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>
+    /// 当前周期是否为「自定义」
+    /// </summary>
+    public bool IsCustomRange => _tabbarSelectedIndex == 2;
 
     /// <summary>
     /// week data

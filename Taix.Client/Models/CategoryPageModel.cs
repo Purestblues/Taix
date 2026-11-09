@@ -215,5 +215,10 @@ public partial class CategoryPageModel : ModelBase
     {
         public WebSiteCategoryModel? Data { get; set; }
         public int Count { get; set; }
+
+        /// <summary>
+        /// 列表里展示的颜色：和图表同一套对比度规则
+        /// </summary>
+        public string DisplayColor => Taix.Client.Librarys.ChartColorHelper.Resolve(Data?.Color, Data?.IsSystem ?? false);
     }
 }

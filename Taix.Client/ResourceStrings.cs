@@ -31,6 +31,7 @@ public static class ResourceStrings
     public static string CategoryVsYesterday => GetStringValue("CategoryVsYesterday");
     public static string CategoryVsLastWeek => GetStringValue("CategoryVsLastWeek");
     public static string CategoryVsLastMonth => GetStringValue("CategoryVsLastMonth");
+    public static string CategoryVsPrevious => GetStringValue("CategoryVsPrevious");
     public static string CategoryVsLastYear => GetStringValue("CategoryVsLastYear");
     public static string CategoryPeakDay => GetStringValue("CategoryPeakDay");
     public static string DefaultView => GetStringValue("DefaultView");

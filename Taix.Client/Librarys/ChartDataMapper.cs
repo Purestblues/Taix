@@ -17,6 +17,12 @@ public static class ChartDataMapper
         {
             var appModel = item.AppModel ?? app;
             if (appModel == null) continue;
+
+            var category = appModel.Category;
+            var categoryColor = category == null
+                ? null
+                : ChartColorHelper.Resolve(category.Color, category.IsSystem);
+
             var model = new ChartsDataModel
             {
                 Data = item,
@@ -26,17 +32,22 @@ public static class ChartDataMapper
                 PopupText = appModel.File,
                 Icon = appModel.IconFile,
                 FallbackText = appModel.GetDisplayName(),
+                CategoryName = category?.Name,
+                CategoryColor = categoryColor,
                 DateTime = item.Date
             };
 
             if (includeBadges)
             {
                 model.BadgeList = new List<ChartBadgeModel>();
-                if (appModel.Category != null)
+                if (category != null)
                     model.BadgeList.Add(new ChartBadgeModel
                     {
-                        Name = appModel.Category.Name,
-                        Color = appModel.Category.Color,
+                        Name = category.Name,
+                        Color = ChartColorHelper.WithAlpha(categoryColor, 0x2E),
+                        TextColor = categoryColor!,
+                        CategoryId = category.ID,
+                        IsWebCategory = false,
                         Type = ChartBadgeType.Category
                     });
             }
@@ -51,6 +62,11 @@ public static class ChartDataMapper
         var result = new List<ChartsDataModel>();
         foreach (var item in sites)
         {
+            var category = item.Category;
+            var categoryColor = category == null
+                ? null
+                : ChartColorHelper.Resolve(category.Color, category.IsSystem);
+
             var model = new ChartsDataModel
             {
                 Data = item,
@@ -59,17 +75,22 @@ public static class ChartDataMapper
                 Tag = Time.ToString(item.Duration),
                 PopupText = item.Domain,
                 Icon = item.IconFile,
-                FallbackText = item.Domain
+                FallbackText = item.Domain,
+                CategoryName = category?.Name,
+                CategoryColor = categoryColor
             };
 
             if (includeBadges)
             {
                 model.BadgeList = new List<ChartBadgeModel>();
-                if (item.Category != null)
+                if (category != null)
                     model.BadgeList.Add(new ChartBadgeModel
                     {
-                        Name = item.Category.Name,
-                        Color = item.Category.Color,
+                        Name = category.Name,
+                        Color = ChartColorHelper.WithAlpha(categoryColor, 0x2E),
+                        TextColor = categoryColor!,
+                        CategoryId = category.ID,
+                        IsWebCategory = true,
                         Type = ChartBadgeType.Category
                     });
             }
@@ -84,27 +105,39 @@ public static class ChartDataMapper
         var result = new List<ChartsDataModel>();
         foreach (var item in logs)
         {
-            if (item.AppModel == null) continue;
+            var appModel = item.AppModel;
+            if (appModel == null) continue;
+
+            var category = appModel.Category;
+            var categoryColor = category == null
+                ? null
+                : ChartColorHelper.Resolve(category.Color, category.IsSystem);
+
             var model = new ChartsDataModel
             {
                 Data = item,
-                Name = item.AppModel.GetDisplayName(),
+                Name = appModel.GetDisplayName(),
                 Value = item.Time,
                 Tag = Time.ToString(item.Time),
-                PopupText = item.AppModel.File,
-                Icon = item.AppModel.IconFile,
-                FallbackText = item.AppModel.GetDisplayName(),
+                PopupText = appModel.File,
+                Icon = appModel.IconFile,
+                FallbackText = appModel.GetDisplayName(),
+                CategoryName = category?.Name,
+                CategoryColor = categoryColor,
                 DateTime = DateTime.SpecifyKind(item.DataTime, DateTimeKind.Utc).ToLocalTime()
             };
 
             if (includeBadges)
             {
                 model.BadgeList = new List<ChartBadgeModel>();
-                if (item.AppModel.Category != null)
+                if (category != null)
                     model.BadgeList.Add(new ChartBadgeModel
                     {
-                        Name = item.AppModel.Category.Name,
-                        Color = item.AppModel.Category.Color,
+                        Name = category.Name,
+                        Color = ChartColorHelper.WithAlpha(categoryColor, 0x2E),
+                        TextColor = categoryColor!,
+                        CategoryId = category.ID,
+                        IsWebCategory = false,
                         Type = ChartBadgeType.Category
                     });
             }

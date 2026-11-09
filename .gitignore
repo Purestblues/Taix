@@ -27,3 +27,6 @@ taix-browser-extension/dist/
 taix-browser-extension/node_modules/
 
 /dist/
+
+# Local scratch (调试临时数据)
+.tmp/

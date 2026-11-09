@@ -95,6 +95,7 @@
                                            VerticalAlignment="Center" />
 
                                 <ListBox x:Name="BadgeListView" IsVisible="False" Grid.Column="1"
+                                         Cursor="Hand"
                                          ItemsSource="{Binding Data.BadgeList,RelativeSource={RelativeSource TemplatedParent}}"
                                          Margin="0,0,0,0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
 
@@ -144,7 +145,8 @@
 
                                             <WrapPanel Orientation="Horizontal">
                                                 <Border>
-                                                    <TextBlock Text="{Binding Name}" FontSize="10" />
+                                                    <TextBlock Text="{Binding Name}" FontSize="10"
+                                                               Foreground="{Binding TextColor,Converter={StaticResource HextoColorConverter}}" />
                                                 </Border>
 
                                             </WrapPanel>

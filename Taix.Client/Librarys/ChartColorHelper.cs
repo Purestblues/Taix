@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Styling;
+using Avalonia.Threading;
 
 namespace Taix.Client.Librarys;
 
@@ -35,11 +36,28 @@ public static class ChartColorHelper
 
     private const int AdjustIterations = 14;
 
+    /// <summary>
+    /// 主题背景 / 主题色的缓存。
+    /// 分类色会在后台线程（如时间轴批量组装）里解析，而 Application 里的资源只能 UI 线程访问，
+    /// 所以统一在主题应用时算好存起来，Resolve 变成纯函数。
+    /// </summary>
+    private static Color _background = LightBackground;
+    private static Color _accent = Color.Parse(FallbackAccent);
+
     /// <summary>主题（背景色 / 主题色）变化后触发，页面据此重新解析缓存里的颜色</summary>
     public static event Action? ThemeChanged;
 
-    /// <summary>由 <see cref="Servicers.ThemeServicer"/> 在应用完主题后调用</summary>
-    public static void NotifyThemeChanged() => ThemeChanged?.Invoke();
+    /// <summary>由 <see cref="Servicers.ThemeServicer"/> 在应用完主题后调用（UI 线程）</summary>
+    public static void NotifyThemeChanged()
+    {
+        if (Application.Current is { } app && Dispatcher.UIThread.CheckAccess())
+        {
+            _background = ReadBackground(app);
+            _accent = app.FindResource("ThemeColor") is Color color ? color : Color.Parse(FallbackAccent);
+        }
+
+        ThemeChanged?.Invoke();
+    }
 
     /// <summary>
     /// 把分类色解析成可直接画图的高对比颜色
@@ -62,41 +80,29 @@ public static class ChartColorHelper
     }
 
     /// <summary>
-    /// 当前图表背景色：优先用主题实际设置的窗口背景（实色时），否则按明暗变体取兜底
+    /// 当前图表背景色（缓存值）：主题应用时按实色窗口背景算好，否则按明暗变体兜底
     /// </summary>
-    public static Color BackgroundColor
-    {
-        get
-        {
-            var app = Application.Current;
-            if (app != null &&
-                app.Resources.TryGetResource("WindowBackground", app.ActualThemeVariant, out var value))
-            {
-                switch (value)
-                {
-                    case ISolidColorBrush solid:
-                        return solid.Color;
-                    case Color color:
-                        return color;
-                }
-            }
-
-            return app?.ActualThemeVariant == ThemeVariant.Dark ? DarkBackground : LightBackground;
-        }
-    }
+    public static Color BackgroundColor => _background;
 
     /// <summary>
     /// 当前主题色（用户可在设置里改）
     /// </summary>
-    public static string AccentHex
-    {
-        get
-        {
-            if (Application.Current?.FindResource("ThemeColor") is Color color)
-                return ToHex(color);
+    public static string AccentHex => ToHex(_accent);
 
-            return FallbackAccent;
+    private static Color ReadBackground(Application app)
+    {
+        if (app.Resources.TryGetResource("WindowBackground", app.ActualThemeVariant, out var value))
+        {
+            switch (value)
+            {
+                case ISolidColorBrush solid:
+                    return solid.Color;
+                case Color color:
+                    return color;
+            }
         }
+
+        return app.ActualThemeVariant == ThemeVariant.Dark ? DarkBackground : LightBackground;
     }
 
     /// <summary>
@@ -115,6 +121,15 @@ public static class ChartColorHelper
         var lighter = Math.Max(la, lb);
         var darker = Math.Min(la, lb);
         return (lighter + 0.05) / (darker + 0.05);
+    }
+
+    /// <summary>给颜色加透明度（#AARRGGBB），用于徽章底色等“同色淡底”场景</summary>
+    public static string WithAlpha(string? color, byte alpha)
+    {
+        if (string.IsNullOrWhiteSpace(color) || !Color.TryParse(color, out var parsed))
+            return color ?? string.Empty;
+
+        return $"#{alpha:X2}{parsed.R:X2}{parsed.G:X2}{parsed.B:X2}";
     }
 
     private static Color EnsureContrast(Color color, Color background)

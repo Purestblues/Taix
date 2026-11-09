@@ -63,6 +63,15 @@ public class ChartsItemTypeList : TemplatedControl
             (o, v) => o.IconSize = v);
 
     /// <summary>
+    /// 点击分类徽章时的命令，参数为 <see cref="ChartBadgeModel"/>
+    /// </summary>
+    public static readonly DirectProperty<ChartsItemTypeList, System.Windows.Input.ICommand?> BadgeClickCommandProperty =
+        AvaloniaProperty.RegisterDirect<ChartsItemTypeList, System.Windows.Input.ICommand?>(
+            nameof(BadgeClickCommand),
+            o => o.BadgeClickCommand,
+            (o, v) => o.BadgeClickCommand = v);
+
+    /// <summary>
     /// 进度条颜色，不设置时用主题里的 ChartTypeListProgressBarBrush
     /// </summary>
     public static readonly StyledProperty<IBrush?> BarBrushProperty =
@@ -77,6 +86,9 @@ public class ChartsItemTypeList : TemplatedControl
     private bool _isShowBadge;
 
     private double _maxValue;
+    private ListBox? _badgeListView;
+    private bool _isBadgeEventAdded;
+    private System.Windows.Input.ICommand? _badgeClickCommand;
     private Img IconObj;
     private bool IsAddEvent;
     private bool isRendering;
@@ -116,6 +128,12 @@ public class ChartsItemTypeList : TemplatedControl
         set => SetAndRaise(IconSizeProperty, ref _iconSize, value);
     }
 
+    public System.Windows.Input.ICommand? BadgeClickCommand
+    {
+        get => _badgeClickCommand;
+        set => SetAndRaise(BadgeClickCommandProperty, ref _badgeClickCommand, value);
+    }
+
     public IBrush? BarBrush
     {
         get => GetValue(BarBrushProperty);
@@ -149,6 +167,14 @@ public class ChartsItemTypeList : TemplatedControl
         ValueBlockObj = e.NameScope.Get<Rectangle>("ValueBlockObj");
         ValueContainer = e.NameScope.Get<StackPanel>("ValueContainer");
         IconObj = e.NameScope.Get<Img>("IconObj");
+
+        // 徽章点击用隧道先行拦截：否则会被外层的“点击整行”粘到详情页去
+        _badgeListView = e.NameScope.Find<ListBox>("BadgeListView");
+        if (_badgeListView != null && !_isBadgeEventAdded)
+        {
+            _badgeListView.AddHandler(PointerPressedEvent, OnBadgePointerPressed, RoutingStrategies.Tunnel);
+            _isBadgeEventAdded = true;
+        }
 
         if (!IsAddEvent)
         {
@@ -195,6 +221,17 @@ public class ChartsItemTypeList : TemplatedControl
         // 从 0 长到实际宽度（模板上配了 Width 的过渡）
         ValueBlockObj.Width = 0;
         Dispatcher.UIThread.Post(UpdateValueBlockWidth, DispatcherPriority.Loaded);
+    }
+
+    private void OnBadgePointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (BadgeClickCommand == null) return;
+        if (!e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) return;
+        if ((e.Source as Control)?.DataContext is not ChartBadgeModel badge) return;
+        if (badge.CategoryId <= 0) return;
+
+        BadgeClickCommand.Execute(badge);
+        e.Handled = true;
     }
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs e)

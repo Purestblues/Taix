@@ -347,7 +347,7 @@
                                                          Margin="10"
                                                          VerticalAlignment="Top"
                                                          Width="15" Height="15"
-                                                         Fill="{Binding Data.Color,Converter={StaticResource HextoColorConverter}}" />
+                                                         Fill="{Binding DisplayColor,Converter={StaticResource HextoColorConverter}}" />
 
                                                 <base:View Value="{Binding Data.IsDirectoryMatch}">
                                                     <Border Background="{DynamicResource ThemeBrush}"
@@ -539,7 +539,7 @@
                                                          Margin="10"
                                                          VerticalAlignment="Top"
                                                          Width="15" Height="15"
-                                                         Fill="{Binding Data.Color,Converter={StaticResource HextoColorConverter}}" />
+                                                         Fill="{Binding DisplayColor,Converter={StaticResource HextoColorConverter}}" />
 
                                                 <base:View Value="{Binding Data.IsUrlMatch}">
                                                     <Border Background="{DynamicResource ThemeBrush}"

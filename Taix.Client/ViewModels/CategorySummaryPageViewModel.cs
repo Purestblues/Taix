@@ -9,6 +9,7 @@ using Taix.Client.Controls.Charts.Model;
 using Taix.Client.Controls.Select;
 using Taix.Client.Foundation;
 using Taix.Client.Foundation.Rx;
+using Taix.Client.Librarys;
 using Taix.Client.Models;
 using Taix.Client.Models.Navigation;
 using Taix.Client.Servicers.Interfaces;
@@ -114,6 +115,21 @@ public class CategorySummaryPageViewModel : ModelBase
             return LoadAsync();
         });
         WhenPropertyChanged(this, x => x.SelectedDate, _ => LoadAsync());
+
+        ChartColorHelper.ThemeChanged += OnThemeChanged;
+    }
+
+    /// <summary>主题切换后分类色跟图要按新背景重算</summary>
+    private void OnThemeChanged()
+    {
+        if (Categories.Count == 0) return;
+        _ = RefreshAsync();
+    }
+
+    public override void Dispose()
+    {
+        ChartColorHelper.ThemeChanged -= OnThemeChanged;
+        base.Dispose();
     }
 
     public ICommand BackCommand { get; }
@@ -506,7 +522,7 @@ public class CategorySummaryPageViewModel : ModelBase
                         Kind: CategorySummaryKind.App,
                         Id: c.ID,
                         Name: c.Name ?? string.Empty,
-                        Color: c.Color,
+                        Color: ChartColorHelper.Resolve(c.Color, c.IsSystem),
                         IsActive: Kind == CategorySummaryKind.App && c.ID == CategoryId);
                     Categories.Add(chip);
                     _appCategoryList.Add(chip);
@@ -517,7 +533,7 @@ public class CategorySummaryPageViewModel : ModelBase
                         Kind: CategorySummaryKind.Web,
                         Id: c.ID,
                         Name: c.Name ?? string.Empty,
-                        Color: c.Color,
+                        Color: ChartColorHelper.Resolve(c.Color, c.IsSystem),
                         IsActive: Kind == CategorySummaryKind.Web && c.ID == CategoryId);
                     Categories.Add(chip);
                     _webCategoryList.Add(chip);
