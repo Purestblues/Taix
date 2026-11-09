@@ -14,6 +14,9 @@ public sealed class WindowStateTracker
 {
     private const string LogScope = "[WindowState]";
 
+    /// <summary>状态切换后多久内的尺寸变化不当作“用户正常尺寸”（ms）</summary>
+    private const double StateSettleMs = 700;
+
     private readonly IWindowStateService _store;
     private readonly IAppConfig _config;
     private readonly IShutdownService _shutdownService;
@@ -24,6 +27,7 @@ public sealed class WindowStateTracker
     private WindowStateKind? _pendingState;
     private int _stateAttempts;
     private bool _attached;
+    private DateTime _stateChangedAt = DateTime.MinValue;
 
     public WindowStateTracker(
         IWindowStateService store,
@@ -189,6 +193,10 @@ public sealed class WindowStateTracker
         var window = _window;
         if (window == null || window.WindowState != WindowState.Normal) return;
 
+        // 状态切换（最大化/还原）过程中会先弹一次“满屏中间尺寸”的 Resized，
+        // 如果直接记下来，下次启动就会把满屏当成正常尺寸。状态变化后的一小段时间内不捕获。
+        if ((DateTime.UtcNow - _stateChangedAt).TotalMilliseconds < StateSettleMs) return;
+
         var position = window.Position;
         _restoreBounds = new WindowSnapshot(
             position.X, position.Y, window.Width, window.Height, WindowStateKind.Normal);
@@ -294,6 +302,7 @@ public sealed class WindowStateTracker
     private void OnWindowPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs e)
     {
         if (e.Property != Window.WindowStateProperty) return;
+        _stateChangedAt = DateTime.UtcNow;
         Logger.Info($"{LogScope} WindowState 变化: {e.OldValue} -> {e.NewValue}");
     }
 

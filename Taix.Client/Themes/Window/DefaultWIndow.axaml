@@ -23,6 +23,14 @@
                 <Setter Property="CornerRadius" Value="0" />
             </Style>
 
+            <Style Selector="controls|DefaultWindow[WindowState=Maximized] /template/ Panel#OuterResizeFrame">
+                <Setter Property="IsVisible" Value="False" />
+            </Style>
+
+            <Style Selector="controls|DefaultWindow[WindowState=FullScreen] /template/ Panel#OuterResizeFrame">
+                <Setter Property="IsVisible" Value="False" />
+            </Style>
+
             <Style Selector="controls|DefaultWindow[UseCustomWindowChrome=False] /template/ Border#WindowBorder">
                 <Setter Property="Margin" Value="0" />
                 <Setter Property="CornerRadius" Value="0" />
@@ -30,6 +38,10 @@
             </Style>
             <Style Selector="controls|DefaultWindow[UseCustomWindowChrome=False] /template/ Border#ContentBorder">
                 <Setter Property="CornerRadius" Value="0" />
+            </Style>
+
+            <Style Selector="controls|DefaultWindow[UseCustomWindowChrome=False] /template/ Panel#OuterResizeFrame">
+                <Setter Property="IsVisible" Value="False" />
             </Style>
 
             <Style Selector="controls|DefaultWindow">
@@ -77,6 +89,7 @@
         </Styles>
         <Setter Property="Template">
             <ControlTemplate>
+              <Grid>
                 <Border x:Name="WindowBorder"
                         CornerRadius="{StaticResource RadiusXLarge}"
                         BoxShadow="0 12 40 0 #28000000"
@@ -425,6 +438,39 @@
                         </Grid>
                     </Border>
                 </Border>
+
+                <!-- 外层缩放热区：WindowBorder 为了画阴影留了 16 的透明外边距，
+                     用户以为最外侧就是窗口边缘，拖那里却是死区（WM_NCHITTEST 返回 HTCLIENT）。
+                     这一层把窗口矩形最外层 16 也铺成缩放热区，配合模板内原有的 8 内边距热区，
+                     两条带子连起来才是连续的拖拽区。最大化/系统标题栏时隐藏。 -->
+                <Panel x:Name="OuterResizeFrame" ZIndex="10001" IsHitTestVisible="True"
+                       Background="Transparent">
+                    <Border Height="16" VerticalAlignment="Top" HorizontalAlignment="Stretch"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="ResizeN" />
+                    <Border Height="16" VerticalAlignment="Bottom" HorizontalAlignment="Stretch"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="ResizeS" />
+                    <Border Width="16" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="ResizeW" />
+                    <Border Width="16" HorizontalAlignment="Right" VerticalAlignment="Stretch"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="ResizeE" />
+                    <Border Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Top"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="ResizeNW" />
+                    <Border Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Top"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="ResizeNE" />
+                    <Border Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="ResizeSW" />
+                    <Border Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                            Background="Transparent"
+                            WindowDecorationProperties.ElementRole="ResizeSE" />
+                </Panel>
+              </Grid>
             </ControlTemplate>
         </Setter>
     </ControlTheme>

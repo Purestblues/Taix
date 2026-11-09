@@ -92,6 +92,9 @@ public class DefaultWindow : Avalonia.Controls.Window
 
     private Grid titleBar;
 
+    private Size? _normalSize;
+    private PixelPoint? _normalPosition;
+
     private Border ToastBorder, Masklayer, DialogBorder, InputModalBorder, ActionDialogBorder;
     private StackPanel ActionDialogButtonsPanel;
     private Grid ToastGrid;
@@ -648,6 +651,14 @@ public class DefaultWindow : Avalonia.Controls.Window
             var point = e.GetCurrentPoint(this);
             if (titleBar.Bounds.Contains(point.Position) && point.Properties.IsLeftButtonPressed)
             {
+                // 双击标题栏：最大化 / 还原（原实现只做了拖动，双击没有任何反馈）
+                if (e.ClickCount >= 2)
+                {
+                    ToggleWindowState();
+                    e.Handled = true;
+                    return;
+                }
+
                 BeginMoveDrag(e);
             }
         }
@@ -655,6 +666,61 @@ public class DefaultWindow : Avalonia.Controls.Window
         {
             // ignored
         }
+    }
+
+
+    /// <summary>
+    /// 在 最大化 / 还原 之间切换（双击标题栏、双击窗口上沿都会用到）
+    /// </summary>
+    public void ToggleWindowState()
+    {
+        if (WindowState == WindowState.Minimized) return;
+
+        if (WindowState is WindowState.Maximized or WindowState.FullScreen)
+        {
+            RestoreNormalBounds();
+            return;
+        }
+
+        // 最大化前把当前正常尺寸记下来，还原时直接回写，
+        // 不依赖平台的 restore bounds（自定义 chrome 下它会被中间尺寸污染）
+        RememberNormalBounds();
+        WindowState = WindowState.Maximized;
+    }
+
+    private void RememberNormalBounds()
+    {
+        if (WindowState != WindowState.Normal) return;
+
+        var size = Bounds.Size;
+        if (size.Width <= 0 || size.Height <= 0) return;
+
+        _normalSize = size;
+        _normalPosition = Position;
+    }
+
+    private void RestoreNormalBounds()
+    {
+        WindowState = WindowState.Normal;
+
+        if (_normalSize is not { } size) return;
+
+        // 等平台完成状态切换再回写，否则会被它自己的还原尺寸覆盖
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (WindowState != WindowState.Normal) return;
+
+            if (Math.Abs(Width - size.Width) > 0.5 || Math.Abs(Height - size.Height) > 0.5)
+            {
+                Width = size.Width;
+                Height = size.Height;
+            }
+
+            if (_normalPosition is { } position && Position != position)
+            {
+                Position = position;
+            }
+        }, DispatcherPriority.Loaded);
     }
 
 

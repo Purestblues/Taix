@@ -169,11 +169,18 @@ public class Imager
             .Replace('\\', Path.DirectorySeparatorChar)
             .Replace('/', Path.DirectorySeparatorChar);
 
-        var fullPath = Path.IsPathRooted(normalizedPath)
-            ? normalizedPath
-            : Path.Combine(FileHelper.GetIconsDirectory(), normalizedPath);
+        if (Path.IsPathRooted(normalizedPath))
+            return File.Exists(normalizedPath) ? normalizedPath : null;
 
-        return File.Exists(fullPath) ? fullPath : null;
+        var root = FileHelper.GetIconsDirectory();
+
+        var fullPath = Path.Combine(root, normalizedPath);
+        if (File.Exists(fullPath)) return fullPath;
+
+        // Windows 下服务端的数据目录是 <exe>\Data（应用图标落在 <exe>\Data\AppIcons），
+        // 而网页图标落在 <exe>\WebFavicons；同一份相对路径必须两个根目录都试
+        var dataFullPath = Path.Combine(root, "Data", normalizedPath);
+        return File.Exists(dataFullPath) ? dataFullPath : null;
     }
 
     private static byte[]? TryReadFileBytes(string filePath)
