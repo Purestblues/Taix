@@ -4,15 +4,15 @@
     本地调试启动器：补齐开发目录缺失的图标，然后启动调试版客户端。
 
 .DESCRIPTION
-    Taix 的应用图标由服务端写在 <安装目录>/Data/AppIcons，网站图标在 <安装目录>/WebFavicons；
-    而开发运行时数据根目录是 Taix.Client/bin/Debug/net10.0/，
+    ShiJian 的应用图标由服务端写在 <安装目录>/Data/AppIcons，网站图标在 <安装目录>/WebFavicons；
+    而开发运行时数据根目录是 ShiJian.Client/bin/Debug/net10.0/，
     缺图标时界面会全部回退成默认图标。本脚本发现目标目录为空就从安装目录复制一份。
 
-    调试版连接的是本机已在运行的 taix-server（默认 127.0.0.1:37091），不需要另起后端；
+    调试版连接的是本机已在运行的 shijian-server（默认 127.0.0.1:37091），不需要另起后端；
     DEBUG 构建没有单实例锁，可以和安装版同时运行。
 
 .PARAMETER InstallDir
-    安装版目录，用于取图标。默认 "D:/Program Files/taix"
+    安装版目录，用于取图标。默认 "D:/Program Files/shijian"
 
 .PARAMETER NoBuild
     跳过编译，直接运行已有产物
@@ -25,15 +25,15 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$InstallDir = 'D:/Program Files/taix',
+    [string]$InstallDir = 'D:/Program Files/shijian',
     [switch]$NoBuild
 )
 
 $ErrorActionPreference = 'Stop'
 
 $root = Split-Path -Parent $PSScriptRoot
-$clientProject = [IO.Path]::Combine($root, 'Taix.Client', 'Taix.Client.csproj')
-$outDir = [IO.Path]::Combine($root, 'Taix.Client', 'bin', 'Debug', 'net10.0')
+$clientProject = [IO.Path]::Combine($root, 'ShiJian.Client', 'ShiJian.Client.csproj')
+$outDir = [IO.Path]::Combine($root, 'ShiJian.Client', 'bin', 'Debug', 'net10.0')
 
 function Copy-IconFolder {
     param(
@@ -71,7 +71,7 @@ function Copy-IconFolder {
     Write-Host ("[copy] {0}：已从安装目录复制 {1} 个文件" -f $Label, $copied.Count)
 }
 
-Write-Host '== Taix 调试版 =='
+Write-Host '== ShiJian 调试版 =='
 Write-Host ("安装目录: {0}" -f $InstallDir)
 
 Copy-IconFolder `

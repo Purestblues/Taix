@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<linker>
+    <assembly fullname="ShiJian" preserve="all" />
+    <type fullname="ShiJian.Client.Resources.Localization.StringResourcesCn" preserve="all" />
+    <type fullname="ShiJian.Client.Resources.Localization.StringResourcesEn" preserve="all" />
+</linker>

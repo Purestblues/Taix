@@ -45,15 +45,15 @@ def main():
     project_root = os.path.normpath(os.path.join(script_dir, '..'))
 
     input_font = os.path.join(script_dir, 'Segoe Fluent Icons.ttf')
-    output_font = os.path.join(project_root, 'Taix.Client', 'Resources', 'Fonts', 'SegoeFluentIcons-Subset.ttf')
-    iconconverter_path = os.path.join(project_root, 'Taix.Client', 'Controls', 'Base', 'IconConverter.cs')
+    output_font = os.path.join(project_root, 'ShiJian.Client', 'Resources', 'Fonts', 'SegoeFluentIcons-Subset.ttf')
+    iconconverter_path = os.path.join(project_root, 'ShiJian.Client', 'Controls', 'Base', 'IconConverter.cs')
 
     print("=" * 50)
     print("Font Subset Extractor")
     print("=" * 50)
 
     print("\n[1/3] Scanning project for used icons...")
-    used_icons = find_used_icons(os.path.join(project_root, 'Taix.Client'))
+    used_icons = find_used_icons(os.path.join(project_root, 'ShiJian.Client'))
     used_icons.discard('None')
     print(f"      Found {len(used_icons)} icons")
 

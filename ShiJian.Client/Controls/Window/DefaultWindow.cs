@@ -1,0 +1,737 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Input;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Input;
+using Avalonia.Media;
+using Avalonia.Media.Transformation;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
+using ShiJian.Client.Controls.Base;
+using ShiJian.Client.Controls.Input;
+using ShiJian.Client.Foundation;
+using ShiJian.Client.Foundation.Rx;
+using ShiJian.Client.Models;
+using ShiJian.Client.Servicers.Interfaces;
+
+namespace ShiJian.Client.Controls.Window;
+
+public class DefaultWindow : Avalonia.Controls.Window
+{
+    private const double CustomWindowChromeTitleBarHeight = 40;
+
+    public static readonly StyledProperty<IImage?> IconSourceProperty =
+        AvaloniaProperty.Register<DefaultWindow, IImage?>(nameof(IconSource));
+
+    public static readonly StyledProperty<bool> MaximizeVisibleProperty =
+        AvaloniaProperty.Register<DefaultWindow, bool>(nameof(MaximizeVisible));
+
+    public static readonly StyledProperty<bool> RestoreVisibleProperty =
+        AvaloniaProperty.Register<DefaultWindow, bool>(nameof(RestoreVisible));
+
+    public static readonly StyledProperty<PageContainer> PageContainerProperty =
+        AvaloniaProperty.Register<DefaultWindow, PageContainer>(nameof(PageContainer));
+
+    public static readonly StyledProperty<ToastType> ToastTypeProperty =
+        AvaloniaProperty.Register<DefaultWindow, ToastType>(nameof(ToastType));
+
+
+    public static readonly StyledProperty<string> DialogTitleProperty =
+        AvaloniaProperty.Register<DefaultWindow, string>(nameof(DialogTitle));
+
+    public static readonly StyledProperty<IconTypes> ToastIconProperty =
+        AvaloniaProperty.Register<DefaultWindow, IconTypes>(nameof(ToastIcon));
+
+    public static readonly StyledProperty<string> ToastContentProperty =
+        AvaloniaProperty.Register<DefaultWindow, string>(nameof(ToastContent));
+
+
+    public static readonly StyledProperty<string> DialogMessageProperty =
+        AvaloniaProperty.Register<DefaultWindow, string>(nameof(DialogMessage));
+
+
+    public static readonly StyledProperty<string> InputModalValueProperty =
+        AvaloniaProperty.Register<DefaultWindow, string>(nameof(InputModalValue));
+
+    public static readonly StyledProperty<bool> IsShowToastProperty =
+        AvaloniaProperty.Register<DefaultWindow, bool>(nameof(IsShowToast));
+
+    public static readonly StyledProperty<bool> IsCanBackProperty =
+        AvaloniaProperty.Register<DefaultWindow, bool>(nameof(IsCanBack));
+
+    public static readonly StyledProperty<bool> UseCustomWindowChromeProperty =
+        AvaloniaProperty.Register<DefaultWindow, bool>(
+            nameof(UseCustomWindowChrome),
+            true);
+
+    public static readonly StyledProperty<ConnectionStatus> ConnectionStatusProperty =
+        AvaloniaProperty.Register<DefaultWindow, ConnectionStatus>(nameof(ConnectionStatus), ConnectionStatus.Checking);
+
+    public static readonly StyledProperty<ICommand?> TitleBarCommandProperty =
+        AvaloniaProperty.Register<DefaultWindow, ICommand?>(nameof(TitleBarCommand));
+
+    public static readonly StyledProperty<bool> TitleBarCommandVisibleProperty =
+        AvaloniaProperty.Register<DefaultWindow, bool>(nameof(TitleBarCommandVisible), true);
+
+    private CancellationTokenSource _toastCancellationTokenSource;
+    private Button.Button CancelBtn, ConfirmBtn, InputModalCancelBtn, InputModalConfirmBtn;
+    private InputBox InputModalInputBox;
+    private Func<string, bool> InputModalValidFnc;
+    private string? InputValue;
+    private bool IsDialogConfirm;
+    private bool IsShowConfirmDialog, IsShowInputModal, IsShowActionDialog;
+    private int ActionDialogResult = -1;
+    private Border? _statusDot;
+    private EventHandler? _onLoadPagedHandler;
+    private readonly IDisposable _windowStateSubscription;
+
+
+    private Grid titleBar;
+
+    private Size? _normalSize;
+    private PixelPoint? _normalPosition;
+
+    private Border ToastBorder, Masklayer, DialogBorder, InputModalBorder, ActionDialogBorder;
+    private StackPanel ActionDialogButtonsPanel;
+    private Grid ToastGrid;
+    public DefaultWindow()
+    {
+        ApplyWindowChromeMode();
+
+        _windowStateSubscription = RxObservable.Merge(
+                ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.MaximizeVisible).Select(_ => true),
+                this.GetObservable(Avalonia.Controls.Window.WindowStateProperty).Select(_ => true)
+            )
+            .Subscribe(_ =>
+            {
+                var windowState = WindowState;
+                switch (windowState)
+                {
+                    case WindowState.Normal:
+                        MaximizeVisible = true;
+                        RestoreVisible = false;
+                        break;
+                    case WindowState.Maximized:
+                        RestoreVisible = true;
+                        MaximizeVisible = false;
+                        break;
+                }
+            });
+
+        MinimizeWindowCommand = AsyncRelayCommand.Create(() => { WindowState = WindowState.Minimized; });
+
+        RestoreWindowCommand = AsyncRelayCommand.Create(() => { WindowState = WindowState.Normal; });
+
+        MaximizeWindowCommand = AsyncRelayCommand.Create(() => { WindowState = WindowState.Maximized; });
+
+        CloseWindowCommand = AsyncRelayCommand.Create(() => { RequestClose?.Invoke(this, EventArgs.Empty); });
+
+        BackCommand = AsyncRelayCommand.Create(() =>
+        {
+            // 使用 INavigationService.GoBack() 以正确设置 IsNavigatingBack 标记
+            var navigationService = ServiceLocator.GetService<INavigationService>();
+            if (navigationService != null)
+            {
+                navigationService.GoBack();
+                if (PageContainer != null && PageContainer.Index == 0) IsCanBack = false;
+            }
+            else
+            {
+                // 兜底：直接调用 PageContainer.Back()
+                if (PageContainer != null)
+                {
+                    PageContainer.Back();
+                    if (PageContainer.Index == 0) IsCanBack = false;
+                }
+            }
+        });
+    }
+
+    public bool MaximizeVisible
+    {
+        get => GetValue(MaximizeVisibleProperty);
+        set => SetValue(MaximizeVisibleProperty, value);
+    }
+
+
+    public bool RestoreVisible
+    {
+        get => GetValue(RestoreVisibleProperty);
+        set => SetValue(RestoreVisibleProperty, value);
+    }
+
+    public PageContainer PageContainer
+    {
+        get => GetValue(PageContainerProperty);
+        set => SetValue(PageContainerProperty, value);
+    }
+
+    /// <summary>
+    /// toast type
+    /// </summary>
+    public ToastType ToastType
+    {
+        get => GetValue(ToastTypeProperty);
+        set => SetValue(ToastTypeProperty, value);
+    }
+
+    /// <summary>
+    /// toast content
+    /// </summary>
+    public string ToastContent
+    {
+        get => (string)GetValue(ToastContentProperty);
+        set => SetValue(ToastContentProperty, value);
+    }
+
+    public IconTypes ToastIcon
+    {
+        get => GetValue(ToastIconProperty);
+        set => SetValue(ToastIconProperty, value);
+    }
+
+    /// <summary>
+    /// Dialog title
+    /// </summary>
+    public string DialogTitle
+    {
+        get => (string)GetValue(DialogTitleProperty);
+        set => SetValue(DialogTitleProperty, value);
+    }
+
+    /// <summary>
+    /// Dialog title
+    /// </summary>
+    public string InputModalValue
+    {
+        get => (string)GetValue(InputModalValueProperty);
+        set => SetValue(InputModalValueProperty, value);
+    }
+
+    /// <summary>
+    /// Dialog message
+    /// </summary>
+    public string DialogMessage
+    {
+        get => (string)GetValue(DialogMessageProperty);
+        set => SetValue(DialogMessageProperty, value);
+    }
+
+    public bool IsShowToast
+    {
+        get => GetValue(IsShowToastProperty);
+        set => SetValue(IsShowToastProperty, value);
+    }
+
+    /// <summary>
+    /// 是否可以返回
+    /// </summary>
+    public bool IsCanBack
+    {
+        get => GetValue(IsCanBackProperty);
+        set => SetValue(IsCanBackProperty, value);
+    }
+
+    public bool UseCustomWindowChrome
+    {
+        get => GetValue(UseCustomWindowChromeProperty);
+        set => SetValue(UseCustomWindowChromeProperty, value);
+    }
+
+    public ConnectionStatus ConnectionStatus
+    {
+        get => GetValue(ConnectionStatusProperty);
+        set => SetValue(ConnectionStatusProperty, value);
+    }
+
+    public event EventHandler? RequestClose;
+
+    public bool IsWindowClosed { get; private set; }
+
+    public IImage? IconSource
+    {
+        get => GetValue(IconSourceProperty);
+        set => SetValue(IconSourceProperty, value);
+    }
+
+    public ICommand? TitleBarCommand
+    {
+        get => GetValue(TitleBarCommandProperty);
+        set => SetValue(TitleBarCommandProperty, value);
+    }
+
+    public bool TitleBarCommandVisible
+    {
+        get => GetValue(TitleBarCommandVisibleProperty);
+        set => SetValue(TitleBarCommandVisibleProperty, value);
+    }
+
+    internal void SetTitleBarHeight(double height)
+    {
+        if (height > 0 && titleBar != null)
+        {
+            titleBar.Height = height;
+        }
+    }
+
+
+    protected override Type StyleKeyOverride => typeof(DefaultWindow);
+
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == PageContainerProperty) OnPageContainerChanged(change);
+        if (change.Property == IsCanBackProperty) OnIsCanBackChanged(change);
+        if (change.Property == IsShowToastProperty) OnIsShowToastChanged(change);
+        if (change.Property == ConnectionStatusProperty) UpdateConnectionStatus();
+        if (change.Property == UseCustomWindowChromeProperty) ApplyWindowChromeMode();
+    }
+
+    private void ApplyWindowChromeMode()
+    {
+        if (UseCustomWindowChrome)
+        {
+            ExtendClientAreaToDecorationsHint = true;
+            ExtendClientAreaTitleBarHeightHint = CustomWindowChromeTitleBarHeight;
+            WindowDecorations = WindowDecorations.None;
+            return;
+        }
+
+        ExtendClientAreaToDecorationsHint = false;
+        ExtendClientAreaTitleBarHeightHint = 0;
+        WindowDecorations = WindowDecorations.Full;
+    }
+
+    private static void OnIsShowToastChanged(AvaloniaPropertyChangedEventArgs e)
+    {
+        var that = e.Sender as DefaultWindow;
+        if (that != null)
+        {
+            if (that.IsShowToast)
+                _ = that.ShowToastAsync();
+            else
+                that.HideToast();
+        }
+    }
+
+    private async Task ShowToastAsync()
+    {
+        if (ToastGrid == null)
+            return;
+
+        if (_toastCancellationTokenSource != null)
+        {
+            if (!_toastCancellationTokenSource.TryReset())
+            {
+                _toastCancellationTokenSource.Dispose();
+                _toastCancellationTokenSource = new CancellationTokenSource();
+            }
+        }
+        else
+        {
+            _toastCancellationTokenSource = new CancellationTokenSource();
+        }
+
+        ToastGrid.IsVisible = true;
+        DialogBorder.IsVisible = false;
+        if (!IsShowInputModal) InputModalBorder.IsVisible = false;
+        ToastBorder.IsVisible = true;
+        ToastBorder.RenderTransform = TransformOperations.Parse("translateY(0px)");
+        Masklayer.Opacity = 0.6;
+        ToastGrid.PointerPressed += ToastGrid_MouseLeftButtonDown;
+
+        try
+        {
+            await Task.Delay(3000, _toastCancellationTokenSource.Token);
+        }
+        catch (TaskCanceledException)
+        {
+        }
+
+        IsShowToast = false;
+    }
+
+    public Task<bool> ShowConfirmDialogAsync(string title, string message)
+    {
+        IsShowConfirmDialog = true;
+        ToastGrid.IsVisible = true;
+        ToastBorder.IsVisible = false;
+        DialogBorder.IsVisible = true;
+        InputModalBorder.IsVisible = false;
+
+        DialogMessage = message;
+        DialogTitle = title;
+        DialogBorder.RenderTransform = TransformOperations.Parse("translateY(0px)");
+        Masklayer.Opacity = 0;
+
+        return Task.Run(async () =>
+        {
+            while (IsShowConfirmDialog) await Task.Delay(10);
+
+            return IsDialogConfirm;
+        });
+    }
+
+    public Task<int> ShowActionDialogAsync(string title, string message, string[] buttons)
+    {
+        IsShowActionDialog = true;
+        ActionDialogResult = -1;
+        ToastGrid.IsVisible = true;
+        ToastBorder.IsVisible = false;
+        DialogBorder.IsVisible = false;
+        InputModalBorder.IsVisible = false;
+        ActionDialogBorder.IsVisible = true;
+
+        DialogMessage = message;
+        DialogTitle = title;
+        ActionDialogBorder.RenderTransform = TransformOperations.Parse("translateY(0px)");
+        Masklayer.Opacity = 0.6;
+
+        // 清空按钮面板并动态添加新按钮
+        if (ActionDialogButtonsPanel != null)
+        {
+            ActionDialogButtonsPanel.Children.Clear();
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                int index = i;
+                var btn = new Button.Button
+                {
+                    Content = buttons[i],
+                    Width = 100,
+                    Margin = new Thickness(i > 0 ? 10 : 0, 0, 0, 0)
+                };
+                if (i == 0)
+                {
+                    btn.Background = this.FindResource("ThemeBrush") as IBrush ?? Brushes.Transparent;
+                    btn.Foreground = Brushes.White;
+                }
+                btn.Click += (s, e) =>
+                {
+                    ActionDialogResult = index;
+                    HideActionDialog();
+                };
+                ActionDialogButtonsPanel.Children.Add(btn);
+            }
+        }
+
+        return Task.Run(async () =>
+        {
+            while (IsShowActionDialog) await Task.Delay(10);
+
+            return ActionDialogResult;
+        });
+    }
+
+    private void ToastGrid_MouseLeftButtonDown(object? sender, PointerPressedEventArgs e)
+    {
+        IsShowToast = false;
+        _toastCancellationTokenSource?.Cancel();
+        ToastGrid.PointerPressed -= ToastGrid_MouseLeftButtonDown;
+    }
+
+    public Task<string?> ShowInputModalAsync(string title, string message, string value, Func<string, bool> validate)
+    {
+        IsShowInputModal = true;
+        ToastGrid.IsVisible = true;
+        ToastBorder.IsVisible = false;
+        DialogBorder.IsVisible = false;
+        InputModalBorder.IsVisible = true;
+
+        DialogMessage = message;
+        DialogTitle = title;
+        InputModalValue = value;
+        InputModalValidFnc = validate;
+
+        InputModalInputBox.Text = InputModalValue;
+        InputModalBorder.RenderTransform = TransformOperations.Parse("translateY(10px)");
+
+        Masklayer.Opacity = 0.6;
+
+        return Task.Run(async () =>
+        {
+            while (IsShowInputModal) await Task.Delay(10);
+
+            return IsDialogConfirm ? InputValue : null;
+        });
+    }
+
+
+    private void HideToast()
+    {
+        if (ToastGrid == null)
+            return;
+
+        ToastBorder.RenderTransform = TransformOperations.Parse("translateY(-150px)");
+        // 如果 InputModal 正在显示，不重置遮罩层
+        if (!IsShowInputModal)
+        {
+            Masklayer.Opacity = 0;
+            ToastGrid.IsVisible = false;
+        }
+        else
+        {
+            // InputModal 显示中，只隐藏 Toast，保持遮罩
+            ToastBorder.IsVisible = false;
+        }
+    }
+
+    private static void OnIsCanBackChanged(AvaloniaPropertyChangedEventArgs e)
+    {
+        var that = e.Sender as DefaultWindow;
+        if (that != null)
+        {
+            //if (that.IsCanBack)
+            //{
+            //    VisualStateManager.GoToState(that, "CanBackState", true);
+            //}
+            //else
+            //{
+            //    VisualStateManager.GoToState(that, "Normal", true);
+            //}
+        }
+    }
+
+    private static void OnPageContainerChanged(AvaloniaPropertyChangedEventArgs e)
+    {
+        var that = (DefaultWindow)e.Sender;
+        if (that == null) return;
+
+        if (e.OldValue is PageContainer oldPc && that._onLoadPagedHandler != null)
+        {
+            oldPc.OnLoadPaged -= that._onLoadPagedHandler;
+        }
+
+        if (e.NewValue is PageContainer newPc)
+        {
+            that.IsCanBack = newPc.Index >= 1;
+
+            that._onLoadPagedHandler = (s, v) =>
+            {
+                var pc = s as PageContainer;
+                that.IsCanBack = pc?.Index >= 1;
+            };
+
+            newPc.OnLoadPaged += that._onLoadPagedHandler;
+        }
+        else
+        {
+            that._onLoadPagedHandler = null;
+        }
+    }
+
+    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
+    {
+        base.OnApplyTemplate(e);
+        titleBar = e.NameScope.Find<Grid>("TitleBar");
+        ToastBorder = e.NameScope.Find<Border>("ToastBorder");
+        Masklayer = e.NameScope.Find<Border>("Masklayer");
+        ToastGrid = e.NameScope.Find<Grid>("ToastGrid");
+        DialogBorder = e.NameScope.Find<Border>("DialogBorder");
+        ActionDialogBorder = e.NameScope.Find<Border>("ActionDialogBorder");
+        ActionDialogButtonsPanel = e.NameScope.Find<StackPanel>("ActionDialogButtonsPanel");
+        CancelBtn = e.NameScope.Find<Button.Button>("CancelBtn");
+        ConfirmBtn = e.NameScope.Find<Button.Button>("ConfirmBtn");
+        InputModalBorder = e.NameScope.Find<Border>("InputModalBorder");
+        InputModalCancelBtn = e.NameScope.Find<Button.Button>("InputModalCancelBtn");
+        InputModalConfirmBtn = e.NameScope.Find<Button.Button>("InputModalConfirmBtn");
+        InputModalInputBox = e.NameScope.Find<InputBox>("InputModalInputBox");
+
+        _statusDot = e.NameScope.Find<Border>("StatusDot");
+
+        UpdateConnectionStatus();
+
+        if (CancelBtn != null)
+            CancelBtn.Click += (e, c) =>
+            {
+                IsDialogConfirm = false;
+                HideDialog();
+            };
+
+        if (ConfirmBtn != null)
+            ConfirmBtn.Click += (e, c) =>
+            {
+                IsDialogConfirm = true;
+                HideDialog();
+            };
+
+        if (InputModalCancelBtn != null)
+            InputModalCancelBtn.Click += (e, c) =>
+            {
+                IsDialogConfirm = false;
+                HideInputModal();
+            };
+
+        if (InputModalConfirmBtn != null)
+            InputModalConfirmBtn.Click += (e, c) =>
+            {
+                if (InputModalValidFnc != null && !InputModalValidFnc(InputValue)) return;
+                IsDialogConfirm = true;
+                HideInputModal();
+            };
+
+        if (InputModalInputBox != null)
+            InputModalInputBox.TextChanged += (e, c) => { InputValue = InputModalInputBox.Text; };
+
+        if (IsShowToast)
+            _ = ShowToastAsync();
+    }
+
+    private void HideDialog()
+    {
+        InputModalBorder.RenderTransform = TransformOperations.Parse("translateY(-150px)");
+        Masklayer.Opacity = 0;
+        ToastGrid.IsVisible = false;
+        IsShowConfirmDialog = false;
+    }
+
+    private void HideActionDialog()
+    {
+        ActionDialogBorder.RenderTransform = TransformOperations.Parse("translateY(-150px)");
+        Masklayer.Opacity = 0;
+        ToastGrid.IsVisible = false;
+        IsShowActionDialog = false;
+    }
+
+    private void HideInputModal()
+    {
+        InputModalBorder.RenderTransform = TransformOperations.Parse("translateY(-150px)");
+        Masklayer.Opacity = 0;
+        ToastGrid.IsVisible = false;
+        IsShowInputModal = false;
+    }
+
+    private void UpdateConnectionStatus()
+    {
+        if (_statusDot == null) return;
+
+        IBrush brush;
+        string toolTipKey;
+
+        switch (ConnectionStatus)
+        {
+            case ConnectionStatus.Connected:
+                brush = new SolidColorBrush(Color.Parse("#24bf5f"));
+                toolTipKey = "ConnectionStatusConnected";
+                break;
+            case ConnectionStatus.Disconnected:
+                brush = new SolidColorBrush(Color.Parse("#f51837"));
+                toolTipKey = "ConnectionStatusDisconnected";
+                break;
+            case ConnectionStatus.Checking:
+            default:
+                brush = new SolidColorBrush(Color.Parse("#999999"));
+                toolTipKey = "ConnectionStatusChecking";
+                break;
+        }
+
+        _statusDot.Background = brush;
+        ToolTip.SetTip(_statusDot, Application.Current?.FindResource(toolTipKey) ?? string.Empty);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _windowStateSubscription.Dispose();
+        base.OnClosed(e);
+        IsWindowClosed = true;
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+
+        if (titleBar == null) return;
+
+        try
+        {
+            var point = e.GetCurrentPoint(this);
+            if (titleBar.Bounds.Contains(point.Position) && point.Properties.IsLeftButtonPressed)
+            {
+                // 双击标题栏：最大化 / 还原（原实现只做了拖动，双击没有任何反馈）
+                if (e.ClickCount >= 2)
+                {
+                    ToggleWindowState();
+                    e.Handled = true;
+                    return;
+                }
+
+                BeginMoveDrag(e);
+            }
+        }
+        catch
+        {
+            // ignored
+        }
+    }
+
+
+    /// <summary>
+    /// 在 最大化 / 还原 之间切换（双击标题栏、双击窗口上沿都会用到）
+    /// </summary>
+    public void ToggleWindowState()
+    {
+        if (WindowState == WindowState.Minimized) return;
+
+        if (WindowState is WindowState.Maximized or WindowState.FullScreen)
+        {
+            RestoreNormalBounds();
+            return;
+        }
+
+        // 最大化前把当前正常尺寸记下来，还原时直接回写，
+        // 不依赖平台的 restore bounds（自定义 chrome 下它会被中间尺寸污染）
+        RememberNormalBounds();
+        WindowState = WindowState.Maximized;
+    }
+
+    private void RememberNormalBounds()
+    {
+        if (WindowState != WindowState.Normal) return;
+
+        var size = Bounds.Size;
+        if (size.Width <= 0 || size.Height <= 0) return;
+
+        _normalSize = size;
+        _normalPosition = Position;
+    }
+
+    private void RestoreNormalBounds()
+    {
+        WindowState = WindowState.Normal;
+
+        if (_normalSize is not { } size) return;
+
+        // 等平台完成状态切换再回写，否则会被它自己的还原尺寸覆盖
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (WindowState != WindowState.Normal) return;
+
+            if (Math.Abs(Width - size.Width) > 0.5 || Math.Abs(Height - size.Height) > 0.5)
+            {
+                Width = size.Width;
+                Height = size.Height;
+            }
+
+            if (_normalPosition is { } position && Position != position)
+            {
+                Position = position;
+            }
+        }, DispatcherPriority.Loaded);
+    }
+
+
+    #region sys command
+
+    public static ICommand MinimizeWindowCommand { get; private set; }
+    public static ICommand RestoreWindowCommand { get; private set; }
+    public static ICommand MaximizeWindowCommand { get; private set; }
+    public static ICommand CloseWindowCommand { get; private set; }
+    public static ICommand LogoButtonClickCommand { get; private set; }
+    public static ICommand BackCommand { get; private set; }
+
+    #endregion
+}

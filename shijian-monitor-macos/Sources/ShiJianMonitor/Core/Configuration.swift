@@ -1,0 +1,39 @@
+import Foundation
+
+struct Configuration: Sendable {
+    let socketPath: String
+    let tickInterval: TimeInterval
+    let monitorConfig: MonitorConfig
+    let iconCacheDirectory: URL
+    let persistenceURL: URL
+    /// 单实例锁文件；隔离测试换路径即可与生产实例并存
+    let lockPath: String?
+
+    static let `default` = Configuration(
+        socketPath: "/tmp/shijian_daemon.sock",
+        tickInterval: 60,
+        monitorConfig: .default,
+        iconCacheDirectory: Configuration.defaultIconCacheDirectory,
+        persistenceURL: Configuration.defaultPersistenceURL,
+        lockPath: nil
+    )
+
+    static let appIconsDirectoryName = "AppIcons"
+
+    static var defaultIconCacheDirectory: URL {
+        if let override = ProcessInfo.processInfo.environment["SHIJIAN_ICON_DIR"] {
+            return URL(fileURLWithPath: override).appendingPathComponent(appIconsDirectoryName, isDirectory: true)
+        }
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        return support
+            .appendingPathComponent("ShiJian", isDirectory: true)
+            .appendingPathComponent(appIconsDirectoryName, isDirectory: true)
+    }
+
+    static var defaultPersistenceURL: URL {
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+        let directory = support.appendingPathComponent("ShiJian", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        return directory.appendingPathComponent("active_session.json")
+    }
+}

@@ -1,0 +1,12 @@
+using System;
+
+namespace ShiJian.Client.Controls.Timeline;
+
+public class MultiTrackSegment
+{
+    public DateTime Start { get; set; }
+    public DateTime End { get; set; }
+    public string Color { get; set; } = "#888888";
+    public int DurationMinutes { get; set; }
+    public int ActualDurationSeconds { get; set; }
+}

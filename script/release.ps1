@@ -152,7 +152,7 @@ function Get-OriginSlug {
 }
 
 try {
-    Write-Host '════ Taix 发版 ════' -ForegroundColor Cyan
+    Write-Host '════ ShiJian 发版 ════' -ForegroundColor Cyan
     Write-Host ("版本: {0}" -f $Tag)
     if ($DryRun) { Write-Host '模式: DryRun（只预检，不做任何改动）' -ForegroundColor Yellow }
 

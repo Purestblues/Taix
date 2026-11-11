@@ -23,8 +23,8 @@
 *.db-shm
 
 # Browser extension build artifacts
-taix-browser-extension/dist/
-taix-browser-extension/node_modules/
+shijian-browser-extension/dist/
+shijian-browser-extension/node_modules/
 
 /dist/
 

@@ -1,0 +1,59 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="using:ShiJian.Client.Controls.Select">
+
+    <ControlTheme x:Key="{x:Type controls:TabSwitch}" TargetType="controls:TabSwitch">
+        <Styles>
+            <Style Selector="controls|TabSwitch:focus-visible /template/ Border#RootBorder">
+                <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+                <Setter Property="BorderThickness" Value="2" />
+            </Style>
+        </Styles>
+        <Setter Property="Background" Value="{DynamicResource TabSwitchBgBrush}" />
+        <Setter Property="Padding" Value="3" />
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border x:Name="RootBorder"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{DynamicResource TabSwitchBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="10"
+                        Padding="{TemplateBinding Padding}">
+                    <Grid>
+                        <Border x:Name="Slider"
+                                Background="{DynamicResource TabOptionSelectedBrush}"
+                                BorderBrush="{DynamicResource TabSliderBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Width="0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Stretch"
+                                IsHitTestVisible="False"
+                                IsVisible="False">
+                            <Border.Transitions>
+                                <Transitions>
+                                    <ThicknessTransition Property="Margin"
+                                                         Duration="0:0:0.28">
+                                        <ThicknessTransition.Easing>
+                                            <CubicEaseInOut />
+                                        </ThicknessTransition.Easing>
+                                    </ThicknessTransition>
+                                    <DoubleTransition Property="Width"
+                                                      Duration="0:0:0.28">
+                                        <DoubleTransition.Easing>
+                                            <CubicEaseInOut />
+                                        </DoubleTransition.Easing>
+                                    </DoubleTransition>
+                                </Transitions>
+                            </Border.Transitions>
+                        </Border>
+
+                        <StackPanel x:Name="ItemsContainer"
+                                    Orientation="Horizontal"
+                                    Spacing="1" />
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </ControlTheme>
+</ResourceDictionary>

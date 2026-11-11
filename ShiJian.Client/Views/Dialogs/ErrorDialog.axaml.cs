@@ -1,0 +1,41 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using ShiJian.Client.Platform;
+
+namespace ShiJian.Client.Views.Dialogs;
+
+public partial class ErrorDialog : Window
+{
+    public ErrorDialog()
+    {
+        InitializeComponent();
+    }
+
+    private void LogHyperlinkClick(object sender, RoutedEventArgs e)
+    {
+        var loggerName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+            "Log", DateTime.Now.ToString("yyyy-MM-dd") + ".log");
+        if (File.Exists(loggerName)) PlatformHelper.OpenFileInExplorer(loggerName);
+    }
+
+    private void IssuesHyperlinkClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("https://github.com/Purestblues/shijian/issues/new")
+                { UseShellExecute = true });
+        }
+        catch (Exception)
+        {
+        }
+    }
+
+    private void Button_Click(object sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo("https://github.com/Purestblues/shijian") { UseShellExecute = true });
+        Close();
+    }
+}

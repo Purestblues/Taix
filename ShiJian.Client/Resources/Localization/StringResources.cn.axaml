@@ -1,0 +1,458 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:system="clr-namespace:System;assembly=netstandard"
+                    x:Class="ShiJian.Client.Resources.Localization.StringResourcesCn"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <system:String x:Key="Webpage">网页</system:String>
+    <system:String x:Key="Complete">完成</system:String>
+    <system:String x:Key="Piece">个</system:String>
+    <system:String x:Key="Site">站点</system:String>
+
+
+    <system:String x:Key="SideOverview">概览</system:String>
+    <system:String x:Key="SideStatistics">统计</system:String>
+    <system:String x:Key="SideDetails">详细</system:String>
+    <system:String x:Key="SideSort">分类</system:String>
+    <system:String x:Key="SideSetting">设置</system:String>
+    <system:String x:Key="ExpandHeader">展开筛选栏</system:String>
+    <system:String x:Key="CollapseHeader">收起筛选栏</system:String>
+    <system:String x:Key="Website">网站</system:String>
+    <system:String x:Key="App">应用</system:String>
+    <system:String x:Key="Refresh">刷新</system:String>
+    <system:String x:Key="Browse">浏览</system:String>
+    <system:String x:Key="ClassificationName">分类名称</system:String>
+    <system:String x:Key="ExCreateEdit">?创建:编辑</system:String>
+    <system:String x:Key="ExCreateUpdate">?创建:更新</system:String>
+    <system:String x:Key="NewCategory">新建分类</system:String>
+
+    <system:String x:Key="MostFrequent">最为频繁</system:String>
+    <system:String x:Key="ClassificationProportion">分类占比</system:String>
+
+    <system:String x:Key="Today">今日</system:String>
+    <system:String x:Key="More">更多</system:String>
+    <system:String x:Key="CategoryFilterLabel">分类筛选：</system:String>
+
+
+    <!--base-->
+    <system:String x:Key="NoData">暂时没有数据</system:String>
+
+
+    <!--window button Tip-->
+    <system:String x:Key="Back">返回</system:String>
+    <system:String x:Key="Minimization">最小化</system:String>
+    <system:String x:Key="Maximize">最大化</system:String>
+    <system:String x:Key="Restore">向下还原</system:String>
+    <system:String x:Key="Close">关闭</system:String>
+    <system:String x:Key="Plugins">插件</system:String>
+    <system:String x:Key="PluginsOpenInBrowser">插件 · 在浏览器中打开</system:String>
+    <system:String x:Key="OpenPluginUiFailed">打开插件界面失败，请手动访问本地服务地址</system:String>
+
+
+    <system:String x:Key="Hour">小时</system:String>
+    <system:String x:Key="Total">总计</system:String>
+    <system:String x:Key="Usage">应用量</system:String>
+    <system:String x:Key="LongestUsageTime">最长使用时间</system:String>
+
+
+    <system:String x:Key="LongerTip">该应用将不再统计使用时长</system:String>
+    <system:String x:Key="IgnoredText">已被忽略</system:String>
+    <system:String x:Key="MatchREIgnoredText">已被正则忽略匹配</system:String>
+    <system:String x:Key="ApplicationAlias">别名</system:String>
+    <system:String x:Key="ApplicationPName">应用进程名称</system:String>
+    <system:String x:Key="ApplicationDescription">应用描述</system:String>
+    <system:String x:Key="ApplicationFilePath">应用文件路径</system:String>
+    <system:String x:Key="Classification">分类</system:String>
+
+    <system:String x:Key="LongerWebSiteTip">该站点数据将不会被统计</system:String>
+    <system:String x:Key="WebSiteTitle">网站名称</system:String>
+    <system:String x:Key="Domain">网站名称</system:String>
+    <system:String x:Key="WebSiteClassification">网站分类</system:String>
+    <system:String x:Key="DurationStatistics">时长统计</system:String>
+    <system:String x:Key="ViewDetails">浏览详情</system:String>
+    <system:String x:Key="MultipleWebsites">个网站</system:String>
+    <system:String x:Key="OpenWebPage">打开网页</system:String>
+    <system:String x:Key="CopyURL">复制链接</system:String>
+    <system:String x:Key="CopyTitle">复制标题</system:String>
+    <system:String x:Key="LogTime">访问时间</system:String>
+    <system:String x:Key="Duration">浏览时长</system:String>
+
+
+    <system:String x:Key="IgnoreThisApplication">忽略此应用</system:String>
+    <system:String x:Key="IgnoreTheSite">忽略此网站</system:String>
+    <system:String x:Key="Unignore">取消忽略</system:String>
+    <system:String x:Key="MonthlyOverview">月度总览</system:String>
+    <system:String x:Key="ClearAppTheMonthData">清空此应用在该月的统计数据</system:String>
+    <system:String x:Key="ClearTheMonth">清空该月统计</system:String>
+    <system:String x:Key="AccumulatedUsageDuringTheMonth">该月累计使用</system:String>
+    <system:String x:Key="ProportionDurationInTheMonth">在当月所有使用应用时长中占比</system:String>
+    <system:String x:Key="InvalidParameter">参数错误</system:String>
+
+
+    <system:String x:Key="Settings">设置</system:String>
+    <system:String x:Key="DeleteData">删除数据</system:String>
+    <system:String x:Key="From">从</system:String>
+    <system:String x:Key="To">到</system:String>
+    <system:String x:Key="Execute">执行</system:String>
+    <system:String x:Key="OpenSource">GitHub</system:String>
+    <system:String x:Key="DeletedAndUnrecoverable">删除且不可恢复</system:String>
+    <system:String x:Key="ExportData">导出数据</system:String>
+    <system:String x:Key="Export">导出</system:String>
+    <system:String x:Key="Version">版本号</system:String>
+    <system:String x:Key="ExportTo">导出为csv格式</system:String>
+    <system:String x:Key="CheckUpdate">检查更新</system:String>
+    <system:String x:Key="Discuss">问题反馈</system:String>
+    <system:String x:Key="PlugIn">浏览器统计插件</system:String>
+
+    <system:String x:Key="SelectiveApplication">选择应用</system:String>
+    <system:String x:Key="SearchApplication">搜索应用</system:String>
+
+    <system:String x:Key="AppClassification">应用分类</system:String>
+    <system:String x:Key="AppList">应用列表</system:String>
+    <system:String x:Key="Select">选择</system:String>
+    <system:String x:Key="RemoveFromCategory">从分类中移除</system:String>
+
+
+    <system:String x:Key="SelectSite">选择站点</system:String>
+    <system:String x:Key="Search">搜索</system:String>
+    <system:String x:Key="SearchSitePlaceholder">搜索站点（支持通配符*?或正则）</system:String>
+    <system:String x:Key="UseRegularExpressions">使用正则表达式</system:String>
+    <system:String x:Key="Sitelist">站点列表</system:String>
+
+
+    <system:String x:Key="SelectCategoryColors">选择分类颜色</system:String>
+    <system:String x:Key="PleaseEnterCategoryName">请输入分类名称</system:String>
+    <system:String x:Key="Icon">图标</system:String>
+    <system:String x:Key="AddDirectory">添加目录</system:String>
+    <system:String x:Key="Remove">移除</system:String>
+
+
+    <system:String x:Key="Aggregate">总计</system:String>
+    <system:String x:Key="Month">月</system:String>
+
+    <system:String x:Key="Daily">天</system:String>
+    <system:String x:Key="Weekly">周</system:String>
+    <system:String x:Key="Monthly">月</system:String>
+    <system:String x:Key="Yearly">年</system:String>
+    <system:String x:Key="ThisMonth">本月</system:String>
+    <system:String x:Key="ThisYear">本年</system:String>
+
+    <!-- 分类详情 -->
+    <system:String x:Key="CategorySummary">分类详情</system:String>
+    <system:String x:Key="CategoryComposition">组成</system:String>
+    <system:String x:Key="CategoryTrend">使用趋势</system:String>
+    <system:String x:Key="CategoryHourly">使用时段</system:String>
+    <system:String x:Key="CategoryTotalUsage">总使用时长</system:String>
+    <system:String x:Key="CategoryActiveDays">活跃天数</system:String>
+    <system:String x:Key="CategoryAverageDaily">日均使用</system:String>
+    <system:String x:Key="CategoryActiveDaysUnit">天</system:String>
+    <system:String x:Key="CategoryNoData">该时间段内此分类暂无使用记录</system:String>
+    <system:String x:Key="CategoryVsYesterday">比昨日</system:String>
+    <system:String x:Key="CategoryVsLastWeek">比上周</system:String>
+    <system:String x:Key="CategoryVsLastMonth">比上月同期</system:String>
+    <system:String x:Key="CategoryVsLastYear">比去年同期</system:String>
+    <system:String x:Key="CategoryVsPrevious">比上期</system:String>
+    <system:String x:Key="CategoryPeakDay">单日峰值</system:String>
+    <system:String x:Key="CategoryColumnHint">点击柱子查看该时段，再次点击返回全部</system:String>
+    <system:String x:Key="CategoryOverview">周期概览</system:String>
+    <system:String x:Key="SearchTypeCategoryApp">应用分类</system:String>
+    <system:String x:Key="SearchTypeCategoryWeb">网站分类</system:String>
+    <system:String x:Key="LastWeek">上周</system:String>
+    <system:String x:Key="ThisWeek">本周</system:String>
+    <system:String x:Key="DefaultView">默认视图</system:String>
+    <system:String x:Key="SummaryView">汇总视图</system:String>
+    <system:String x:Key="CategoryView">分类视图</system:String>
+    <system:String x:Key="TrendView">趋势</system:String>
+    <system:String x:Key="ColumnView">柱状</system:String>
+    <system:String x:Key="TimelineView">时间轴</system:String>
+    <system:String x:Key="TimelineStatistics">时间轴统计</system:String>
+    <system:String x:Key="ProductivityScore">效率评分</system:String>
+    <system:String x:Key="ActiveTime">活跃时间</system:String>
+    <system:String x:Key="IdleTime">空闲时间</system:String>
+    <system:String x:Key="SystemCategory">系统</system:String>
+    <system:String x:Key="SwitchCount">切换次数</system:String>
+    <system:String x:Key="MostProductiveHour">高效时段</system:String>
+    <system:String x:Key="Uncategorized">未分类</system:String>
+
+    <system:String x:Key="ViewCategoryAppList">查看分类应用列表</system:String>
+    <system:String x:Key="Edit">编辑</system:String>
+    <system:String x:Key="DeleteCategory">删除分类</system:String>
+    <system:String x:Key="DirectoryMatch">目录匹配</system:String>
+    <system:String x:Key="ApplyDirectoryMatch">应用目录匹配</system:String>
+    <system:String x:Key="ApplyDirectoryMatchTip">根据目录配置批量归类应用</system:String>
+    <system:String x:Key="ApplyDirectoryMatchSuccess">已归类 {0} 个应用</system:String>
+    <system:String x:Key="UrlMatch">通配符匹配</system:String>
+    <system:String x:Key="AddUrlPattern">添加通配符</system:String>
+    <system:String x:Key="UrlPatternPlaceholder">支持通配符(* ?)或正则表达式，如 *.bilibili.com 或 ^(www|m)\.google\.com$</system:String>
+    <system:String x:Key="UrlPatternTooLong">URL 规则长度不能超过 256 个字符</system:String>
+    <system:String x:Key="UrlPatternLimitReached">每个分类最多添加 20 条 URL 规则</system:String>
+    <system:String x:Key="UrlPatternExists">该 URL 规则已存在</system:String>
+    <system:String x:Key="ApplyUrlMatchSuccess">已匹配 {0} 个网站</system:String>
+    <system:String x:Key="ReApplyDirectoryMatch">重新匹配目录</system:String>
+    <system:String x:Key="ReApplyUrlMatch">重新匹配网站</system:String>
+    <system:String x:Key="CategoryAppCount">分类应用数量</system:String>
+    <system:String x:Key="ViewWebsiteList">查看网站列表</system:String>
+    <system:String x:Key="General">常规</system:String>
+    <system:String x:Key="Behavior">行为</system:String>
+    <system:String x:Key="Data">数据</system:String>
+    <system:String x:Key="About">关于</system:String>
+
+    <!-- 全局快捷键 -->
+    <system:String x:Key="Shortcuts">快捷键</system:String>
+    <system:String x:Key="RefreshShortcut">刷新当前页</system:String>
+    <system:String x:Key="RefreshShortcutDesc">重新拉取当前页面的数据</system:String>
+    <system:String x:Key="SearchShortcut">全局搜索</system:String>
+    <system:String x:Key="SearchShortcutDesc">在所有应用与网站中搜索并跳转详情页</system:String>
+    <system:String x:Key="NavigateBackShortcut">返回上一页</system:String>
+    <system:String x:Key="NavigateBackShortcutDesc">回到导航历史中的上一个页面，鼠标后退键也可触发</system:String>
+    <system:String x:Key="PressKeysHint">请按下快捷键…</system:String>
+    <system:String x:Key="Reset">重置</system:String>
+    <system:String x:Key="Clear">清空</system:String>
+
+    <!-- 搜索面板 -->
+    <system:String x:Key="SearchPlaceholder">搜索应用或网站，支持 *? 通配符与正则</system:String>
+    <system:String x:Key="SearchEmptyHint">未找到匹配项</system:String>
+    <system:String x:Key="SearchTypeApp">应用</system:String>
+    <system:String x:Key="SearchTypeWeb">网站</system:String>
+    <system:String x:Key="SearchDefaultHint">快捷入口</system:String>
+    <system:String x:Key="SearchSectionToday">今日活跃</system:String>
+    <system:String x:Key="SearchSectionCategories">浏览分类</system:String>
+    <system:String x:Key="SearchResults">搜索结果</system:String>
+    <system:String x:Key="SearchResultCount">共 {0} 项</system:String>
+    <system:String x:Key="SearchTipEnter">回车 跳转</system:String>
+    <system:String x:Key="SearchTipNav">↑↓ 选择</system:String>
+    <system:String x:Key="SearchTipExpand">展开/收起</system:String>
+    <system:String x:Key="SearchTipClose">Esc 关闭</system:String>
+
+
+    <system:String x:Key="TimeRangeSelectionError">时间范围选择错误</system:String>
+    <system:String x:Key="DeleteConfirmation">删除确认</system:String>
+    <system:String x:Key="WantPerformAction">是否执行此操作？</system:String>
+    <system:String x:Key="OperationCompleted">操作已完成</system:String>
+    <system:String x:Key="DataExportCompleted">导出数据完成</system:String>
+    <system:String x:Key="DataExportFailed">导出数据失败</system:String>
+
+    <system:String x:Key="Year">年</system:String>
+    <system:String x:Key="Day">日</system:String>
+
+    <system:String x:Key="Monday">周一</system:String>
+    <system:String x:Key="Tuesday">周二</system:String>
+    <system:String x:Key="Wednesday">周三</system:String>
+    <system:String x:Key="Thursday">周四</system:String>
+    <system:String x:Key="Friday">周五</system:String>
+    <system:String x:Key="Saturday">周六</system:String>
+    <system:String x:Key="Sunday">周日</system:String>
+
+
+    <system:String x:Key="WantDeleteCategory">是否确认删除该分类？</system:String>
+    <system:String x:Key="CategoryDeleted">分类已删除</system:String>
+    <system:String x:Key="CategoryNameExists">分类名称已存在</system:String>
+    <system:String x:Key="ColoreExists">颜色已存在，请重新选择</system:String>
+    <system:String x:Key="CreationCompleted">创建完成</system:String>
+    <system:String x:Key="NoChangesMade">没有修改</system:String>
+    <system:String x:Key="Updated">已更新</system:String>
+    <system:String x:Key="DirectoryExists">目录已存在</system:String>
+    <system:String x:Key="Added">已添加</system:String>
+    <system:String x:Key="AdditionFailed">添加失败，请重试</system:String>
+    <system:String x:Key="CategoryCannotEmpty">分类名称不能为空</system:String>
+    <system:String x:Key="SelectCategoryIcon">请选择一个分类图标</system:String>
+    <system:String x:Key="CategoryColor">请设置一个分类颜色</system:String>
+    <system:String x:Key="IconFileCannotExceed">图标文件不能超过1MB</system:String>
+    <system:String x:Key="OperationFailedRetry">操作失败，请重试</system:String>
+
+
+    <system:String x:Key="1Month">1月</system:String>
+    <system:String x:Key="2Month">2月</system:String>
+    <system:String x:Key="3Month">3月</system:String>
+    <system:String x:Key="4Month">4月</system:String>
+    <system:String x:Key="5Month">5月</system:String>
+    <system:String x:Key="6Month">6月</system:String>
+    <system:String x:Key="7Month">7月</system:String>
+    <system:String x:Key="8Month">8月</system:String>
+    <system:String x:Key="9Month">9月</system:String>
+    <system:String x:Key="10Month">10月</system:String>
+    <system:String x:Key="11Month">11月</system:String>
+    <system:String x:Key="12Month">12月</system:String>
+
+
+    <system:String x:Key="StartApplication">启动应用</system:String>
+    <system:String x:Key="CopyApplicationProcessName">复制应用进程名称</system:String>
+    <system:String x:Key="CopyApplicationFilePath">复制应用文件路径</system:String>
+    <system:String x:Key="OpenApplicationDirectory">打开应用所在目录</system:String>
+    <system:String x:Key="ClearStatistics">清空统计</system:String>
+    <system:String x:Key="SetCategory">设置分类</system:String>
+    <system:String x:Key="EditAlias">编辑别名</system:String>
+    <system:String x:Key="RemovedApplicationFromWhitelist">已从白名单移除此应用</system:String>
+    <system:String x:Key="AddedToWhitelist">已添加至白名单</system:String>
+    <system:String x:Key="UpdateAlias">修改别名</system:String>
+    <system:String x:Key="EnterAlias">请输入别名</system:String>
+    <system:String x:Key="AliasMaxLengthTip">别名最大长度为{0}位字符</system:String>
+    <system:String x:Key="AliasUpdated">别名已更新</system:String>
+    <system:String x:Key="AddWhitelist">添加到白名单</system:String>
+    <system:String x:Key="ApplicationFileExist">应用文件似乎不存在</system:String>
+    <system:String x:Key="ApplicationExist">应用似乎不存在</system:String>
+    <system:String x:Key="RemoveWhitelist">从白名单移除</system:String>
+
+    <system:String x:Key="IgnoringApplicationCancelled">已取消忽略此应用 {0}</system:String>
+    <system:String x:Key="ApplicationNowIgnored">已忽略此应用 {0}</system:String>
+
+    <system:String x:Key="UnignoredDomain">已取消忽略此域名 {0}</system:String>
+    <system:String x:Key="IgnoredDomain">已忽略此域名 {0}</system:String>
+
+    <system:String x:Key="OpenWebsite">在浏览器打开网站</system:String>
+    <system:String x:Key="IgnoreWebsite">忽略此网站</system:String>
+    <system:String x:Key="UnignoreSite">取消忽略此站点</system:String>
+    <system:String x:Key="IgnoreSite">忽略此站点</system:String>
+
+    <system:String x:Key="CopyDomain">复制域名</system:String>
+
+    <system:String x:Key="Confirm">确认</system:String>
+
+
+    <system:String x:Key="Mon">一</system:String>
+    <system:String x:Key="Tue">二</system:String>
+    <system:String x:Key="Wed">三</system:String>
+    <system:String x:Key="Thu">四</system:String>
+    <system:String x:Key="Fri">五</system:String>
+    <system:String x:Key="Sat">六</system:String>
+    <system:String x:Key="Sun">日</system:String>
+
+    <system:String x:Key="LongDayTips">最长一天是在 {0} 号，使用了{1}</system:String>
+
+    <system:String x:Key="ClearConfirmation">清空确认</system:String>
+    <system:String x:Key="ClearAllStatisticsApplicationTip">是否确定清空此应用的所有统计数据？</system:String>
+    <system:String x:Key="ClearAllStatisticsSiteTip">是否确定清空此站点的所有统计数据？</system:String>
+    <system:String x:Key="WantClearData">是否确定清空此应用 {0}年{1}月 的数据？</system:String>
+
+    <system:String x:Key="Processing">正在处理</system:String>
+    <system:String x:Key="Cleared">已清空</system:String>
+
+    <system:String x:Key="Add">添加</system:String>
+    <system:String x:Key="CannotBeEmpty">不能为空</system:String>
+    <system:String x:Key="AlreadyExists">已存在</system:String>
+    <system:String x:Key="CopyContent">复制内容</system:String>
+    <system:String x:Key="Import">导入</system:String>
+
+    <system:String x:Key="InvalidFileContent">文件内容无效</system:String>
+    <system:String x:Key="ImportCompleted">导入完成</system:String>
+    <system:String x:Key="ImportFailed">导入失败</system:String>
+    <system:String x:Key="PleaseNote">注意</system:String>
+    <system:String x:Key="ImportingOverwriteOriginal">导入会覆盖原配置</system:String>
+    <system:String x:Key="ExportFailed">导出失败</system:String>
+    <system:String x:Key="ExportCompleted">导出完成</system:String>
+
+
+    <system:String x:Key="UnexpectedError">时见 发生了一个预料之外的错误！</system:String>
+    <system:String x:Key="Log">日志</system:String>
+    <system:String x:Key="SincerelyCrash">对此非常抱歉！本次崩溃的</system:String>
+    <system:String x:Key="LocateFileExplorer">在资源文件管理器中定位到该日志文件</system:String>
+    <system:String x:Key="PleaseSubmit">已经保存，如果方便请将它提交给开发者处理，非常谢谢。</system:String>
+    <system:String x:Key="HowSubmitLog">如何给开发者提交日志？</system:String>
+    <system:String x:Key="ViaThe">1. 通过</system:String>
+    <system:String x:Key="OpenInBrowser">浏览器打开</system:String>
+
+    <system:String x:Key="ExportDaily">每日</system:String>
+    <system:String x:Key="ExportTimePeriod">时段</system:String>
+    <system:String x:Key="ExportSummary">汇总</system:String>
+    <system:String x:Key="ExportDailySummary">每日汇总</system:String>
+    <system:String x:Key="AppliedStatistics">应用统计数据</system:String>
+    <system:String x:Key="WebsiteStatistics">网页统计数据</system:String>
+
+
+    <system:String x:Key="Column1">时段</system:String>
+    <system:String x:Key="Column2">应用</system:String>
+    <system:String x:Key="Column3">描述</system:String>
+    <system:String x:Key="Column4">时长</system:String>
+    <system:String x:Key="Column5">分类</system:String>
+    <system:String x:Key="Column6">日期</system:String>
+    <system:String x:Key="Column7">时间</system:String>
+    <system:String x:Key="Column8">标题</system:String>
+    <system:String x:Key="Column9">网址</system:String>
+
+
+    <system:String x:Key="Ignore">忽略</system:String>
+
+
+    <system:String x:Key="NewVersionAvailable">发现新版本</system:String>
+    <system:String x:Key="WantGoDownloadPage">是否立即前往下载最新版本？</system:String>
+    <system:String x:Key="NoUpdateAvailable">当前已是最新版</system:String>
+    <system:String x:Key="UpdateCheckFailed">更新检查失败，请检查网络</system:String>
+    <system:String x:Key="ServerDisconnected">无法连接到服务端</system:String>
+    <system:String x:Key="ConnectionStatusConnected">已连接</system:String>
+    <system:String x:Key="ConnectionStatusDisconnected">未连接</system:String>
+    <system:String x:Key="ConnectionStatusChecking">检测中...</system:String>
+
+    <system:String x:Key="Cancel">取消</system:String>
+    <system:String x:Key="RestoreSystemCategory">还原系统分类</system:String>
+    <system:String x:Key="CategoryHasApps">该分类下有 {0} 个应用，删除后将移入系统默认分类</system:String>
+    <system:String x:Key="CategoryHasSites">该分类下有 {0} 个网站，删除后将移入系统默认分类</system:String>
+
+
+    <system:String x:Key="ChooseColor">选择颜色</system:String>
+    <system:String x:Key="CustomColor">自定义颜色</system:String>
+    <system:String x:Key="SelectIcon">选择图标</system:String>
+    <system:String x:Key="CustomPicture">自定义图片</system:String>
+    <system:String x:Key="Custom">自定义</system:String>
+
+
+    <system:String x:Key="Open">打开</system:String>
+    <system:String x:Key="Exit">退出</system:String>
+
+    <system:String x:Key="DataRetentionDays">时间轴数据保存天数</system:String>
+    <system:String x:Key="DataRetentionDaysDesc">超期的时间轴数据将自动清理，不影响汇总统计</system:String>
+    <system:String x:Key="Days">天</system:String>
+    <system:String x:Key="DaysFormat">{0}天</system:String>
+    <system:String x:Key="TimelineHint">滚轮缩放 · Shift+拖拽选择 · 双击重置</system:String>
+    <system:String x:Key="ClockHint">悬停看时段 · 点击扇区进入应用详情</system:String>
+    <system:String x:Key="ClockLegendOther">其他</system:String>
+    <system:String x:Key="ClockLegendTitle">占比</system:String>
+    <system:String x:Key="TimelineTotalDuration">轨道总时长</system:String>
+    <system:String x:Key="TimelineAppColor">应用</system:String>
+    <system:String x:Key="TimelineCategoryColor">分类</system:String>
+
+    <!-- 详细页看板 -->
+    <system:String x:Key="InsightApps">使用应用</system:String>
+    <system:String x:Key="InsightSites">访问站点</system:String>
+    <system:String x:Key="InsightPages">访问网页</system:String>
+    <system:String x:Key="InsightSessions">会话次数</system:String>
+    <system:String x:Key="InsightAverageSession">平均</system:String>
+    <system:String x:Key="InsightLongest">最长单次</system:String>
+    <system:String x:Key="InsightRecords">浏览记录</system:String>
+    <system:String x:Key="InsightLongestRecord">最长</system:String>
+    <system:String x:Key="InsightFirstUse">首次使用</system:String>
+    <system:String x:Key="InsightLastUse">末次使用</system:String>
+    <system:String x:Key="InsightFirstBrowse">首次浏览</system:String>
+    <system:String x:Key="InsightLastBrowse">末次浏览</system:String>
+    <system:String x:Key="InsightPeakHour">峰值时段</system:String>
+    <system:String x:Key="InsightActiveHours">活跃小时</system:String>
+    <system:String x:Key="InsightActiveMonths">活跃月份</system:String>
+    <system:String x:Key="InsightBands">时段偏好</system:String>
+    <system:String x:Key="InsightBandDawn">凌晨</system:String>
+    <system:String x:Key="InsightBandMorning">上午</system:String>
+    <system:String x:Key="InsightBandAfternoon">下午</system:String>
+    <system:String x:Key="InsightBandEvening">晚上</system:String>
+    <system:String x:Key="InsightHabits">使用习惯</system:String>
+    <system:String x:Key="InsightHeatmap">使用热力</system:String>
+    <system:String x:Key="InsightHeatmapByApp">行＝主要应用 · 列＝小时</system:String>
+    <system:String x:Key="InsightHeatmapBySite">行＝主要站点 · 列＝小时</system:String>
+    <system:String x:Key="InsightHeatmapByWeekday">行＝星期 · 列＝小时</system:String>
+    <system:String x:Key="InsightHeatmapByMonth">行＝月份 · 列＝日期</system:String>
+    <system:String x:Key="InsightHeatmapByCalendar">行＝周 · 列＝星期</system:String>
+    <system:String x:Key="InsightWeekOfMonth">第{0}周</system:String>
+    <system:String x:Key="InsightCategoryShare">分类占比</system:String>
+    <system:String x:Key="InsightDistribution">时段分布</system:String>
+    <system:String x:Key="InsightVsYesterday">比昨日</system:String>
+    <system:String x:Key="InsightVsLastWeek">比上周</system:String>
+    <system:String x:Key="InsightVsLastMonth">比上月</system:String>
+    <system:String x:Key="InsightVsLastYear">比去年</system:String>
+    <system:String x:Key="InsightCompareYesterday">浅色为昨日</system:String>
+    <system:String x:Key="InsightCompareLastWeek">浅色为上周</system:String>
+    <system:String x:Key="InsightCompareLastMonth">浅色为上月</system:String>
+    <system:String x:Key="InsightCompareLastYear">浅色为去年</system:String>
+
+    <!-- 睡眠检测配置 -->
+    <system:String x:Key="InactiveThreshold">空闲阈值</system:String>
+    <system:String x:Key="InactiveThresholdDesc">系统无操作多久后自动暂停统计，重启 monitor 进程生效</system:String>
+    <system:String x:Key="MaxSoundDuration">声音持续时间</system:String>
+    <system:String x:Key="MaxSoundDurationDesc">播放声音时保持活跃的最长时间，超过后进入休眠，重启 monitor 进程生效</system:String>
+    <system:String x:Key="Minutes">分钟</system:String>
+</ResourceDictionary>

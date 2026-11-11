@@ -1,0 +1,171 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <AssemblyName>ShiJian</AssemblyName>
+        <Version>$(APP_VERSION)</Version>
+        <ApplicationIcon>Resources\Icons\shijian.ico</ApplicationIcon>
+        <AvaloniaVersion>12.1.1</AvaloniaVersion>
+        <AvaloniaXamlBehaviorsVersion>12.0.5</AvaloniaXamlBehaviorsVersion>
+        <NoWarn>$(NoWarn);CS0108;IL2026;IL3050;IL2075;AVLN5001</NoWarn>
+    </PropertyGroup>
+
+    <!-- macOS 平台条件编译 -->
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+        <DefineConstants>$(DefineConstants);MACOS</DefineConstants>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+        <TrimMode>full</TrimMode>
+        <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+        <EnableComHosting>false</EnableComHosting>
+
+        <UseWindowsThreadPool>true</UseWindowsThreadPool>
+        <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+        <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+        <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
+        <EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
+        <XmlResolverIsNetworkingEnabledByDefault>false</XmlResolverIsNetworkingEnabledByDefault>
+
+        <OptimizationPreference>Size</OptimizationPreference>
+        <IlcInstructionSet>base</IlcInstructionSet>
+        <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
+    </PropertyGroup>
+
+    <!-- PoC: 静态链接 Skia/ANGLE/HarfBuzz（仅 win-x64 AOT） -->
+    <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+        <PackageReference Include="2ndLAB.SkiaSharp.Static" Version="3.119.0-10.0.26100.0-1.1c7d845" />
+        <PackageReference Include="2ndLAB.ANGLE.Static" Version="7151.0.0-10.0.26100.0-1.79e529b" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' And '$(PublishAot)' == 'true'">
+        <DirectPInvoke Include="libSkiaSharp" />
+        <DirectPInvoke Include="libHarfBuzzSharp" />
+        <DirectPInvoke Include="av_libglesv2" />
+        <LinkerArg Include="d3d9.lib;dxguid.lib" />
+        <LinkerArg Include="dxgi.lib" />
+        <LinkerArg Include="Gdi32.lib;User32.lib" />
+        <LinkerArg Include="synchronization.lib" />
+        <LinkerArg Include="fontsub.lib;Ole32.lib;USP10.lib" />
+        <LinkerArg Include="d3d12.lib;d3dcompiler.lib" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="ShiJian.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
+        <PackageReference Include="Avalonia.Desktop" Version="$(AvaloniaVersion)" />
+        <!--Condition below is needed to remove AvaloniaUI.DiagnosticsSupport package from build output in Release configuration.-->
+        <PackageReference Condition="'$(Configuration)' == 'Debug'" Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
+        <PackageReference Include="Avalonia.Themes.Simple" Version="$(AvaloniaVersion)" />
+        <PackageReference Include="Jab" Version="0.10.2" />
+        <PackageReference Include="Xaml.Behaviors.Avalonia" Version="12.0.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <TrimmerRootDescriptor Include="TrimmerRoots.xml" />
+    </ItemGroup>
+    <ItemGroup>
+        <AvaloniaResource Include="Resources\Emoji\(*).png" />
+
+        <AvaloniaResource Include="Resources\Fonts\SegoeFluentIcons-Subset.ttf">
+            <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+        </AvaloniaResource>
+
+        <AvaloniaResource Include="Resources\Icons\*.ico" />
+        <AvaloniaResource Include="Resources\Icons\defaultIcon.png" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <UpToDateCheckInput Remove="Themes\Navigation\NavigationItem.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <UpToDateCheckInput Remove="Views\IndexPage.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <UpToDateCheckInput Remove="Views\DetailPage.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <UpToDateCheckInput Remove="Themes\Base\Img.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <UpToDateCheckInput Remove="Themes\Charts\ChartsItemTypeCard.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <UpToDateCheckInput Remove="Themes\Charts\ChartsItemTypeMonth.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Update="Views\Dialogs\ColorPickerDialog.axaml.cs">
+            <DependentUpon>ColorPickerDialog.axaml</DependentUpon>
+        </Compile>
+    </ItemGroup>
+
+    <ItemGroup>
+        <UpToDateCheckInput Remove="Themes\Base\IconSelect.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <UpToDateCheckInput Remove="Views\ChartPage.axaml" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <AdditionalFiles Include="Resources\Localization\StringResources.cn.axaml" />
+      <AdditionalFiles Include="Resources\Localization\StringResources.en.axaml" />
+    </ItemGroup>
+
+    <!-- 源代码生成器项目引用 -->
+    <ItemGroup>
+        <ProjectReference Include="..\ShiJian.PageState.Generator\ShiJian.PageState.Generator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false" />
+    </ItemGroup>
+
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+        <ShiJianWindowKitDir>$(MSBuildThisFileDirectory)../shijian-windowkit-macos</ShiJianWindowKitDir>
+        <ShiJianWindowKitSwiftConfig Condition="'$(Configuration)' == 'Release'">release</ShiJianWindowKitSwiftConfig>
+        <ShiJianWindowKitSwiftConfig Condition="'$(ShiJianWindowKitSwiftConfig)' == ''">debug</ShiJianWindowKitSwiftConfig>
+        <ShiJianWindowKitDylib>$(ShiJianWindowKitDir)/.build/$(ShiJianWindowKitSwiftConfig)/libShiJianWindowKit.dylib</ShiJianWindowKitDylib>
+        <ShiJianWindowKitEnabled Condition="'$(ShiJianWindowKitEnabled)' != 'false' And '$(RuntimeIdentifier)' == ''">true</ShiJianWindowKitEnabled>
+        <ShiJianWindowKitEnabled Condition="'$(ShiJianWindowKitEnabled)' != 'false' And $([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('osx'))">true</ShiJianWindowKitEnabled>
+    </PropertyGroup>
+
+    <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$(ShiJianWindowKitEnabled)' == 'true'">
+        <ShiJianWindowKitSource Include="$(ShiJianWindowKitDir)/Package.swift" />
+        <ShiJianWindowKitSource Include="$(ShiJianWindowKitDir)/Sources/**/*.swift" />
+    </ItemGroup>
+
+    <Target Name="ShiJianWindowKitBuild"
+            Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$(ShiJianWindowKitEnabled)' == 'true' And Exists('$(ShiJianWindowKitDir)/Package.swift')"
+            Inputs="@(ShiJianWindowKitSource)"
+            Outputs="$(ShiJianWindowKitDylib)">
+        <Exec Command="swift build -c $(ShiJianWindowKitSwiftConfig)"
+              WorkingDirectory="$(ShiJianWindowKitDir)"
+              StandardOutputImportance="Low"
+              IgnoreStandardErrorWarningFormat="true" />
+    </Target>
+
+    <Target Name="ShiJianWindowKitCopyToOutputDirectory"
+            AfterTargets="Build"
+            DependsOnTargets="ShiJianWindowKitBuild"
+            Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$(ShiJianWindowKitEnabled)' == 'true' And Exists('$(ShiJianWindowKitDir)/Package.swift')">
+        <Copy SourceFiles="$(ShiJianWindowKitDylib)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+    </Target>
+
+    <Target Name="ShiJianWindowKitCopyToPublishDirectory"
+            AfterTargets="Publish"
+            DependsOnTargets="ShiJianWindowKitBuild"
+            Condition="$([MSBuild]::IsOSPlatform('OSX')) And '$(ShiJianWindowKitEnabled)' == 'true' And Exists('$(ShiJianWindowKitDir)/Package.swift') And '$(PublishDir)' != ''">
+        <Copy SourceFiles="$(ShiJianWindowKitDylib)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+    </Target>
+
+</Project>

@@ -16,7 +16,7 @@ if (-not $isAdmin) {
         Start-Process -FilePath "powershell.exe" -Verb RunAs -ArgumentList $argList
         exit 0
     } catch {
-        Write-Host "需要管理员权限才能安装 Taix，但提升请求被取消。" -ForegroundColor Red
+        Write-Host "需要管理员权限才能安装 ShiJian，但提升请求被取消。" -ForegroundColor Red
         Read-Host "Press Enter to exit"
         exit 1
     }
@@ -32,13 +32,13 @@ if (-not $InstallDir) {
 $Components = @(
     [pscustomobject]@{
         Name       = "Shell"
-        ExeName    = "taix-shell.exe"
-        TaskName   = "TaixShell"
+        ExeName    = "shijian-shell.exe"
+        TaskName   = "ShiJianShell"
         InstallVia = "builtin"
     }
 )
 
-$requiredExes = @("taix-shell.exe", "taix-monitor-windows.exe", "taix-server.exe", "Taix.exe")
+$requiredExes = @("shijian-shell.exe", "shijian-monitor-windows.exe", "shijian-server.exe", "ShiJian.exe")
 $missing = @()
 foreach ($exe in $requiredExes) {
     $p = Join-Path $InstallDir $exe
@@ -54,9 +54,9 @@ if ($missing.Count -gt 0) {
     exit 1
 }
 
-$clientExe       = Join-Path $InstallDir "Taix.exe"
+$clientExe       = Join-Path $InstallDir "ShiJian.exe"
 $StartMenuDir    = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
-$startMenuSc     = Join-Path $StartMenuDir "Taix.lnk"
+$startMenuSc     = Join-Path $StartMenuDir "ShiJian.lnk"
 
 $WshShell = New-Object -ComObject WScript.Shell
 $sc = $WshShell.CreateShortcut($startMenuSc)
@@ -67,7 +67,7 @@ $sc.Save()
 Write-Host "[+] Created Start Menu shortcut: $startMenuSc"
 
 if ($DesktopShortcut) {
-    $desktopSc = Join-Path $env:USERPROFILE "Desktop\Taix.lnk"
+    $desktopSc = Join-Path $env:USERPROFILE "Desktop\ShiJian.lnk"
     $WshShell = New-Object -ComObject WScript.Shell
     $sc = $WshShell.CreateShortcut($desktopSc)
     $sc.TargetPath       = $clientExe
@@ -83,11 +83,11 @@ if (Test-Path (Join-Path $InstallDir "webui")) {
     Write-Host "[+] Plugin webui present: webui/ (server hosts http://127.0.0.1:37091/ui/)"
 }
 try {
-    # taix-notify 的 Windows Toast 走此 AppUserModelId（与 taix-notify/src/lib.rs 约定一致）
-    $aumid = "Taix.Plugin"
+    # shijian-notify 的 Windows Toast 走此 AppUserModelId（与 shijian-notify/src/lib.rs 约定一致）
+    $aumid = "ShiJian.Plugin"
     $aumidKey = "HKCU:\SOFTWARE\Classes\AppUserModelId\$aumid"
     New-Item -Path $aumidKey -Force | Out-Null
-    New-ItemProperty -Path $aumidKey -Name "DisplayName" -Value "Taix Plugins" -PropertyType String -Force | Out-Null
+    New-ItemProperty -Path $aumidKey -Name "DisplayName" -Value "ShiJian Plugins" -PropertyType String -Force | Out-Null
     Write-Host "[+] Registered Toast AUMID: $aumid"
 } catch {
     Write-Host "[*] Failed to register Toast AUMID: $_" -ForegroundColor Yellow
@@ -126,27 +126,27 @@ foreach ($c in $Components) {
     }
 }
 
-$shellExe = Join-Path $InstallDir "taix-shell.exe"
-Write-Host "[+] Starting taix-shell..."
+$shellExe = Join-Path $InstallDir "shijian-shell.exe"
+Write-Host "[+] Starting shijian-shell..."
 Start-Process -FilePath $shellExe -WorkingDirectory $InstallDir
 
 Start-Sleep -Seconds 2
 
-$running = Get-Process -Name "taix-shell" -ErrorAction SilentlyContinue
+$running = Get-Process -Name "shijian-shell" -ErrorAction SilentlyContinue
 if ($running) {
-    Write-Host "[+] Verified taix-shell is running"
+    Write-Host "[+] Verified shijian-shell is running"
 } else {
-    Write-Host "Warning: taix-shell does not appear to be running" -ForegroundColor Yellow
+    Write-Host "Warning: shijian-shell does not appear to be running" -ForegroundColor Yellow
 }
 
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  Taix installation complete!"            -ForegroundColor Green
+Write-Host "  ShiJian installation complete!"            -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Install directory: $InstallDir"
 Write-Host ""
 Write-Host "Auto-launch configuration:"
-Write-Host "  - TaixShell  -> Task Scheduler (via taix-shell install)"
+Write-Host "  - ShiJianShell  -> Task Scheduler (via shijian-shell install)"
 Write-Host ""
 if (-not $DesktopShortcut) {
     Write-Host "Tip: to also create a Desktop shortcut, run:" -ForegroundColor Cyan

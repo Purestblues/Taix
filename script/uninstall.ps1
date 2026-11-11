@@ -12,7 +12,7 @@ if (-not $isAdmin) {
             -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$PSCommandPath`""
         exit 0
     } catch {
-        Write-Host "需要管理员权限才能卸载 Taix，但提升请求被取消。" -ForegroundColor Red
+        Write-Host "需要管理员权限才能卸载 ShiJian，但提升请求被取消。" -ForegroundColor Red
         Read-Host "Press Enter to exit"
         exit 1
     }
@@ -28,8 +28,8 @@ if (-not $InstallDir) {
 $Components = @(
     [pscustomobject]@{
         Name       = "Shell"
-        ExeName    = "taix-shell.exe"
-        TaskName   = "TaixShell"
+        ExeName    = "shijian-shell.exe"
+        TaskName   = "ShiJianShell"
         InstallVia = "builtin"
     }
 )
@@ -48,8 +48,8 @@ $StartupDir   = $WshShell.SpecialFolders("Startup")
 [System.Runtime.Interopservices.Marshal]::ReleaseComObject($WshShell) | Out-Null
 
 $shortcuts = @(
-    (Join-Path $StartMenuDir "Taix.lnk"),
-    (Join-Path $env:USERPROFILE "Desktop\Taix.lnk")
+    (Join-Path $StartMenuDir "ShiJian.lnk"),
+    (Join-Path $env:USERPROFILE "Desktop\ShiJian.lnk")
 )
 
 foreach ($sc in $shortcuts) {
@@ -63,7 +63,7 @@ foreach ($sc in $shortcuts) {
     }
 }
 
-$processNames = @("taix-shell", "taix-server", "taix-monitor-windows", "Taix")
+$processNames = @("shijian-shell", "shijian-server", "shijian-monitor-windows", "ShiJian")
 foreach ($procName in $processNames) {
     $running = Get-Process -Name $procName -ErrorAction SilentlyContinue
     if ($running) {
@@ -72,8 +72,8 @@ foreach ($procName in $processNames) {
     }
 }
 
-# 插件进程（taix-plugin-<id>.exe，SDK 侧永不自杀，必须显式杀掉）
-$pluginProcs = Get-Process -Name "taix-plugin-*" -ErrorAction SilentlyContinue
+# 插件进程（shijian-plugin-<id>.exe，SDK 侧永不自杀，必须显式杀掉）
+$pluginProcs = Get-Process -Name "shijian-plugin-*" -ErrorAction SilentlyContinue
 if ($pluginProcs) {
     $pluginProcs | Stop-Process -Force -ErrorAction SilentlyContinue
     Write-Host "[+] Stopped plugin processes: $(($pluginProcs | ForEach-Object { $_.Name } | Select-Object -Unique) -join ', ')"
@@ -103,7 +103,7 @@ foreach ($c in $Components) {
     }
 }
 
-$legacyTasks = @("TaixMonitor", "TaixServer")
+$legacyTasks = @("ShiJianMonitor", "ShiJianServer")
 foreach ($task in $legacyTasks) {
     $proc = Start-Process -FilePath "schtasks.exe" `
         -ArgumentList "/DELETE","/F","/TN","`"$task`"" `
@@ -114,7 +114,7 @@ foreach ($task in $legacyTasks) {
 }
 
 $regPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
-$oldKeys = @("Taix", "TaixServer", "TaixMonitor", "TaixShell")
+$oldKeys = @("ShiJian", "ShiJianServer", "ShiJianMonitor", "ShiJianShell")
 foreach ($key in $oldKeys) {
     $prop = Get-ItemProperty -Path $regPath -Name $key -ErrorAction SilentlyContinue
     if ($prop) {
@@ -124,10 +124,10 @@ foreach ($key in $oldKeys) {
 }
 
 $exeFiles = @(
-    (Join-Path $InstallDir "Taix.exe"),
-    (Join-Path $InstallDir "taix-shell.exe"),
-    (Join-Path $InstallDir "taix-server.exe"),
-    (Join-Path $InstallDir "taix-monitor-windows.exe")
+    (Join-Path $InstallDir "ShiJian.exe"),
+    (Join-Path $InstallDir "shijian-shell.exe"),
+    (Join-Path $InstallDir "shijian-server.exe"),
+    (Join-Path $InstallDir "shijian-monitor-windows.exe")
 )
 
 foreach ($exe in $exeFiles) {
@@ -150,19 +150,19 @@ foreach ($dirName in @("plugins", "webui")) {
     }
 }
 
-# 插件系统：Toast AUMID 注销（install.ps1 注册的 Taix.Plugin）
+# 插件系统：Toast AUMID 注销（install.ps1 注册的 ShiJian.Plugin）
 try {
-    $aumidKey = "HKCU:\SOFTWARE\Classes\AppUserModelId\Taix.Plugin"
+    $aumidKey = "HKCU:\SOFTWARE\Classes\AppUserModelId\ShiJian.Plugin"
     if (Test-Path $aumidKey) {
         Remove-Item $aumidKey -Force
-        Write-Host "[+] Unregistered Toast AUMID: Taix.Plugin"
+        Write-Host "[+] Unregistered Toast AUMID: ShiJian.Plugin"
     }
 } catch {
     Write-Host "[*] Failed to unregister Toast AUMID: $_" -ForegroundColor Yellow
 }
 
 Write-Host "`n========================================" -ForegroundColor Green
-Write-Host "  Taix uninstallation complete!"          -ForegroundColor Green
+Write-Host "  ShiJian uninstallation complete!"          -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "Note: executables have been removed, but user data"

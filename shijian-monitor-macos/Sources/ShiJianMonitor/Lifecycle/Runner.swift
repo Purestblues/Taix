@@ -1,0 +1,87 @@
+import Foundation
+
+actor Runner {
+    private let configuration: Configuration
+    private let eventBus: EventBus
+    private let transport: TransportClient
+    private let persistence: Persistence
+    private let iconExtractor: IconExtractor
+    private let appObserver: AppObserver
+    private let idleDetector: IdleDetector
+    private let sessionTracker: SessionTracker
+    private let gamepadMonitor: GamepadMonitor
+    private let heartbeat: Heartbeat
+    private var isRunning = false
+
+    init(configuration: Configuration) {
+        self.configuration = configuration
+        let eventBus = EventBus()
+        let transport = TransportClient(socketPath: configuration.socketPath)
+        let persistence = Persistence(url: configuration.persistenceURL)
+        let iconExtractor = IconExtractor(cacheDirectory: configuration.iconCacheDirectory)
+        let appObserver = AppObserver(
+            eventBus: eventBus,
+            iconExtractor: iconExtractor,
+            sleepWatch: configuration.monitorConfig.sleepWatch
+        )
+        let gamepadMonitor = GamepadMonitor()
+        let idleDetector = IdleDetector(
+            eventBus: eventBus,
+            config: configuration.monitorConfig,
+            gamepadMonitor: gamepadMonitor
+        )
+        let sessionTracker = SessionTracker(
+            eventBus: eventBus,
+            transport: transport,
+            persistence: persistence,
+            tickInterval: configuration.tickInterval,
+            frontmostProvider: { [weak appObserver] in
+                guard let appObserver else { return nil }
+                return await appObserver.currentTrackedApp()
+            }
+        )
+        self.eventBus = eventBus
+        self.transport = transport
+        self.persistence = persistence
+        self.iconExtractor = iconExtractor
+        self.appObserver = appObserver
+        self.idleDetector = idleDetector
+        self.sessionTracker = sessionTracker
+        self.gamepadMonitor = gamepadMonitor
+        self.heartbeat = Heartbeat(transport: transport, appProvider: { [weak appObserver] in
+            guard let appObserver else { return nil }
+            return await appObserver.currentTrackedApp()
+        })
+    }
+
+    func start() async {
+        Logger.info("ShiJianMonitor starting...")
+
+        await transport.start()
+        await sessionTracker.start()
+        // Heartbeat 先订阅，再让 AppObserver 发布启动时的前台事件，避免错过首段会话
+        await heartbeat.start(events: await eventBus.subscribe())
+        await appObserver.start()
+        await idleDetector.start()
+        await gamepadMonitor.start()
+
+        Logger.info("ShiJianMonitor is running")
+
+        isRunning = true
+        while isRunning && !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+    }
+
+    func shutdown() async {
+        Logger.info("ShiJianMonitor shutting down...")
+        isRunning = false
+        await appObserver.stop()
+        await idleDetector.stop()
+        await gamepadMonitor.stop()
+        await sessionTracker.stop()
+        await heartbeat.stop()
+        await transport.stop()
+        Logger.info("ShiJianMonitor stopped")
+    }
+}

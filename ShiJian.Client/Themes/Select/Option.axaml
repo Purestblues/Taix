@@ -1,0 +1,102 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:base="using:ShiJian.Client.Controls.Base"
+                    xmlns:controls="using:ShiJian.Client.Controls.Select">
+
+    <ControlTheme x:Key="{x:Type controls:Option}"
+                  TargetType="controls:Option">
+        <Setter Property="Background" Value="Transparent" />
+
+        <Styles>
+            <Style Selector="controls|Option">
+                <Style Selector="^[IsShowIcon=False]">
+                    <Style Selector="^ /template/ Border#Img">
+                        <Setter Property="IsVisible" Value="False" />
+                    </Style>
+                </Style>
+
+                <Style Selector="^[IsChecked=True]">
+                    <Style Selector="^ /template/ Border#CheckStyle">
+                        <Setter Property="IsVisible" Value="True" />
+                    </Style>
+
+                    <Style Selector="^ /template/ Border#UnCheckStyle">
+                        <Setter Property="IsVisible" Value="False" />
+                    </Style>
+                </Style>
+
+                <Style Selector="^[IsChecked=False]">
+                    <Style Selector="^ /template/ Border#CheckStyle">
+                        <Setter Property="IsVisible" Value="False" />
+                    </Style>
+
+                    <Style Selector="^/template/ Border#UnCheckStyle">
+                        <Setter Property="IsVisible" Value="True" />
+                    </Style>
+                </Style>
+                <Style Selector="^:pointerover">
+                    <Setter Property="Background" Value="{DynamicResource OptionHoverBrush}" />
+                </Style>
+
+            </Style>
+        </Styles>
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border CornerRadius="10" Background="{TemplateBinding Background}" Padding="10,8">
+                    <Border>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="30" />
+
+                                <ColumnDefinition Width="auto" />
+                                <ColumnDefinition Width="*" />
+
+                            </Grid.ColumnDefinitions>
+
+                            <!--标记是否选中-->
+                            <Border>
+                                <Grid>
+                                    <!--选中-->
+                                    <Border
+                                        Width="20"
+                                        Height="20"
+                                        Background="{DynamicResource OptionCheckedBackgroundBrush}"
+                                        BorderBrush="{DynamicResource OptionCheckedBorderBrush}"
+                                        BorderThickness="2"
+                                        CornerRadius="20"
+                                        x:Name="CheckStyle" IsVisible="False" />
+
+                                    <!--未选中-->
+                                    <Border
+                                        Width="20"
+                                        Height="20"
+                                        BorderBrush="{DynamicResource OptionUncheckedBorderBrush}"
+                                        BorderThickness="2"
+                                        CornerRadius="20"
+                                        x:Name="UnCheckStyle" IsVisible="False" />
+                                </Grid>
+                            </Border>
+
+                            <!--图标-->
+                            <Border Grid.Column="1" Margin="5,0,0,0" x:Name="Img">
+                                <base:Img
+                                    URL="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:Option}}, Path=Value.Img}"
+                                    DecodeWidth="16"
+                                    Width="16" Height="16"
+                                    VerticalAlignment="Center" />
+                            </Border>
+
+                            <!--文字-->
+                            <Border Grid.Column="2">
+                                <TextBlock
+                                    Text="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:Option}}, Path=Value.Name}"
+                                    TextTrimming="CharacterEllipsis"
+                                    VerticalAlignment="Center" Margin="5,0,0,0" />
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+    </ControlTheme>
+</ResourceDictionary>

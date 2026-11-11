@@ -1,0 +1,16 @@
+{
+  "ignore_processes": [
+    "ShiJian",
+    "Tai",
+    "SearchHost",
+    "Taskmgr",
+    "ApplicationFrameHost",
+    "StartMenuExperienceHost",
+    "ShellExperienceHost",
+    "OpenWith",
+    "Updater",
+    "LockApp",
+    "dwm",
+    "SystemSettingsAdminFlows"
+  ]
+}

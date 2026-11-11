@@ -31,7 +31,7 @@ jobs:
       # 测试跑在 Release 配置：Debug 会带 AvaloniaUI.DiagnosticsSupport，
       # 它是本地调试用的，测试不需要也不该覆盖
       - name: Run tests
-        run: dotnet test Taix.Tests/Taix.Tests.csproj -c Release --nologo --logger "console;verbosity=normal"
+        run: dotnet test ShiJian.Tests/ShiJian.Tests.csproj -c Release --nologo --logger "console;verbosity=normal"
 
   build-windows:
     needs: test
@@ -61,18 +61,18 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            taix-server
-            taix-monitor-windows
-            taix-shell
-            taix-installer
+            shijian-server
+            shijian-monitor-windows
+            shijian-shell
+            shijian-installer
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            taix-webui/package-lock.json
-            taix-plugins/reminder/ui/package-lock.json
+            shijian-webui/package-lock.json
+            shijian-plugins/reminder/ui/package-lock.json
 
       - name: Set APP_VERSION environment variable
         shell: pwsh
@@ -84,45 +84,45 @@ jobs:
           if ([string]::IsNullOrEmpty($appVersion)) { $appVersion = '0.0.0' }
           Add-Content -Path $env:GITHUB_ENV -Value "APP_VERSION=$appVersion"
 
-      - name: Build Rust taix-server
+      - name: Build Rust shijian-server
         run: |
-          cd taix-server
+          cd shijian-server
           cargo build --release --target x86_64-pc-windows-msvc
 
-      - name: Build Rust taix-monitor-windows
+      - name: Build Rust shijian-monitor-windows
         run: |
-          cd taix-monitor-windows
+          cd shijian-monitor-windows
           cargo build --release --target x86_64-pc-windows-msvc
 
-      - name: Build Rust taix-shell
+      - name: Build Rust shijian-shell
         run: |
-          cd taix-shell
+          cd shijian-shell
           cargo build --release --target x86_64-pc-windows-msvc
 
       - name: Build and Publish .NET Client
         run: |
           Write-Host "Publishing with AOT enabled"
-          dotnet publish -c Release -r win-${{ matrix.cpu }} --self-contained true -p:PublishAot=true -p:DebugType=None -p:DebugSymbols=false -p:IlcGenerateStackTraceData=false -p:DebuggerSupport=false -p:StartupHookSupport=false -p:StackTraceSupport=false -p:HttpActivityPropagationSupport=false -p:MetadataUpdaterSupport=false -p:EnableUnsafeUTF7Encoding=false -p:EventSourceSupport=false -p:MetricsSupport=false -p:UseSystemResourceKeys=true -p:Http3Support=false -p:AssemblyTitle=Taix -p:Product=Taix Taix.Client/Taix.Client.csproj -o ./output/${{ matrix.cpu }}/dotnet
+          dotnet publish -c Release -r win-${{ matrix.cpu }} --self-contained true -p:PublishAot=true -p:DebugType=None -p:DebugSymbols=false -p:IlcGenerateStackTraceData=false -p:DebuggerSupport=false -p:StartupHookSupport=false -p:StackTraceSupport=false -p:HttpActivityPropagationSupport=false -p:MetadataUpdaterSupport=false -p:EnableUnsafeUTF7Encoding=false -p:EventSourceSupport=false -p:MetricsSupport=false -p:UseSystemResourceKeys=true -p:Http3Support=false -p:AssemblyTitle=ShiJian -p:Product=ShiJian ShiJian.Client/ShiJian.Client.csproj -o ./output/${{ matrix.cpu }}/dotnet
 
       - name: Extract single-file executable
         shell: pwsh
         run: |
           $publishDir = "./output/${{ matrix.cpu }}"
-          # 静态单文件发布：仅提取 Taix.exe，丢弃 lib/lib/dll/pdb 等构建残留
-          Copy-Item "$publishDir/dotnet/Taix.exe" -Destination $publishDir -Force
+          # 静态单文件发布：仅提取 ShiJian.exe，丢弃 lib/lib/dll/pdb 等构建残留
+          Copy-Item "$publishDir/dotnet/ShiJian.exe" -Destination $publishDir -Force
           Remove-Item "$publishDir/dotnet" -Recurse -Force
-          Write-Host "Published single file: $(Get-Item "$publishDir/Taix.exe" | Select-Object -ExpandProperty Length) bytes"
+          Write-Host "Published single file: $(Get-Item "$publishDir/ShiJian.exe" | Select-Object -ExpandProperty Length) bytes"
 
       - name: Copy Rust binaries
         shell: pwsh
         run: |
           $publishDir = "./output/${{ matrix.cpu }}"
 
-          Copy-Item "taix-server/target/x86_64-pc-windows-msvc/release/taix-server.exe"       -Destination $publishDir -Force
-          Copy-Item "taix-monitor-windows/target/x86_64-pc-windows-msvc/release/taix-monitor-windows.exe" -Destination $publishDir -Force
-          Copy-Item "taix-shell/target/x86_64-pc-windows-msvc/release/taix-shell.exe"         -Destination $publishDir -Force
+          Copy-Item "shijian-server/target/x86_64-pc-windows-msvc/release/shijian-server.exe"       -Destination $publishDir -Force
+          Copy-Item "shijian-monitor-windows/target/x86_64-pc-windows-msvc/release/shijian-monitor-windows.exe" -Destination $publishDir -Force
+          Copy-Item "shijian-shell/target/x86_64-pc-windows-msvc/release/shijian-shell.exe"         -Destination $publishDir -Force
 
-          Copy-Item "taix-shell/resources" -Destination $publishDir -Recurse -Force
+          Copy-Item "shijian-shell/resources" -Destination $publishDir -Recurse -Force
 
           # Remove macOS-only files
           Get-ChildItem -Path "$publishDir/resources" -Recurse -Include "*.icns" -File | Remove-Item -Force
@@ -130,11 +130,11 @@ jobs:
       - name: Build webui 与 reminder 插件产物
         shell: pwsh
         run: |
-          npm ci --prefix taix-webui
-          npm run build --prefix taix-webui
-          npm ci --prefix taix-plugins/reminder/ui
-          npm run build --prefix taix-plugins/reminder/ui
-          Push-Location taix-plugins/reminder
+          npm ci --prefix shijian-webui
+          npm run build --prefix shijian-webui
+          npm ci --prefix shijian-plugins/reminder/ui
+          npm run build --prefix shijian-plugins/reminder/ui
+          Push-Location shijian-plugins/reminder
           cargo build --release --target x86_64-pc-windows-msvc
           $code = $LASTEXITCODE
           Pop-Location
@@ -145,19 +145,19 @@ jobs:
         run: |
           $publishDir = "./output/${{ matrix.cpu }}"
           $need = @(
-            "taix-webui/dist/index.html",
-            "taix-plugins/reminder/ui/dist/config.js",
-            "taix-plugins/reminder/target/x86_64-pc-windows-msvc/release/taix-plugin-reminder.exe"
+            "shijian-webui/dist/index.html",
+            "shijian-plugins/reminder/ui/dist/config.js",
+            "shijian-plugins/reminder/target/x86_64-pc-windows-msvc/release/shijian-plugin-reminder.exe"
           )
           foreach ($f in $need) {
             if (-not (Test-Path $f)) { throw "缺少产物：$f" }
           }
-          Copy-Item "taix-webui/dist" -Destination "$publishDir/webui" -Recurse -Force
+          Copy-Item "shijian-webui/dist" -Destination "$publishDir/webui" -Recurse -Force
           $plug = "$publishDir/plugins/reminder"
           New-Item -ItemType Directory -Force -Path "$plug/ui" | Out-Null
-          Copy-Item "taix-plugins/reminder/plugin.json" -Destination $plug -Force
-          Copy-Item "taix-plugins/reminder/target/x86_64-pc-windows-msvc/release/taix-plugin-reminder.exe" -Destination $plug -Force
-          Copy-Item "taix-plugins/reminder/ui/dist/config.js" -Destination "$plug/ui" -Force
+          Copy-Item "shijian-plugins/reminder/plugin.json" -Destination $plug -Force
+          Copy-Item "shijian-plugins/reminder/target/x86_64-pc-windows-msvc/release/shijian-plugin-reminder.exe" -Destination $plug -Force
+          Copy-Item "shijian-plugins/reminder/ui/dist/config.js" -Destination "$plug/ui" -Force
           Write-Host "已放入 webui 与 plugins/reminder（含 ui）"
 
       - name: Install 7-Zip for ultra compression
@@ -178,14 +178,14 @@ jobs:
       - name: Build Installer
         shell: bash
         run: |
-          bash taix-installer/build-installer.sh "output/${{ matrix.cpu }}" "${{ env.APP_VERSION }}" "."
+          bash shijian-installer/build-installer.sh "output/${{ matrix.cpu }}" "${{ env.APP_VERSION }}" "."
 
       - name: Create ZIP
         shell: pwsh
         run: |
           $publishDir = "./output/${{ matrix.cpu }}"
 
-          $zipName = "Taix-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}"
+          $zipName = "ShiJian-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}"
           Push-Location $publishDir
           Compress-Archive -Path "*" -DestinationPath "../../$zipName.zip"
           Pop-Location
@@ -194,14 +194,14 @@ jobs:
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
-          name: Taix-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}-Setup
-          path: Taix-${{ env.APP_VERSION }}-Setup.exe
+          name: ShiJian-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}-Setup
+          path: ShiJian-${{ env.APP_VERSION }}-Setup.exe
 
       - name: Upload ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Taix-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}
-          path: Taix-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}.zip
+          name: ShiJian-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}
+          path: ShiJian-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}.zip
 
   build-macos:
     needs: test
@@ -228,9 +228,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            taix-server
-            taix-shell
-            taix-plugins/reminder
+            shijian-server
+            shijian-shell
+            shijian-plugins/reminder
 
       - name: Set APP_VERSION
         run: |
@@ -247,10 +247,10 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: |
-            taix-webui/package-lock.json
-            taix-plugins/reminder/ui/package-lock.json
+            shijian-webui/package-lock.json
+            shijian-plugins/reminder/ui/package-lock.json
 
-      # 一条命令搞定前端 → 插件 → Rust/Swift → .app/TaixTools → DMG，
+      # 一条命令搞定前端 → 插件 → Rust/Swift → .app/ShiJianTools → DMG，
       # 和本地 script/package-macos.sh 完全同一条路径
       - name: 打包
         run: bash script/package-macos.sh "${{ env.APP_VERSION }}" "$GITHUB_WORKSPACE/dist"
@@ -258,7 +258,7 @@ jobs:
       - name: Upload DMG
         uses: actions/upload-artifact@v4
         with:
-          name: Taix-${{ env.APP_VERSION }}-macos-arm64
+          name: ShiJian-${{ env.APP_VERSION }}-macos-arm64
           path: dist/*.dmg
 
   release:
@@ -277,19 +277,19 @@ jobs:
       - name: Download Windows Installer
         uses: actions/download-artifact@v4
         with:
-          name: Taix-${{ env.APP_VERSION }}-win-x64-Setup
+          name: ShiJian-${{ env.APP_VERSION }}-win-x64-Setup
           path: ./artifacts
 
       - name: Download Windows ZIP
         uses: actions/download-artifact@v4
         with:
-          name: Taix-${{ env.APP_VERSION }}-win-x64
+          name: ShiJian-${{ env.APP_VERSION }}-win-x64
           path: ./artifacts
 
       - name: Download macOS DMG
         uses: actions/download-artifact@v4
         with:
-          name: Taix-${{ env.APP_VERSION }}-macos-arm64
+          name: ShiJian-${{ env.APP_VERSION }}-macos-arm64
           path: ./artifacts
 
       - name: Read release notes
