@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using Taix.Client.Shared.Models.Config;
 
 namespace Taix.Client.Platform;
 
@@ -17,4 +18,13 @@ internal static class WindowStatePolicy
     /// 因此降级为最大化。Windows 的全屏就是最大化，照原样恢复
     /// </summary>
     public static bool CanRestoreFullScreen => !OperatingSystem.IsMacOS();
+
+    /// <summary>
+    /// 冷启动要恢复成什么状态：平台不支持恢复全屏时降级为最大化
+    /// （纯函数，便于单测；平台判断走 <see cref="CanRestoreFullScreen"/>）
+    /// </summary>
+    public static WindowStateKind ResolveRestoreState(WindowStateKind saved, bool canRestoreFullScreen) =>
+        saved == WindowStateKind.FullScreen && !canRestoreFullScreen
+            ? WindowStateKind.Maximized
+            : saved;
 }

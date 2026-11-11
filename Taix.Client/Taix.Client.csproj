@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
@@ -50,6 +50,10 @@
         <LinkerArg Include="synchronization.lib" />
         <LinkerArg Include="fontsub.lib;Ole32.lib;USP10.lib" />
         <LinkerArg Include="d3d12.lib;d3dcompiler.lib" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="Taix.Tests" />
     </ItemGroup>
 
     <ItemGroup>

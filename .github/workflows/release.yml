@@ -15,7 +15,26 @@ on:
         default: '0.0.0-test'
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # 测试跑在 Release 配置：Debug 会带 AvaloniaUI.DiagnosticsSupport，
+      # 它是本地调试用的，测试不需要也不该覆盖
+      - name: Run tests
+        run: dotnet test Taix.Tests/Taix.Tests.csproj -c Release --nologo --logger "console;verbosity=normal"
+
   build-windows:
+    needs: test
     runs-on: windows-latest
     strategy:
       matrix:
@@ -185,6 +204,7 @@ jobs:
           path: Taix-${{ env.APP_VERSION }}-win-${{ matrix.cpu }}.zip
 
   build-macos:
+    needs: test
     runs-on: macos-latest
     steps:
       - name: Checkout

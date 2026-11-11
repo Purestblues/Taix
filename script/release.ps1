@@ -17,7 +17,7 @@
     workflow 里 release job 的 if 条件才成立，才会自动建 Release 并上传产物。
 
 .PARAMETER Version
-    版本号，不带前导 v。例如 1.3.4-fork.2
+    版本号，不带前导 v。例如 1.3.4-fork.2；省略时按上一个 tag 自动递增
 
 .PARAMETER Message
     tag 说明，同时作为 -Commit 时的提交信息。默认 "release v<Version>"
@@ -42,7 +42,7 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true, Position = 0)]
+    [Parameter(Position = 0)]
     [string]$Version,
 
     [string]$Message,
@@ -57,6 +57,18 @@ param(
 # 原生命令（git/gh）往 stderr 写东西是常态（进度、警告、查询失败），
 # 在 Stop 模式下会被当成终止性异常，这里统一用 Continue + 检查 $LASTEXITCODE
 $ErrorActionPreference = 'Continue'
+
+# 不传版本号就按上一个 tag 自动递增（规则见 prepare-release.ps1）
+if ([string]::IsNullOrWhiteSpace($Version))
+{
+    $autoVersion = & (Join-Path $PSScriptRoot 'prepare-release.ps1') -Quiet
+    if ([string]::IsNullOrWhiteSpace($autoVersion)) {
+        Write-Host '无法自动推出下一个版本号，请用 -Version 指定' -ForegroundColor Red
+        exit 1
+    }
+    $Version = "$autoVersion".Trim()
+    Write-Host ("版本号自动递增: {0}" -f $Version) -ForegroundColor DarkGray
+}
 
 $Version = $Version.Trim()
 if ($Version.StartsWith('v')) { $Version = $Version.Substring(1) }

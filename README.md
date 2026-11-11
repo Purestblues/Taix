@@ -64,7 +64,8 @@ Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全�
 | 脚本 | 用途 |
 | --- | --- |
 | `script/dev-run.ps1` | 本地运行改动后的客户端（自动补齐图标目录后 `dotnet run -c Debug`） |
-| `script/release.ps1` | 一条命令打 tag 并触发 GitHub Actions 发 Release |
+| `script/prepare-release.ps1` | 发版准备：按上一个 tag 自动递增版本号 + 用区间提交生成 release notes 草稿 |
+| `script/release.ps1` | 一条命令打 tag 并触发 GitHub Actions 发 Release（版本号可省略，会自动递增） |
 
 #### 本地调试
 
@@ -80,10 +81,20 @@ Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全�
 #### 发布新版本
 
 ```powershell
-.\script\release.ps1 -Version 1.3.4-fork.2 -DryRun          # 只预检，打印将执行的命令
-.\script\release.ps1 -Version 1.3.4-fork.2                  # 正常发版
-.\script\release.ps1 -Version 1.3.4-fork.2 -Commit -Watch   # 代提交改动并等待构建完成
+.\script\prepare-release.ps1                 # 算出版本号 + 生成 notes 草稿到 .tmp/
+.\script\prepare-release.ps1 -Apply          # 确认后的草稿写进 release_notes.txt
+.\script\release.ps1 -DryRun                 # 只预检，打印将执行的命令
+.\script\release.ps1 -Commit -Watch          # 发版并等待构建完成（版本号自动递增）
+.\script\release.ps1 -Version 1.3.4-fork.5    # 也可以手工指定版本号
 ```
+
+#### 跑测试
+
+```powershell
+dotnet test Taix.Tests/Taix.Tests.csproj -c Release
+```
+
+CI 里打包前会先跑这一步（独立 `test` job），失败就不发产物。
 
 预检会拦下这些情况：不在 `main` 分支、工作区不干净（除非加 `-Commit`）、tag 已存在、Release 已存在。
 

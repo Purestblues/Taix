@@ -10,7 +10,7 @@
 | --- | --- |
 | 发布 | `v1.3.4-fork.3`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出） |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | 无（CI 只打包，不跑测试） |
+| 自动化测试 | `Taix.Tests`（xunit v3 + Avalonia.Headless）48 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 与 `upstream/main`（v1.3.4）无偏差，随时可 rebase |
 | 代码规模 | 客户端 296 个 `.cs`、67 个 `.axaml`，0 处 TODO/FIXME |
 
@@ -110,12 +110,23 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       各页（概览 / 统计 / 详细 / 分类 / 分类汇总 / 列表页）统一接入，`ListChart` 也支持
       `IsLoading` / `EmptyText` / `EmptyCompact`，加载时由页面 VM 的 `IsLoading` 驱动。
 
-### M4 · 工程化（约 2–3 天）
+### M4 · 工程化（3/4 完成）
 
-- [ ] 增加测试工程（xunit），先覆盖纯逻辑：`ChartColorHelper`、分类聚合、`WindowStateTracker` 状态机
-- [ ] `release.yml` 打包前加一步 `dotnet test`，失败不发布
-- [ ] 发版半自动：版本号从上一个 tag 递增、release notes 由 commit 生成草稿后人工确认
-- [ ] macOS 产物实机验证：确认 `Taix.app` 与 `TaixTools/` 均可正常启动
+- [x] 增加测试工程（xunit），先覆盖纯逻辑
+      新建 `Taix.Tests`（xunit v3 + `Avalonia.Headless.XUnit`，因为 Avalonia 12 的 headless
+      包绑的是 xunit v3）。纯逻辑覆盖 `ChartColorHelper`（对比度 / 兜底 / 透明度）、
+      `ChartDataMapper`（三种映射、排序、徽章、UTC→本地）、`ApiAppConfig.DetectChanges`
+      （每条配置路径都钉住，防「新增配置项忘了登记」）、`WindowStatePolicy` / `WindowSnapshot`。
+      headless 覆盖动效开关的摘除/还原（含关闭后新实例化的元素）与 `EmptyData` 的四种状态；
+      headless 顺带验证了整套主题能正常加载——主题里再出现嵌套选择器问题会直接挂测试。
+- [x] `release.yml` 打包前加一步 `dotnet test`，失败不发布
+      新增独立 `test` job（ubuntu，先跑），两个打包 job 都 `needs: test`。
+- [x] 发版半自动
+      `script/prepare-release.ps1`：按上一个 tag 自动递增版本号（`fork.3` → `fork.4`），
+      把区间提交按「新增 / 修复 / 其他」分类生成草稿（默认写 `.tmp/release-notes-draft.md`，
+      加 `-Apply` 才覆盖 `release_notes.txt`）；`release.ps1` 的 `-Version` 也改成可省略，
+      不传就自动递增。人只负责补一句小结。
+- [ ] macOS 产物实机验证（暂缓：手边没有 Apple Silicon 机器）
 
 ## 优先级建议
 
@@ -138,7 +149,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 
 ## 发版节奏
 
-- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` 起按 M4 进度发
+- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` = M4 工程化（测试 + CI 拦截 + 发版半自动）
 - 每条命令即可发布：`.\script\release.ps1 -Version 1.3.4-fork.N -Commit -Watch`
 - 同步上游：`git fetch upstream && git rebase upstream/main`
   （冲突大概率集中在 `Views/IndexPage.*` 与 `Views/ChartPage.*`，这两处是本仓库改动最重的地方）
@@ -148,6 +159,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 | 事项 | 命令 / 说明 |
 | --- | --- |
 | 本地跑改动后的客户端 | `.\script\dev-run.ps1`（自动补齐图标目录，直连本机 taix-server） |
-| 发版 | `.\script\release.ps1 -Version 1.3.4-fork.N [-Commit] [-Watch] [-DryRun]` |
+| 发版 | `.\script\prepare-release.ps1 [-Apply]` 生成草稿 → `.\script\release.ps1 [-Commit] [-Watch]`（版本号可省略，自动递增） |
+| 跑测试 | `dotnet test Taix.Tests/Taix.Tests.csproj -c Release`（CI 打包前会先跑） |
 | 本地能否打 Setup.exe | 不能：安装器（cargo）与客户端 AOT 都需要 MSVC 链接器（VS Build Tools），故统一走 GitHub Actions |
 | fork 上 tag 触发 Actions | 不会触发，`release.ps1` 内部改用 `gh workflow run --ref <tag>` |

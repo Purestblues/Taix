@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -234,9 +234,7 @@ public sealed class WindowStateTracker
     }
 
     private static WindowStateKind ResolveRestoreState(WindowStateKind saved) =>
-        saved == WindowStateKind.FullScreen && !WindowStatePolicy.CanRestoreFullScreen
-            ? WindowStateKind.Maximized
-            : saved;
+        WindowStatePolicy.ResolveRestoreState(saved, WindowStatePolicy.CanRestoreFullScreen);
 
     private static WindowStateKind ToKind(WindowState state) => state switch
     {

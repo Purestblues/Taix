@@ -306,7 +306,7 @@ public class ApiAppConfig : IAppConfig
         if (config.Shortcut.NavigateBack is null) config.Shortcut.NavigateBack = defaults.NavigateBack;
     }
 
-    private static IReadOnlyList<string> DetectChanges(ConfigModel old, ConfigModel next)
+    internal static IReadOnlyList<string> DetectChanges(ConfigModel old, ConfigModel next)
     {
         var changes = new List<string>();
 
