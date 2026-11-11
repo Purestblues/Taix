@@ -10,7 +10,8 @@ use serde::{Deserialize, Serialize};
 /// - v2: 添加 Shortcut 配置
 /// - v3: 添加 DataRetentionDays
 /// - v4: 添加 WindowGradientScheme, IsSaveWindowSize, InactiveThreshold, MaxSoundDuration
-pub const CURRENT_CONFIG_VERSION: u32 = 4;
+/// - v5: 添加 MotionMode（客户端动效开关，0 跟随系统 / 1 始终开启 / 2 始终关闭）
+pub const CURRENT_CONFIG_VERSION: u32 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -105,6 +106,8 @@ pub struct GeneralModel {
     pub window_gradient_scheme: i32,
     #[serde(rename = "IsSaveWindowSize")]
     pub is_save_window_size: bool,
+    #[serde(rename = "MotionMode")]
+    pub motion_mode: i32,
 }
 
 impl Default for GeneralModel {
@@ -123,6 +126,7 @@ impl Default for GeneralModel {
             data_retention_days: 31,
             window_gradient_scheme: 3,
             is_save_window_size: false,
+            motion_mode: 0,
         }
     }
 }

@@ -1,13 +1,20 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:controls="using:Taix.Client.Controls.Select">
 
     <ControlTheme x:Key="{x:Type controls:TabSwitch}" TargetType="controls:TabSwitch">
+        <Styles>
+            <Style Selector="controls|TabSwitch:focus-visible /template/ Border#RootBorder">
+                <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+                <Setter Property="BorderThickness" Value="2" />
+            </Style>
+        </Styles>
         <Setter Property="Background" Value="{DynamicResource TabSwitchBgBrush}" />
         <Setter Property="Padding" Value="3" />
         <Setter Property="Template">
             <ControlTemplate>
-                <Border Background="{TemplateBinding Background}"
+                <Border x:Name="RootBorder"
+                        Background="{TemplateBinding Background}"
                         BorderBrush="{DynamicResource TabSwitchBorderBrush}"
                         BorderThickness="1"
                         CornerRadius="10"

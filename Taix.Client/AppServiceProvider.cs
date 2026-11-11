@@ -33,6 +33,7 @@ namespace Taix.Client;
 [Singleton(typeof(IAppEventService), typeof(AppEventService))]
 [Singleton(typeof(IAppUpdateService), typeof(AppUpdateService))]
 [Singleton(typeof(IThemeServicer), typeof(ThemeServicer))]
+[Singleton(typeof(IMotionServicer), typeof(MotionServicer))]
 [Singleton(typeof(IMainServicer), typeof(MainServicer))]
 [Singleton(typeof(IShutdownService), typeof(ShutdownService))]
 [Singleton(typeof(IStateService), typeof(StateService))]

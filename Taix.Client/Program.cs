@@ -21,7 +21,13 @@ internal sealed class Program
             .With(new AvaloniaNativePlatformOptions { OverlayPopups = true });
 
 #if DEBUG
-        builder.WithDeveloperTools();
+        // AvaloniaUI.DiagnosticsSupport 2.2.3 的样式里用了嵌套选择器（^），
+        // 与 Avalonia 12.1.1 一起会抛 "Nesting selector ... cannot determine parent selector"，
+        // 启动即弹错误框、主界面空白。默认不挂，需要时用环境变量 TAIX_DEVTOOLS=1 打开。
+        if (Environment.GetEnvironmentVariable("TAIX_DEVTOOLS") == "1")
+        {
+            builder.WithDeveloperTools();
+        }
 #endif
         return builder;
     }

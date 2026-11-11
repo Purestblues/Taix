@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Threading;
+using Taix.Client.Librarys;
 using Taix.Client.Shared.Librarys;
 
 namespace Taix.Client.Controls.Base;
@@ -73,8 +74,8 @@ public class CountUpText : TextBlock
 
         var from = _shown;
 
-        // 差值太小就别动画了，直接落到目标值
-        if (Math.Abs(target - from) < 0.5 || DurationMs <= 0)
+        // 关掉动效时直接落到目标值；差值太小也别动画了
+        if (!Motion.IsEnabled || Math.Abs(target - from) < 0.5 || DurationMs <= 0)
         {
             Apply(target);
             return;

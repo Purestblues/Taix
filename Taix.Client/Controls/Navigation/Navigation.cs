@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -195,7 +195,12 @@ public class Navigation : TemplatedControl
             navItem.Uri = item.Uri;
 
             navItem.MouseUp += NavItem_MouseUp;
-            navItem.Unloaded += (e, c) => { navItem.MouseUp -= NavItem_MouseUp; };
+            navItem.Activated += NavItem_Activated;
+            navItem.Unloaded += (e, c) =>
+            {
+                navItem.MouseUp -= NavItem_MouseUp;
+                navItem.Activated -= NavItem_Activated;
+            };
 
             if (SelectedItem?.ID == id) navItem.IsSelected = true;
 
@@ -231,6 +236,56 @@ public class Navigation : TemplatedControl
         }
     }
 
+
+    private void NavItem_Activated(object? sender, EventArgs e)
+    {
+        if (sender is NavigationItem navitem) SelectItem(navitem);
+    }
+
+    /// <summary>把某个侧边项设为选中并通知外部（鼠标点击和键盘激活走同一条路）</summary>
+    private void SelectItem(NavigationItem navitem)
+    {
+        if (Data == null) return;
+
+        var model = Data.FirstOrDefault(m => m.ID == navitem.ID);
+        if (model == null) return;
+
+        SelectedItem = model;
+        OnSelected?.Invoke(this, EventArgs.Empty);
+
+        if (SelectedItem != null && SelectedItem.ID != navitem.ID) ScrollToActive();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled || e.Key is not (Key.Up or Key.Down)) return;
+        if (ItemsPanel == null) return;
+
+        var items = ItemsPanel.Children.OfType<NavigationItem>().ToList();
+        if (items.Count == 0) return;
+
+        var current = -1;
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (!items[i].IsFocused) continue;
+            current = i;
+            break;
+        }
+
+        // 还没聚焦到具体项时，从当前选中项开始
+        if (current < 0 && SelectedItem != null)
+            current = items.FindIndex(i => i.ID == SelectedItem.ID);
+
+        var next = e.Key == Key.Down
+            ? (current + 1 + items.Count) % items.Count
+            : (current - 1 + items.Count) % items.Count;
+
+        items[next].Focus();
+        SelectItem(items[next]);
+        e.Handled = true;
+    }
 
     private int CreateID()
     {

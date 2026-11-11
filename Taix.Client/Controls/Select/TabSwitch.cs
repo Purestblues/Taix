@@ -1,8 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Controls.Primitives;
 using Avalonia.Threading;
 
@@ -31,6 +32,33 @@ public class TabSwitch : TemplatedControl
     public TabSwitch()
     {
         Options = new List<SelectItemModel>();
+
+        // 周期/维度切换是常用控件，必须能用键盘改
+        Focusable = true;
+        IsTabStop = true;
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled || Options == null || Options.Count == 0) return;
+
+        var index = SelectedIndex;
+        switch (e.Key)
+        {
+            case Key.Left:
+                index = index <= 0 ? Options.Count - 1 : index - 1;
+                break;
+            case Key.Right:
+                index = index < 0 || index >= Options.Count - 1 ? 0 : index + 1;
+                break;
+            default:
+                return;
+        }
+
+        SelectedIndex = index;
+        e.Handled = true;
     }
 
     public List<SelectItemModel> Options

@@ -1,0 +1,32 @@
+<Styles xmlns="https://github.com/avaloniaui">
+    <!--
+      全局键盘焦点提示。
+      只在「键盘操作」时出现（:focus-visible），鼠标点击不会闪一下；
+      颜色统一走主题色，深色 / 蔚蓝主题下都清晰。
+    -->
+
+    <Style Selector="ListBoxItem:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="ListBoxItem:focus-visible /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+    </Style>
+
+    <Style Selector="TabItem:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="ToggleButton:focus-visible /template/ ContentPresenter">
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+
+    <Style Selector="CheckBox:focus-visible">
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+    </Style>
+</Styles>

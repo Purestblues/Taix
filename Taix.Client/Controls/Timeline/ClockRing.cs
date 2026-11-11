@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Rendering;
+using Taix.Client.Controls.Base;
 
 namespace Taix.Client.Controls.Timeline;
 
@@ -273,6 +274,9 @@ public class ClockRing : Control, ICustomHitTest
 
         DrawHoverMarker(context, center, radius, thickness);
         DrawCenter(context, center, segments.Count > 0);
+
+        // 键盘焦点环：套在整块控件外沿
+        FocusVisual.Draw(context, Bounds.Size, IsKeyboardFocusWithin, 12);
     }
 
     /// <summary>鼠标在环带上时，画一根短线标出当前位置——空档里也有反馈，不然像没反应</summary>
@@ -409,6 +413,64 @@ public class ClockRing : Control, ICustomHitTest
         var captionText = MakeText(caption, 11, MutedTextBrush ?? TextBrush);
         var captionY = string.IsNullOrEmpty(main) ? center.Y - captionText.Height / 2 : center.Y + 6;
         context.DrawText(captionText, new Point(center.X - captionText.Width / 2, captionY));
+    }
+
+    public ClockRing()
+    {
+        Focusable = true;
+        IsTabStop = true;
+        GotFocus += (_, _) => InvalidateVisual();
+        LostFocus += (_, _) => InvalidateVisual();
+    }
+
+    /// <summary>键盘在扇区之间移动，Enter 等同于点击（交回 ClickCommand）</summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled) return;
+
+        var segments = (Segments ?? []).Where(s => s != null).OrderBy(s => s.StartFraction).ToList();
+        if (segments.Count == 0) return;
+
+        var index = HoveredSegment == null ? -1 : segments.IndexOf(HoveredSegment);
+
+        switch (e.Key)
+        {
+            case Key.Left:
+                index = index <= 0 ? segments.Count - 1 : index - 1;
+                break;
+            case Key.Right:
+                index = index < 0 || index >= segments.Count - 1 ? 0 : index + 1;
+                break;
+            case Key.Home:
+                index = 0;
+                break;
+            case Key.End:
+                index = segments.Count - 1;
+                break;
+            case Key.Escape:
+                if (index < 0) return;
+                HoveredSegment = null;
+                _hoverFraction = null;
+                InvalidateVisual();
+                e.Handled = true;
+                return;
+            case Key.Enter:
+            case Key.Space:
+                if (HoveredSegment == null) return;
+                if (ClickCommand is { } command && command.CanExecute(HoveredSegment))
+                    command.Execute(HoveredSegment);
+                e.Handled = true;
+                return;
+            default:
+                return;
+        }
+
+        HoveredSegment = segments[index];
+        _hoverFraction = null;
+        InvalidateVisual();
+        e.Handled = true;
     }
 
     private ClockSegment? FindSegmentByFraction(double fraction) =>

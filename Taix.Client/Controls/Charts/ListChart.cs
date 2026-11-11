@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -35,6 +35,18 @@ public class ListChart : TemplatedControl
     public static readonly DirectProperty<ListChart, bool> IsSearchProperty =
         AvaloniaProperty.RegisterDirect<ListChart, bool>(
             nameof(IsSearch), o => o.IsSearch, (o, v) => o.IsSearch = v);
+
+    public static readonly DirectProperty<ListChart, bool> EmptyCompactProperty =
+        AvaloniaProperty.RegisterDirect<ListChart, bool>(
+            nameof(EmptyCompact), o => o.EmptyCompact, (o, v) => o.EmptyCompact = v);
+
+    public static readonly DirectProperty<ListChart, bool> IsLoadingProperty =
+        AvaloniaProperty.RegisterDirect<ListChart, bool>(
+            nameof(IsLoading), o => o.IsLoading, (o, v) => o.IsLoading = v);
+
+    public static readonly DirectProperty<ListChart, string> EmptyTextProperty =
+        AvaloniaProperty.RegisterDirect<ListChart, string>(
+            nameof(EmptyText), o => o.EmptyText, (o, v) => o.EmptyText = v);
 
     public static readonly DirectProperty<ListChart, bool> IsCanScrollProperty =
         AvaloniaProperty.RegisterDirect<ListChart, bool>(
@@ -85,6 +97,9 @@ public class ListChart : TemplatedControl
     private double _iconSize = 25;
     private double _dataMaxValue;
     private string _searchText = string.Empty;
+    private bool _isLoading;
+    private bool _emptyCompact;
+    private string _emptyText = string.Empty;
 
     private ListBox _listView;
     private TextBox _searchBox;
@@ -107,6 +122,38 @@ public class ListChart : TemplatedControl
     {
         get => _isSearch;
         set => SetAndRaise(IsSearchProperty, ref _isSearch, value);
+    }
+
+    /// <summary>加载中：空列表时显示骨架而不是「没有数据」</summary>
+    public bool IsLoading
+    {
+        get => _isLoading;
+        set
+        {
+            if (SetAndRaise(IsLoadingProperty, ref _isLoading, value)) RefreshDisplayData();
+        }
+    }
+
+    /// <summary>空态用紧凑样式（不画插画），适合卡片等窄区域</summary>
+    public bool EmptyCompact
+    {
+        get => _emptyCompact;
+        set
+        {
+            if (!SetAndRaise(EmptyCompactProperty, ref _emptyCompact, value)) return;
+            if (_emptyDataView != null) _emptyDataView.IsCompact = value;
+        }
+    }
+
+    /// <summary>空态文案，留空用默认的「暂时没有数据」</summary>
+    public string EmptyText
+    {
+        get => _emptyText;
+        set
+        {
+            if (!SetAndRaise(EmptyTextProperty, ref _emptyText, value)) return;
+            if (_emptyDataView != null) _emptyDataView.Text = value;
+        }
     }
 
     public bool IsCanScroll
@@ -159,6 +206,22 @@ public class ListChart : TemplatedControl
 
     protected override Type StyleKeyOverride => typeof(ListChart);
 
+    /// <summary>列表项用方向键选中后，Enter / Space 等同于点击</summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled || e.Key is not (Key.Enter or Key.Space)) return;
+        if (_searchBox != null && _searchBox.IsFocused) return;
+        if (_listView?.SelectedItem is not ChartsDataModel model) return;
+
+        var command = ClickCommand;
+        if (command == null || !command.CanExecute(model)) return;
+
+        command.Execute(model);
+        e.Handled = true;
+    }
+
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
         base.OnApplyTemplate(e);
@@ -166,9 +229,16 @@ public class ListChart : TemplatedControl
         DetachHandlers();
 
         _listView = e.NameScope.Get<ListBox>("ListView");
+        _listView.Focusable = true;
+        _listView.IsTabStop = true;
         _searchBox = e.NameScope.Get<TextBox>("SearchBox");
         _countText = e.NameScope.Get<Run>("CountText");
         _emptyDataView = e.NameScope.Find<EmptyData>("EmptyDataView");
+        if (_emptyDataView != null)
+        {
+            _emptyDataView.Text = _emptyText;
+            _emptyDataView.IsCompact = _emptyCompact;
+        }
 
         UpdateScrollability();
         RefreshDisplayData();
@@ -245,7 +315,12 @@ public class ListChart : TemplatedControl
             DataMaxValue = 0;
             if (_countText != null) _countText.Text = "0";
             _listView.ItemsSource = Array.Empty<ChartsDataModel>();
-            if (_emptyDataView != null) _emptyDataView.IsVisible = true;
+            if (_emptyDataView != null)
+            {
+                _emptyDataView.IsLoading = _isLoading;
+                _emptyDataView.Text = string.IsNullOrEmpty(_emptyText) ? null : _emptyText;
+                _emptyDataView.IsVisible = true;
+            }
             return;
         }
         if (_emptyDataView != null) _emptyDataView.IsVisible = false;

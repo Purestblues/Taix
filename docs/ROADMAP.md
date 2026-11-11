@@ -1,22 +1,23 @@
 # 路线图
 
 > 本仓库是 [NLick47/Taix](https://github.com/NLick47/Taix) 的个人 fork。
-> 改动目前集中在客户端（`Taix.Client`），服务端 / 监控 / 托盘 / 插件未动。
+> 改动集中在客户端（`Taix.Client`）；服务端只有一处配合改动：`General` 配置里新增 `MotionMode`
+> 字段（配置版本 v4 → v5），否则动效开关会被服务端配置回写抹掉。监控 / 托盘 / 插件未动。
 
 ## 现状
 
 | 维度 | 状态 |
 | --- | --- |
-| 发布 | `v1.3.4-fork.2`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出） |
+| 发布 | `v1.3.4-fork.3`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出） |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
 | 自动化测试 | 无（CI 只打包，不跑测试） |
 | 上游同步 | 与 `upstream/main`（v1.3.4）无偏差，随时可 rebase |
-| 代码规模 | 客户端 291 个 `.cs`、66 个 `.axaml`，0 处 TODO/FIXME |
+| 代码规模 | 客户端 296 个 `.cs`、67 个 `.axaml`，0 处 TODO/FIXME |
 
 ## 已知问题
 
 编号用于提交信息引用，例如 `修复 G1 深色主题下图表对比度不足`。
-G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 M3 修复；下表保留原始描述用于追溯。
+G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 M3 修复；G10 / G11 是 M3 收尾时发现的，G10 已规避、G11 留待继续查；下表保留原始描述用于追溯。
 
 | # | 问题 | 根因 | 影响 |
 | --- | --- | --- | --- |
@@ -29,6 +30,8 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 | G7 | 动效无法关闭 | 未检测系统「减少动画」设置，也没有手动开关 | 对晕动症用户不友好 |
 | G8 | 详细页时间轴不好用 | 上方是可缩放平移的条状时间轴，下方是每应用一条泳道，两处信息重复且要手动对齐 | 想看清「今天几点在干什么」需要来回操作 |
 | G9 | 点网站分类必定闪退 | `Imager` 图标缓存淘汰时释放了仍在渲染的位图，`Image.Render` 抛 `ObjectDisposedException` | 整个客户端进程直接退出 |
+| G10 | 调试版启动弹「预料之外的错误」，主界面空白 | `AvaloniaUI.DiagnosticsSupport` 2.2.3 的样式里用了嵌套选择器，与 Avalonia 12.1.1 不兼容（`Nesting selector ... cannot determine parent selector`） | 只影响 Debug 构建；现已默认不挂 DevTools，需要时设 `TAIX_DEVTOOLS=1`。Release 构建不受影响 |
+| G11 | 自绘图表用 Tab 走不到 | Avalonia 12 的 Tab 遍历没有把这类自定义 `Control` 当成候选（`Focusable` / `IsTabStop` 都已置真） | 鼠标点一下图表即可获得焦点，之后方向键、Enter 都正常；纯键盘用户暂时进不去 |
 
 ## 里程碑
 
@@ -71,7 +74,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       周期切换新增「自定义」，展开起止日期选择器；单日按小时、多日按天出柱；
       对比基准取等长的上一个区间，文案为「比上期」。
 
-### M3 · 体验与无障碍（2/5 完成，G8 / G9 已随 `fork.2` 发布）
+### M3 · 体验与无障碍（已完成，已随 `fork.3` 发布）
 
 - [x] **G8** 详细页改用环形时钟，去掉多轨泳道
       `Controls/Timeline/ClockRing` 自绘表盘：圆周就是周期的时间轴（日 = 24 小时、
@@ -87,9 +90,25 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       `ObjectDisposedException (Ref<IBitmapImpl>)`，异常冒到渲染循环直接带走进程。
       修法两层：缓存淘汰 / `Clear()` 只丢引用不再释放（交给 GC）；新增 `Controls/Base/SafeImage`
       自己画图，绘制前验活位图、失败回退默认图标，把异常挡在控件内部。
-- [ ] **G7** 动效统一开关（跟随系统设置 + 设置页可手动关闭）
-- [ ] 键盘导航：Tab 顺序、图表区域方向键切换、Esc 返回
-- [ ] 空态与加载态统一（目前各页的占位骨架和文案不一致）
+- [x] **G7** 动效统一开关（跟随系统设置 + 设置页可手动关闭）
+      `GeneralModel.MotionMode`（跟随系统 / 始终开启 / 始终关闭，默认跟随系统）驱动
+      `MotionServicer`：Windows 读 `SPI_GETCLIENTAREAANIMATION`，macOS 读
+      `NSWorkspace.accessibilityDisplayShouldReduceMotion`，读不到当开启；窗口每次激活重读一次系统偏好。
+      执行端两条线：代码动画（页面进场、总览卡错峰、图表生长、数字滚动）统一读 `Motion.IsEnabled`；
+      XAML 里的 `Transitions`（含内联写死在元素上的）由 `MotionTransitions` 在运行时摘掉、重开时还原，
+      并持续扫描新实例化的列表行（带退避，不会空转）。
+- [x] 键盘导航
+      Esc：搜索层优先，其余情况返回上一页（焦点在输入框时先退到页面，避免误退页）。
+      侧边栏：Tab 可进、上下键换项、Enter 激活；`TabSwitch`（周期 / 维度切换）左右键改选项；
+      榜单列表方向键选中 + Enter 进详情（`KeyboardListActivation` 附加行为，分类页与详情列表都接上了）。
+      图表：`ColumnChart` / `DonutChart` / `StackedBarChart` / `ClockRing` 均可聚焦，
+      左右键移动选中项、`ColumnChart` 的 Enter 即下钻，自绘控件画统一的焦点环（`FocusVisual`）。
+      其余交互控件补了 `:focus-visible` 焦点样式（`Themes/Base/FocusStyles.axaml`）。
+- [x] 空态与加载态统一
+      `EmptyData` 重写：支持 `Text` / `Description` / `IsLoading` / `IsCompact`，颜色全走主题资源
+      （原本写死的浅灰在深色主题下几乎看不见）；加载中显示骨架条，不再先闪一下「暂无数据」。
+      各页（概览 / 统计 / 详细 / 分类 / 分类汇总 / 列表页）统一接入，`ListChart` 也支持
+      `IsLoading` / `EmptyText` / `EmptyCompact`，加载时由页面 VM 的 `IsLoading` 驱动。
 
 ### M4 · 工程化（约 2–3 天）
 
@@ -119,7 +138,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 
 ## 发版节奏
 
-- 原计划一个里程碑一版（`fork.2`=M1 → `fork.3`=M2 → `fork.4`=M3 → `fork.5`=M4），实际 M1+M2+M3 已完成部分合并在 `fork.2` 一次发布，后续按剩余工作量发 `fork.3` 起
+- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` 起按 M4 进度发
 - 每条命令即可发布：`.\script\release.ps1 -Version 1.3.4-fork.N -Commit -Watch`
 - 同步上游：`git fetch upstream && git rebase upstream/main`
   （冲突大概率集中在 `Views/IndexPage.*` 与 `Views/ChartPage.*`，这两处是本仓库改动最重的地方）

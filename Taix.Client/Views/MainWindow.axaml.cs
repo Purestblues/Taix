@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -6,7 +6,9 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Taix.Client.Controls.Window;
+using Taix.Client.Librarys;
 using Taix.Client.Platform;
+using Taix.Client.Servicers;
 using Taix.Client.Shared.Models.Search;
 using Taix.Client.Shared.Servicers.Interfaces;
 using Taix.Client.ViewModels;
@@ -32,6 +34,10 @@ public partial class MainWindow : DefaultWindow
         }
 
         Loaded += OnLoadedAttachShortcuts;
+
+        // 动效开关跟随系统偏好：每次窗口激活时重读一次，用户刚改过系统设置回来就能生效
+        Activated += (_, _) => ServiceLocator.GetService<IMotionServicer>()?.RefreshFromSystem();
+        Loaded += (_, _) => MotionTransitions.Attach(this);
     }
 
     protected override void OnOpened(EventArgs e)
@@ -99,6 +105,9 @@ public partial class MainWindow : DefaultWindow
         // 覆盖层可见时挂 Tunnel KeyDown，拦截 Esc/方向/Enter；隐藏时路由不到这里
         AddHandler(KeyDownEvent, OnSearchKeyDown, RoutingStrategies.Tunnel);
 
+        // 全局 Esc：搜索层没吃掉的按「返回上一页」处理
+        AddHandler(KeyDownEvent, OnGlobalKeyDown, RoutingStrategies.Tunnel);
+
         // IsSearchOpen 变化时聚焦输入框
         if (DataContext is MainViewModel vm)
         {
@@ -112,6 +121,28 @@ public partial class MainWindow : DefaultWindow
         if (DataContext is not MainViewModel { IsSearchOpen: true }) return;
         // 展开后聚焦输入框，延迟到布局完成
         Dispatcher.UIThread.Post(() => _searchInput?.Focus(), DispatcherPriority.Loaded);
+    }
+
+    /// <summary>
+    /// Esc：搜索覆盖层优先（由 OnSearchKeyDown 处理），否则返回上一页。
+    /// 焦点在输入框里时先让输入框退出编辑，避免误把「想退出输入」当成「想退出页面」。
+    /// </summary>
+    private void OnGlobalKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Escape || e.Handled) return;
+        if (DataContext is not MainViewModel { IsSearchOpen: false } vm) return;
+
+        if (TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is TextBox)
+        {
+            Focus();
+            e.Handled = true;
+            return;
+        }
+
+        if (vm.PageContainer is not { CanGoBack: true } container) return;
+
+        container.Back();
+        e.Handled = true;
     }
 
     // 点击遮罩关闭
@@ -219,6 +250,7 @@ public partial class MainWindow : DefaultWindow
     protected override void OnClosed(EventArgs e)
     {
         RemoveHandler(KeyDownEvent, OnSearchKeyDown);
+        RemoveHandler(KeyDownEvent, OnGlobalKeyDown);
         if (_searchResultList != null)
         {
             _searchResultList.ContainerPrepared -= OnSearchContainerPrepared;
@@ -231,6 +263,7 @@ public partial class MainWindow : DefaultWindow
 
         _shortcutService?.Detach();
         _shortcutService = null;
+        MotionTransitions.Detach();
         base.OnClosed(e);
     }
 }

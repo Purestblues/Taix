@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:base="clr-namespace:Taix.Client.Controls.Base"
                     xmlns:controls="using:Taix.Client.Controls.Navigation">
@@ -27,6 +27,11 @@
                 <Setter Property="Opacity" Value="0.08" />
             </Style>
 
+
+            <Style Selector="controls|NavigationItem:focus-visible /template/ Border#Border">
+                <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+                <Setter Property="BorderThickness" Value="2" />
+            </Style>
 
             <Style Selector="controls|NavigationItem[IsSelected=True]">
                   <Style Selector="^ /template/ Border#Border">

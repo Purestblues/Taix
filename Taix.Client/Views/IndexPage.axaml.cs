@@ -8,6 +8,7 @@ using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Media.Transformation;
 using Avalonia.Styling;
+using Taix.Client.Librarys;
 using Taix.Client.ViewModels;
 
 namespace Taix.Client.Views;
@@ -38,6 +39,14 @@ public partial class IndexPage : UserControl
         var root = PageRoot;
         if (root == null) return;
 
+        // 动效关闭时不改初始透明度，页面直接就位，避免闪一下
+        if (!Motion.IsEnabled)
+        {
+            root.Opacity = 1;
+            root.RenderTransform = null;
+            return;
+        }
+
         try
         {
             root.RenderTransform = TransformOperations.Parse("translateY(12px)");
@@ -63,6 +72,16 @@ public partial class IndexPage : UserControl
         if (panel == null) return;
 
         var cards = panel.Children.OfType<Control>().ToList();
+        if (!Motion.IsEnabled)
+        {
+            foreach (var card in cards)
+            {
+                card.Opacity = 1;
+                card.RenderTransform = null;
+            }
+
+            return;
+        }
         var running = new List<Task>(cards.Count);
 
         for (var index = 0; index < cards.Count; index++)

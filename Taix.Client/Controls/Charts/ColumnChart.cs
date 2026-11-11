@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -6,6 +6,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Taix.Client.Controls.Base;
 using Taix.Client.Controls.Charts.Model;
@@ -130,6 +131,55 @@ public class ColumnChart : TemplatedControl
     public double ValuesPopupHorizontalOffset { get => _valuesPopupHorizontalOffset; set => SetAndRaise(ValuesPopupHorizontalOffsetProperty, ref _valuesPopupHorizontalOffset, value); }
 
     protected override Type StyleKeyOverride => typeof(ColumnChart);
+
+    public ColumnChart()
+    {
+        // 图表要能被 Tab 到，否则键盘用户完全够不着
+        Focusable = true;
+        IsTabStop = true;
+
+        // 焦点进出时重画焦点环
+        GotFocus += (_, _) => _chartCanvas?.InvalidateVisual();
+        LostFocus += (_, _) => _chartCanvas?.InvalidateVisual();
+    }
+
+    /// <summary>列数，由画布在渲染时回填（列数是按标签算出来的，拿不到 Data 的长度）</summary>
+    internal int ColumnCount { get; private set; }
+
+    internal void SetColumnCount(int count) => ColumnCount = count;
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled || !IsCanColumnSelect || ColumnCount <= 0) return;
+
+        var current = ColumnSelectedIndex;
+        switch (e.Key)
+        {
+            case Key.Left:
+                current = current <= 0 ? ColumnCount - 1 : current - 1;
+                break;
+            case Key.Right:
+                current = current < 0 || current >= ColumnCount - 1 ? 0 : current + 1;
+                break;
+            case Key.Home:
+                current = 0;
+                break;
+            case Key.End:
+                current = ColumnCount - 1;
+                break;
+            case Key.Escape:
+                if (current < 0) return;
+                current = -1;
+                break;
+            default:
+                return;
+        }
+
+        ColumnSelectedIndex = current;
+        e.Handled = true;
+    }
 
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
@@ -317,6 +367,7 @@ public class ColumnChartCanvas : Control
 
         var columns = firstData.Values.Length;
         _columnCount = columns;
+        _owner.SetColumnCount(columns);
         var margin = 5;
         if (columns <= 7) margin = 25;
         else if (columns <= 12) margin = 15;
@@ -445,6 +496,11 @@ public class ColumnChartCanvas : Control
             StrokeColumnBand(context, selectedIndex, height, selectedHalo, SelectedHaloWidth, selectedStroke);
         if (hoverIndex >= 0 && hoverIndex != selectedIndex)
             StrokeColumnBand(context, hoverIndex, height, hoverHalo, HoverHaloWidth, hoverStroke);
+
+        // 键盘焦点环
+        if (_owner != null)
+            FocusVisual.Draw(context, new Size(width, height + colNameHeight + colNameBottomMargin),
+                _owner.IsKeyboardFocusWithin);
     }
 
     private void FillColumnBand(DrawingContext context, int colIndex, double height, IBrush fill)

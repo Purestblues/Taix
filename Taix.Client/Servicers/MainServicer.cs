@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -19,11 +19,13 @@ public class MainServicer : IMainServicer
     private readonly ICategorys _categorys;
     private readonly IShutdownService _shutdownService;
     private readonly IThemeServicer _themeServicer;
+    private readonly IMotionServicer _motionServicer;
     private readonly IWebData _webData;
     private readonly WindowStateTracker _windowStateTracker;
 
     public MainServicer(
         IThemeServicer themeServicer,
+        IMotionServicer motionServicer,
         IContextMenuServicer contextMenuServicer,
         WindowStateTracker windowStateTracker,
         IAppConfig config,
@@ -32,6 +34,7 @@ public class MainServicer : IMainServicer
         IWebData webData)
     {
         _themeServicer = themeServicer;
+        _motionServicer = motionServicer;
         _contextMenuServicer = contextMenuServicer;
         _windowStateTracker = windowStateTracker;
         _config = config;
@@ -56,6 +59,8 @@ public class MainServicer : IMainServicer
         SystemLanguage.AttachConfig(_config);
 
         _themeServicer.Init();
+        // 动效开关要在窗口创建前算好，否则首屏会先播一遍动画再被关掉
+        _motionServicer.Init();
 
         _ = PreloadCategoriesAsync();
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls.Primitives;
@@ -85,6 +85,25 @@ public class NavigationItem : TemplatedControl
     public NavigationItem()
     {
         PointerPressed += OnPointerPressed;
+
+        // 侧边栏要能用键盘走：Tab 进来、方向键换项、Enter 激活
+        Focusable = true;
+        IsTabStop = true;
+    }
+
+    /// <summary>键盘激活（Enter / Space），由 Navigation 接过去做选中</summary>
+    public event EventHandler? Activated;
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled) return;
+        if (e.Key is not (Key.Enter or Key.Space)) return;
+
+        Activated?.Invoke(this, EventArgs.Empty);
+        if (Command?.CanExecute(CommandParameter) == true) Command.Execute(CommandParameter);
+        e.Handled = true;
     }
 
     public int ID

@@ -1,5 +1,6 @@
-<c:TPage xmlns="https://github.com/avaloniaui"
+﻿<c:TPage xmlns="https://github.com/avaloniaui"
          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+         xmlns:behaviors="using:Taix.Client.Behaviors"
          xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
          xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
          mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
@@ -102,7 +103,7 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                     <base:View Grid.Row="2" Condition="empty" Value="{Binding WebSiteOptionList}">
-                        <base:EmptyData />
+                        <base:EmptyData IsLoading="{Binding IsLoading}" />
                     </base:View>
                     <Button:Button Grid.Row="3" HorizontalAlignment="Right"
                                    Content="{DynamicResource Complete}"
@@ -133,7 +134,7 @@
                            Command="{Binding ShowChooseCommand}" />
             <base:View Grid.Row="2" Condition="empty"
                        Value="{Binding CategoryWebSiteList}">
-                <base:EmptyData />
+                <base:EmptyData IsLoading="{Binding IsLoading}" />
             </base:View>
 
             <ListBox Grid.Row="2" ItemsSource="{Binding CategoryWebSiteList}"

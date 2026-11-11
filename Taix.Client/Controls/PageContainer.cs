@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Input;
@@ -106,6 +106,9 @@ public class PageContainer : TemplatedControl
     }
 
     public ModelBase? CurrentViewModel { get; private set; }
+
+    /// <summary>是否还能返回上一页（顶层导航页会清空历史，此时为 false）</summary>
+    public bool CanGoBack => Index > 0;
 
     protected override Type StyleKeyOverride => typeof(PageContainer);
 

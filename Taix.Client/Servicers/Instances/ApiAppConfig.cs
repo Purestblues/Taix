@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
@@ -330,6 +330,8 @@ public class ApiAppConfig : IAppConfig
             changes.Add("General.IsSaveWindowSize");
         if (old.General.DataRetentionDays != next.General.DataRetentionDays)
             changes.Add("General.DataRetentionDays");
+        if (old.General.MotionMode != next.General.MotionMode)
+            changes.Add("General.MotionMode");
 
         // 兼容老版本缓存：Shortcut 字段可能为 null
         var oldShortcut = old.Shortcut ?? new ShortcutModel();

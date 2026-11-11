@@ -71,6 +71,16 @@ public class GeneralModel
     [Config(Name = "Save Window Size", Description = "Restore the last window size when restarting", Group = "Interface", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
     public bool IsSaveWindowSize { get; set; } = false;
 
+    /// <summary>
+    /// 动效：0 跟随系统（系统开了「减少动画」就关掉）、1 始终开启、2 始终关闭。
+    /// </summary>
+    [Config(Options = "跟随系统|始终开启|始终关闭", Name = "界面动效",
+        Description = "关闭后页面进场、图表生长、悬停过渡等动效不再播放", Group = "界面", CultureCode = CultureCode.ZhCn)]
+    [Config(Options = "Follow System|Always On|Always Off", Name = "Interface Motion",
+        Description = "When off, page transitions, chart growth and hover transitions are disabled", Group = "Interface",
+        CultureCode = CultureCode.EnUs)]
+    public int MotionMode { get; set; } = 0;
+
     public int DataRetentionDays { get; set; } = 31;
 
     [Config(Options = "禁用|渐变1|渐变2|渐变3", Name = "窗口渐变", Group = "界面", CultureCode = CultureCode.ZhCn)]

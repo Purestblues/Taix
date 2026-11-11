@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -8,6 +8,8 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Taix.Client.Controls.Charts.Model;
+using Taix.Client.Controls.Base;
+using Taix.Client.Librarys;
 
 namespace Taix.Client.Controls.Charts;
 
@@ -66,12 +68,54 @@ public class StackedBarChart : Control
     private const double MinLabelSpacing = 26;
 
     private int _hoverIndex = -1;
+    private int _columnCount;
     private DispatcherTimer? _animTimer;
     private DateTime _animStart;
     private bool _playOnNextRender = true;
 
     private readonly Dictionary<string, IBrush> _brushCache = new(StringComparer.OrdinalIgnoreCase);
     private IBrush? _fallbackBrush;
+
+
+    public StackedBarChart()
+    {
+        Focusable = true;
+        IsTabStop = true;
+        GotFocus += (_, _) => InvalidateVisual();
+        LostFocus += (_, _) => InvalidateVisual();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled || _columnCount <= 0) return;
+
+        switch (e.Key)
+        {
+            case Key.Left:
+                _hoverIndex = _hoverIndex <= 0 ? _columnCount - 1 : _hoverIndex - 1;
+                break;
+            case Key.Right:
+                _hoverIndex = _hoverIndex < 0 || _hoverIndex >= _columnCount - 1 ? 0 : _hoverIndex + 1;
+                break;
+            case Key.Escape:
+                if (_hoverIndex < 0) return;
+                _hoverIndex = -1;
+                break;
+            default:
+                return;
+        }
+
+        InvalidateVisual();
+        e.Handled = true;
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        Focus();
+    }
 
     static StackedBarChart()
     {
@@ -172,6 +216,7 @@ public class StackedBarChart : Control
         }
 
         var series = BuildSeries(out var columnCount);
+        _columnCount = columnCount;
         if (columnCount == 0 || series.Count == 0)
         {
             DrawEmpty(context, width, height);
@@ -274,6 +319,8 @@ public class StackedBarChart : Control
         DrawBaseline(context, width, baseline);
         DrawLabels(context, labels, slot, columnCount, height);
         DrawHoverValue(context, totals, maxTotal, slot, plotHeight, baseline, width);
+
+        FocusVisual.Draw(context, new Size(width, height), IsKeyboardFocusWithin);
     }
 
     private List<ChartsDataModel> BuildSeries(out int columnCount)
@@ -387,6 +434,14 @@ public class StackedBarChart : Control
     private void StartEnterAnimation()
     {
         _animTimer?.Stop();
+
+        // 动效关闭时不跑生长动画，直接给出完成态
+        if (!Motion.IsEnabled)
+        {
+            _animTimer = null;
+            Progress = 1;
+            return;
+        }
 
         Progress = 0;
         _animStart = DateTime.UtcNow;

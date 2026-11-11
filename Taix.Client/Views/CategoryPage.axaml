@@ -1,5 +1,6 @@
-<c:TPage xmlns="https://github.com/avaloniaui"
+﻿<c:TPage xmlns="https://github.com/avaloniaui"
          xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+         xmlns:behaviors="using:Taix.Client.Behaviors"
          xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
          xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
          mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
@@ -207,12 +208,13 @@
                 <TabItem>
                     <Grid>
                         <base:View Condition="empty" Value="{Binding Data}">
-                            <base:EmptyData />
+                            <base:EmptyData IsLoading="{Binding IsLoading}" />
                         </base:View>
 
                         <ListBox Margin="10,20,10,0" ItemsSource="{Binding Data}"
                                  SelectedItem="{Binding SelectedAppCategoryItem,Mode=TwoWay}"
                                  PointerPressed="OnAppCategoryListBoxPointerPressed"
+                                 behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                             <Interaction.Behaviors>
                                 <EventTriggerBehavior EventName="PointerReleased">
@@ -407,13 +409,14 @@
                 <ScrollViewer>
                     <StackPanel>
                         <base:View Condition="empty" Value="{Binding WebCategoryData}">
-                            <base:EmptyData />
+                            <base:EmptyData IsLoading="{Binding IsLoading}" />
                         </base:View>
 
                         <ListBox Margin="10,20,10,0"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  SelectedItem="{Binding SelectedWebCategoryItem,Mode=TwoWay}"
                                  PointerPressed="OnWebCategoryListBoxPointerPressed"
+                                 behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
                                  ItemsSource="{Binding WebCategoryData}">
 
                             <Interaction.Behaviors>

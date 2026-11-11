@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -247,16 +247,12 @@
                     <Border Height="1" Background="{DynamicResource SettingPanelSpliteLineBrush}" Opacity="0.5" />
 
                     <Grid Margin="20,16,20,20">
-                        <!-- 空态 -->
-                        <StackPanel HorizontalAlignment="Center"
-                                    VerticalAlignment="Center"
-                                    Spacing="8"
-                                    IsVisible="{Binding !HasData}">
-                            <TextBlock Text="{DynamicResource CategoryNoData}"
-                                       FontSize="11"
-                                       HorizontalAlignment="Center"
-                                       Foreground="{DynamicResource SubTextBrush}" />
-                        </StackPanel>
+                        <!-- 空态 / 加载态 -->
+                        <base:EmptyData IsVisible="{Binding !HasData}"
+                                        IsLoading="{Binding IsLoading}"
+                                        Text="{DynamicResource CategoryNoData}"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center" />
 
                         <!-- 柱状图 + 点击列展开成员 -->
                         <Grid IsVisible="{Binding HasData}"
@@ -291,7 +287,7 @@
                                 </Border>
 
                                 <base:View Value="{Binding SelectedMembers}" Condition="not empty">
-                                    <charts:ListChart IsSearch="True"
+                                    <charts:ListChart IsLoading="{Binding IsLoading}" IsSearch="True"
                                                       Margin="0,5,0,0"
                                                       Height="300"
                                                       IsShowBadge="True"
@@ -299,7 +295,7 @@
                                                       Data="{Binding SelectedMembers}" />
                                 </base:View>
                                 <base:View Value="{Binding SelectedMembers}" Condition="empty">
-                                    <base:EmptyData />
+                                    <base:EmptyData IsLoading="{Binding IsLoading}" />
                                 </base:View>
                             </StackPanel>
                         </Grid>

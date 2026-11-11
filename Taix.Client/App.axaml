@@ -1,4 +1,4 @@
-<Application xmlns="https://github.com/avaloniaui"
+﻿<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Name="Taix"
              x:Class="Taix.Client.App">
@@ -6,6 +6,7 @@
 
     <Application.Styles>
         <SimpleTheme />
+        <StyleInclude Source="/Themes/Base/FocusStyles.axaml" />
     </Application.Styles>
 
     <Application.Resources>

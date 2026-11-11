@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -8,6 +8,8 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Taix.Client.Controls.Charts.Model;
+using Taix.Client.Controls.Base;
+using Taix.Client.Librarys;
 
 namespace Taix.Client.Controls.Charts;
 
@@ -55,9 +57,51 @@ public class DonutChart : Control
     private DateTime _animStart;
     private bool _playOnNextRender = true;
     private List<(ChartsDataModel Model, double Value)> _slices = [];
+    private int _sliceCount;
 
     private readonly Dictionary<string, IBrush> _brushCache = new(StringComparer.OrdinalIgnoreCase);
     private IBrush? _fallbackBrush;
+
+
+    public DonutChart()
+    {
+        Focusable = true;
+        IsTabStop = true;
+        GotFocus += (_, _) => InvalidateVisual();
+        LostFocus += (_, _) => InvalidateVisual();
+    }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (e.Handled || _sliceCount <= 0) return;
+
+        switch (e.Key)
+        {
+            case Key.Left:
+                _hoverIndex = _hoverIndex <= 0 ? _sliceCount - 1 : _hoverIndex - 1;
+                break;
+            case Key.Right:
+                _hoverIndex = _hoverIndex < 0 || _hoverIndex >= _sliceCount - 1 ? 0 : _hoverIndex + 1;
+                break;
+            case Key.Escape:
+                if (_hoverIndex < 0) return;
+                _hoverIndex = -1;
+                break;
+            default:
+                return;
+        }
+
+        InvalidateVisual();
+        e.Handled = true;
+    }
+
+    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    {
+        base.OnPointerPressed(e);
+        Focus();
+    }
 
     static DonutChart()
     {
@@ -158,6 +202,7 @@ public class DonutChart : Control
         context.DrawEllipse(null, trackPen, center, radius, radius);
 
         _slices = BuildSlices(out var total);
+        _sliceCount = _slices.Count;
 
         if (total <= 0 || _slices.Count == 0)
         {
@@ -191,6 +236,9 @@ public class DonutChart : Control
         }
 
         DrawCenterForHover(context, center, total);
+
+        FocusVisual.Draw(context, Bounds.Size, IsKeyboardFocusWithin,
+            Math.Min(Bounds.Width, Bounds.Height) / 2);
     }
 
     private List<(ChartsDataModel Model, double Value)> BuildSlices(out double total)
@@ -350,6 +398,14 @@ public class DonutChart : Control
     private void StartEnterAnimation()
     {
         _animTimer?.Stop();
+
+        // 动效关闭时不跑生长动画，直接给出完成态
+        if (!Motion.IsEnabled)
+        {
+            _animTimer = null;
+            Progress = 1;
+            return;
+        }
 
         Progress = 0;
         _animStart = DateTime.UtcNow;
