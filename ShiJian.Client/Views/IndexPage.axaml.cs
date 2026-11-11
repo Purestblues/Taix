@@ -21,20 +21,47 @@ public partial class IndexPage : UserControl
 
     private bool _entered;
 
+    private IndexPageViewModel? _viewModel;
+
     public IndexPage()
     {
         InitializeComponent();
         DataContext = ServiceLocator.GetRequiredService<IndexPageViewModel>();
 
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     private async void OnLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        if (_viewModel == null && DataContext is IndexPageViewModel vm)
+        {
+            _viewModel = vm;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        }
+
         if (_entered) return;
         _entered = true;
 
+        // 首帧直接用最终状态，别在页面进场时再叠一层展开动画
+        if (CustomRangeHost != null)
+            ExpandMotion.ApplyFinal(CustomRangeHost, _viewModel?.IsCustomRange == true);
+
         await StaggerStatCardsAsync();
+    }
+
+    private void OnUnloaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_viewModel == null) return;
+        _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+        _viewModel = null;
+    }
+
+    /// <summary>「自定义」范围面板：切换周期时按参考项目的方式做高度展开 / 收起</summary>
+    private void OnViewModelPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(IndexPageViewModel.IsCustomRange) || CustomRangeHost == null) return;
+        _ = ExpandMotion.SetExpandedAsync(CustomRangeHost, _viewModel?.IsCustomRange == true);
     }
 
     /// <summary>

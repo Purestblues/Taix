@@ -1,8 +1,12 @@
+using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using ShiJian.Client.Controls.Button;
+using ShiJian.Client.Librarys;
 
 namespace ShiJian.Client.Controls.Expander;
 
@@ -22,23 +26,73 @@ public class Expander : Avalonia.Controls.Expander
     protected override void OnLoaded(RoutedEventArgs e)
     {
         base.OnLoaded(e);
-        ContentHeightCanvas_.SetValue(HeightProperty, ContentStackPanel_.Bounds.Height);
+        ContentHeightCanvas_.SetValue(HeightProperty, MeasureContentHeight());
         ContentStackPanel_.SizeChanged += ContentStackPanel__SizeChanged;
     }
 
     private void ContentStackPanel__SizeChanged(object? sender, SizeChangedEventArgs e)
     {
-        OnExpand(false);
+        // 展开状态下内容变高变矮，占位 Canvas 跟着同步，否则会裁掉内容
+        if (IsExpanded && ContentHeightCanvas_ != null) ContentHeightCanvas_.Height = MeasureContentHeight();
     }
 
     private void OnExpanderCommand(object obj)
     {
         IsExpanded = !IsExpanded;
-        OnExpand();
     }
 
-    private void OnExpand(bool isAnimation = true)
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsExpandedProperty) ApplyExpanded(IsExpanded);
+    }
+
+    /// <summary>
+    /// 内容高度由占位 Canvas 驱动（模板里 RowDefinition.Height 绑它的 Height），
+    /// 所以展开 / 收起只要把这个高度做成动画即可；动效关闭时直接落值。
+    /// </summary>
+    private void ApplyExpanded(bool expanded)
+    {
+        if (ContentHeightCanvas_ == null || ContentStackPanel_ == null) return;
+
+        var target = expanded ? MeasureContentHeight() : 0;
+        var from = ContentHeightCanvas_.Height;
+        if (double.IsNaN(from)) from = 0;
+
+        if (!Motion.IsEnabled || Math.Abs(target - from) < 0.5)
+        {
+            ContentHeightCanvas_.Height = target;
+            return;
+        }
+
+        _ = AnimateAsync(from, target, expanded);
+    }
+
+    private async Task AnimateAsync(double from, double to, bool expanded)
+    {
+        try
+        {
+            await ExpandMotion.AnimateHeightAsync(
+                ContentHeightCanvas_,
+                from,
+                to,
+                MotionTokens.M,
+                expanded ? MotionTokens.Enter() : MotionTokens.Leave());
+        }
+        catch
+        {
+            if (ContentHeightCanvas_ != null) ContentHeightCanvas_.Height = to;
+        }
+    }
+
+    private double MeasureContentHeight()
+    {
+        var width = ContentStackPanel_.Bounds.Width;
+        if (width <= 0) width = Bounds.Width;
+        if (width <= 0) return 0;
+
+        ContentStackPanel_.Measure(new Size(width, double.PositiveInfinity));
+        return ContentStackPanel_.DesiredSize.Height;
     }
 
     protected override void OnApplyTemplate(TemplateAppliedEventArgs e)

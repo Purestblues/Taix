@@ -148,6 +148,9 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       有意**不做**旧页淡出：`PageContainer.LoadPage` 先 `Dispose` 旧页 VM、再把 `DataContext`
       置空（那是为避开 Avalonia 12 的逻辑树竞态），想留住旧画面就得推迟这两步，代价大于收益。
       `IndexPage` 原来的整页动画删除，只保留总览卡错峰（220ms / 36ms 间隔），避免两层淡入叠加。
+      展开 / 收起：`Librarys/ExpandMotion.cs`（量出目标高度 → 动画 `Height` → 结束还原成 NaN 自动高度），
+      已接入概览页「自定义」范围面板与 `Expander`（设置页规则列表、`SettingPanelMultiItem`）；
+      动效关闭时直接落值，不留半高。单测 `ExpandMotionTests` 3 例。
       单测 `PageMotionTests` 3 例 + `SlideMotionTests` 3 例：关动效零延迟直切、进场初态/终态、
       残留状态复位、位移真的花时间且结束归零、token 曲线两端收敛；
       「动画实际耗时 ≥ 50~60% 时长」的断言用来抓「动画被静默跳过」。
