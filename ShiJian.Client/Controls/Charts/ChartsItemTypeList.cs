@@ -2,7 +2,6 @@ using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -93,9 +92,8 @@ public class ChartsItemTypeList : TemplatedControl
     private bool IsAddEvent;
 
     private TextBlock NameTextObj, ValueTextObj;
-    private Rectangle ValueBlockObj;
+    private RatioBar ValueBlockObj;
     private StackPanel ValueContainer;
-    private bool _isValueSizeTracked;
 
     public ChartsDataModel Data
     {
@@ -147,12 +145,6 @@ public class ChartsItemTypeList : TemplatedControl
         base.OnUnloaded(e);
         PointerPressed -= OnPointerPressed;
         Loaded -= ChartsItemTypeList_Loaded;
-        var parent = Parent as Control;
-        if (parent != null)
-            parent.SizeChanged -= Parent_SizeChanged;
-
-        // 虚拟化列表会反复装载 / 卸载行，这里必须把尺寸订阅一并解掉，否则会重复挂
-        DetachValueSizeTracking();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -169,7 +161,7 @@ public class ChartsItemTypeList : TemplatedControl
         base.OnApplyTemplate(e);
         NameTextObj = e.NameScope.Get<TextBlock>("NameTextObj");
         ValueTextObj = e.NameScope.Get<TextBlock>("ValueTextObj");
-        ValueBlockObj = e.NameScope.Get<Rectangle>("ValueBlockObj");
+        ValueBlockObj = e.NameScope.Get<RatioBar>("ValueBlockObj");
         ValueContainer = e.NameScope.Get<StackPanel>("ValueContainer");
         IconObj = e.NameScope.Get<Img>("IconObj");
 
@@ -188,57 +180,13 @@ public class ChartsItemTypeList : TemplatedControl
             IsAddEvent = true;
         }
 
-        var parent = Parent as Control;
-        if (parent != null)
-        {
-            parent.SizeChanged -= Parent_SizeChanged;
-            parent.SizeChanged += Parent_SizeChanged;
-        }
-
-        AttachValueSizeTracking();
     }
 
-    /// <summary>
-    /// 进度条宽度是算出来的，容器宽度变化（窗口缩放、滚动时重新布局）必须重算，
-    /// 否则会停在上一次算出来的值——甚至停在 0，看起来就是「进度条消失了」。
-    /// </summary>
-    private void AttachValueSizeTracking()
-    {
-        if (_isValueSizeTracked || ValueContainer == null) return;
-
-        ValueContainer.SizeChanged += OnValueSizeChanged;
-        if (ValueTextObj != null) ValueTextObj.SizeChanged += OnValueSizeChanged;
-        _isValueSizeTracked = true;
-    }
-
-    private void DetachValueSizeTracking()
-    {
-        if (!_isValueSizeTracked) return;
-
-        if (ValueContainer != null) ValueContainer.SizeChanged -= OnValueSizeChanged;
-        if (ValueTextObj != null) ValueTextObj.SizeChanged -= OnValueSizeChanged;
-        _isValueSizeTracked = false;
-    }
-
-    private void OnValueSizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        UpdateValueBlockWidth();
-    }
-
-
-    private void Parent_SizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        UpdateValueBlockWidth();
-    }
 
     private void ChartsItemTypeList_Loaded(object? sender, RoutedEventArgs e)
     {
-        // 虚拟化会把行卸载再装载，OnApplyTemplate 不会重跑，尺寸订阅必须在这里补回来
-        AttachValueSizeTracking();
+        // 虚拟化会把行卸载再装载：重新挂一次数据，比例随之更新
         Render();
-
-        // 装载这一刻布局还没算完（容器宽度是 0），排到布局之后再补一次
-        Dispatcher.UIThread.Post(UpdateValueBlockWidth, DispatcherPriority.Background);
     }
 
     private void Render()
@@ -246,10 +194,7 @@ public class ChartsItemTypeList : TemplatedControl
         if (Data == null || ValueTextObj == null) return;
 
         ValueTextObj.Text = Data.Tag;
-
-        // 虚拟化复用行时这里会被再次调用：不能把宽度重置成 0 再等回调，
-        // 否则滚动过程中每次复用都会闪一下空条，尺寸没算出来时还会一直停在 0。
-        UpdateValueBlockWidth();
+        UpdateValueRatio();
     }
 
     private void OnBadgePointerPressed(object? sender, PointerPressedEventArgs e)
@@ -280,17 +225,20 @@ public class ChartsItemTypeList : TemplatedControl
         }
     }
 
-    public void UpdateValueBlockWidth()
+    /// <summary>
+    /// 只设置比例，像素宽度交给 <see cref="RatioBar"/> 在绘制时按实际宽度现算。
+    /// 这样不依赖「容器尺寸回调」，虚拟化复用、切页进场、快速滚动都不会再出现空条。
+    /// </summary>
+    public void UpdateValueRatio()
     {
-        if (Data == null || !IsLoaded) return;
-        if (ValueBlockObj == null || ValueContainer == null || ValueTextObj == null) return;
+        if (ValueBlockObj == null) return;
 
-        // 布局还没算出来时先别动，等 SizeChanged 再来一次（负数宽度会被夹成 0，条就没了）
-        var available = ValueContainer.Bounds.Width * 0.95 - ValueTextObj.Bounds.Width;
-        if (available <= 1 || MaxValue <= 0) return;
+        if (Data == null || MaxValue <= 0 || Data.Value <= 0)
+        {
+            ValueBlockObj.Ratio = 0;
+            return;
+        }
 
-        // 一分钟级的数据算出来只有几个像素，给个下限，否则看起来像「条没画出来」
-        var width = Data.Value / MaxValue * available;
-        ValueBlockObj.Width = Data.Value <= 0 ? 0 : Math.Max(3, width);
+        ValueBlockObj.Ratio = Math.Min(1d, Data.Value / MaxValue);
     }
 }

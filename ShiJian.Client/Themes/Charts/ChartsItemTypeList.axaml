@@ -159,25 +159,20 @@
                                     </ListBox.ItemTemplate>
                                 </ListBox>
                             </Grid>
-                            <StackPanel Orientation="Horizontal">
-                                <Rectangle
+                            <!-- 进度条必须放在 Grid 里才能撑满剩余宽度（StackPanel 只给期望尺寸=0） -->
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                <base:RatioBar
                                     x:Name="ValueBlockObj"
-                                    RadiusX="1.5"
-                                    RadiusY="1.5"
-                                    Fill="{TemplateBinding BarBrush}"
+                                    Grid.Column="0"
                                     Height="3"
-                                    VerticalAlignment="Center"
-                                    HorizontalAlignment="Left">
-                                    <Rectangle.Transitions>
-                                        <Transitions>
-                                            <DoubleTransition Property="Width" Duration="0:0:0.375" Easing="CubicEaseOut" />
-                                        </Transitions>
-                                    </Rectangle.Transitions>
-                                </Rectangle>
+                                    MinWidth="3"
+                                    CornerRadius="1.5"
+                                    BarBrush="{TemplateBinding BarBrush}"
+                                    VerticalAlignment="Center" />
 
-                                <TextBlock x:Name="ValueTextObj" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource SubTextBrush}" FontSize="12" Margin="5,0,0,0" />
-                            </StackPanel>
+                                <TextBlock x:Name="ValueTextObj" Grid.Column="1" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource SubTextBrush}" FontSize="12" Margin="6,0,0,0" />
+                            </Grid>
 
                         </StackPanel>
                     </Grid>
