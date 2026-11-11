@@ -4,6 +4,7 @@ mod gui;
 mod i18n;
 mod install;
 mod legacy;
+mod payload;
 mod platform;
 mod sfx;
 mod ui;

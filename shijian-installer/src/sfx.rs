@@ -3,7 +3,7 @@ use std::fs;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
-const PAYLOAD_MARKER: &[u8] = b"SHIJIAN_PAYLOAD_END";
+use crate::payload::{PAYLOAD_MARKER, TRAILER_SIZE};
 
 pub fn extract_to(dest: &Path) -> Result<()> {
     let payload = read_payload_from_exe()?;
@@ -30,7 +30,7 @@ fn read_payload_from_exe() -> Result<Vec<u8>> {
     let mut file = fs::File::open(&exe_path)?;
 
     let file_size = file.seek(SeekFrom::End(0))? as usize;
-    let metadata_size = PAYLOAD_MARKER.len() + 8;
+    let metadata_size = TRAILER_SIZE;
 
     if file_size < metadata_size {
         bail!("安装程序无效");
@@ -39,10 +39,10 @@ fn read_payload_from_exe() -> Result<Vec<u8>> {
     let marker_offset = file_size - metadata_size;
     file.seek(SeekFrom::Start(marker_offset as u64))?;
 
-    let mut marker_buf = [0u8; 16];
+    let mut marker_buf = [0u8; PAYLOAD_MARKER.len()];
     file.read_exact(&mut marker_buf)?;
 
-    if marker_buf != PAYLOAD_MARKER {
+    if marker_buf[..] != PAYLOAD_MARKER[..] {
         bail!("安装程序无效");
     }
 

@@ -4,6 +4,9 @@ use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 
+#[path = "../payload.rs"]
+mod payload;
+
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 3 {
@@ -89,9 +92,8 @@ fn pack_payload(source_dir: &Path, output_path: &Path) -> Result<()> {
     let mut output = Vec::new();
     output.write_all(&compressed)?;
 
-    // 写入 marker
-    const PAYLOAD_MARKER: &[u8] = b"SHIJIAN_PAYLOAD_END";
-    output.write_all(PAYLOAD_MARKER)?;
+    // 写入 marker（与安装器的读取端共用 payload.rs 里的常量）
+    output.write_all(payload::PAYLOAD_MARKER)?;
 
     // 写入 payload 大小
     output.write_all(&(compressed.len() as u64).to_le_bytes())?;
