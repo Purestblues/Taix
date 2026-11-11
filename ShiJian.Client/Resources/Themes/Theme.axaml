@@ -45,6 +45,18 @@
             <SolidColorBrush x:Key="CardBorderHoverBrush" Color="#FFFFFF" Opacity="0.18" />
             <SolidColorBrush x:Key="RowHoverBrush" Color="#FFFFFF" Opacity="0.04" />
             <SolidColorBrush x:Key="RowSelectedBrush" Color="{DynamicResource ThemeColor}" Opacity="0.14" />
+            <!-- 内容区背景光晕（静态，暗色用一档更亮的紫，透明度极低） -->
+            <RadialGradientBrush x:Key="ContentGlowTopBrush" Center="10%,0%" GradientOrigin="10%,0%"
+                                 RadiusX="110%" RadiusY="70%">
+                <GradientStop Offset="0" Color="#33C08AC9" />
+                <GradientStop Offset="1" Color="#00C08AC9" />
+            </RadialGradientBrush>
+            <RadialGradientBrush x:Key="ContentGlowBottomBrush" Center="100%,100%" GradientOrigin="100%,100%"
+                                 RadiusX="90%" RadiusY="60%">
+                <GradientStop Offset="0" Color="#1AC08AC9" />
+                <GradientStop Offset="1" Color="#00C08AC9" />
+            </RadialGradientBrush>
+
 
             <!-- 阴影只给真正浮起来的层（弹窗 / 拖拽 / 浮层），卡片静置零阴影 -->
             <BoxShadows x:Key="Elevation1">0 2 8 0 #1F000000, 0 1 3 -2 #29000000</BoxShadows>
@@ -391,6 +403,18 @@
             <SolidColorBrush x:Key="CardBorderHoverBrush" Color="#000000" Opacity="0.20" />
             <SolidColorBrush x:Key="RowHoverBrush" Color="#000000" Opacity="0.04" />
             <SolidColorBrush x:Key="RowSelectedBrush" Color="{DynamicResource ThemeColor}" Opacity="0.12" />
+            <!-- 内容区背景光晕（亮色透明度更低，避免显脏） -->
+            <RadialGradientBrush x:Key="ContentGlowTopBrush" Center="10%,0%" GradientOrigin="10%,0%"
+                                 RadiusX="110%" RadiusY="70%">
+                <GradientStop Offset="0" Color="#26A05DB1" />
+                <GradientStop Offset="1" Color="#00A05DB1" />
+            </RadialGradientBrush>
+            <RadialGradientBrush x:Key="ContentGlowBottomBrush" Center="100%,100%" GradientOrigin="100%,100%"
+                                 RadiusX="90%" RadiusY="60%">
+                <GradientStop Offset="0" Color="#14A05DB1" />
+                <GradientStop Offset="1" Color="#00A05DB1" />
+            </RadialGradientBrush>
+
 
             <!--鼠标经过背景颜色-->
             <Color x:Key="HoverBackgroundColor">#eaeaea</Color>

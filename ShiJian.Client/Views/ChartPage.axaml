@@ -18,7 +18,7 @@
         </ContextMenu>
     </UserControl.ContextMenu>
 
-    <Grid RowDefinitions="Auto,*" Margin="20">
+    <Grid RowDefinitions="Auto,*" Margin="24">
         <!-- ═══ Row 0：标题 · 应用/网站 · 日期 · 周期 ═══ -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,5,0,20">
                 <StackPanel Grid.Column="0" Orientation="Horizontal"

@@ -23,8 +23,8 @@
     </control:TPage.ContextMenu>
     <control:TPage.Resources>
         <converters:BoolToThicknessConverter x:Key="PageMarginConverter"
-                                             TrueValue="20,20,20,20"
-                                             FalseValue="20,0,20,20" />
+                                             TrueValue="24,24,24,64"
+                                             FalseValue="24,0,24,24" />
         <converters:BoolToThicknessConverter x:Key="ContentMarginConverter"
                                              TrueValue="0,13,0,0"
                                              FalseValue="0,0,0,0" />

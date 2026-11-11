@@ -298,10 +298,16 @@
                 CornerRadius="{StaticResource RadiusSmall}"
                 BorderThickness="1,1,1,1"
                 BorderBrush="{DynamicResource WindowContentBorder}" ClipToBounds="True">
-            <control:PageContainer IndexUriList="{Binding IndexUriList}"
-                                   Instance="{Binding PageContainer,Mode=TwoWay}"
-                                   Uri="{Binding Uri,Mode=TwoWay}"
-                                   Title="{Binding Title,Mode=TwoWay}" />
+            <Grid>
+                <!-- 背景光晕：只做氛围，不承载任何交互；页面内容盖在它上面 -->
+                <Border IsHitTestVisible="False" Background="{DynamicResource ContentGlowTopBrush}" />
+                <Border IsHitTestVisible="False" Background="{DynamicResource ContentGlowBottomBrush}" />
+
+                <control:PageContainer IndexUriList="{Binding IndexUriList}"
+                                       Instance="{Binding PageContainer,Mode=TwoWay}"
+                                       Uri="{Binding Uri,Mode=TwoWay}"
+                                       Title="{Binding Title,Mode=TwoWay}" />
+            </Grid>
             </Border>
         </Grid>
 

@@ -22,9 +22,9 @@
                                          StickyTitleTextName="StickyTitleText" />
     </i:Interaction.Behaviors>
 
-    <Grid Margin="20" RowDefinitions="Auto,*">
+    <Grid Margin="24" RowDefinitions="Auto,*">
         <StackPanel Grid.Row="0">
-            <TextBlock Text="{DynamicResource Settings}" FontSize="18" Margin="0,5,0,20" />
+            <TextBlock Text="{DynamicResource Settings}" FontSize="18" Margin="0,8,0,24" />
             <Tabbar:Tabbar x:Name="Tabbar"
                 HorizontalAlignment="Left" Data="{Binding TabbarData}"
                 ItemSpacing="20"
@@ -33,7 +33,7 @@
 
         <ScrollViewer Grid.Row="1" x:Name="ContentScrollViewer"
                       VerticalScrollBarVisibility="Auto">
-            <StackPanel x:Name="SectionContainer" Margin="0,15,0,0">
+            <StackPanel x:Name="SectionContainer" Margin="0,20,0,0">
                 <StackPanel x:Name="Section0">
                     <SettingPanel:SettingPanel Data="{Binding GeneralSettings,Mode=TwoWay}" />
                 </StackPanel>

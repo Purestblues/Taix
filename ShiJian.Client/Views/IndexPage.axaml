@@ -38,10 +38,10 @@
     </UserControl.Styles>
 
     <!-- 滚动由 PageContainer 模板里的 ScrollViewer 提供，这里不要再套一层 -->
-    <StackPanel x:Name="PageRoot" Margin="20,6,20,24">
+    <StackPanel x:Name="PageRoot" Margin="24,10,24,64">
 
             <!-- ═══ 头部：标题 + 周期切换 ═══ -->
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,14">
+            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,16">
                 <TextBlock Grid.Column="0" Text="{DynamicResource SideOverview}"
                            FontSize="18"
                            VerticalAlignment="Center" />
@@ -225,7 +225,7 @@
             </Grid>
 
             <!-- ═══ 最为频繁 ═══ -->
-            <TextBlock Text="{DynamicResource MostFrequent}" Classes="eyebrow" Margin="0,16,0,8" />
+            <TextBlock Text="{DynamicResource MostFrequent}" Classes="eyebrow" Margin="0,24,0,12" />
 
             <Grid ColumnDefinitions="3*,12,2*">
                 <!--应用-->

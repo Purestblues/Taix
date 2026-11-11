@@ -153,7 +153,7 @@
             </Border>
         </Grid>
 
-        <Grid Margin="20" Background="Transparent">
+        <Grid Margin="24" Background="Transparent">
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto" />
                 <RowDefinition Height="*" />
@@ -164,7 +164,7 @@
                 </ContextMenu>
             </Grid.ContextMenu>
 
-            <Grid Margin="0,5,0,20">
+            <Grid Margin="0,8,0,24">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="auto" />
