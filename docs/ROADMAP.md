@@ -136,14 +136,23 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 > 详细顺序、依赖与发版切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)。以下仅为占位，动手时再补设计说明。
 
 - [x] **N4** 页面淡入淡出
-      换页动效集中到 `PageContainer`：`Librarys/PageMotion.cs` 在页面挂上后播 260ms 淡入 +
-      上移 8px（`CubicEaseOut`），10 个页面一次全覆盖，各页面不再自己写页面级动画。
+      换页动效集中到 `PageContainer`：`Librarys/PageMotion.cs` 在页面挂上后播 260ms 淡入
+      （`CubicEaseOut`），10 个页面一次全覆盖，各页面不再自己写页面级动画。
       `Motion.IsEnabled` 关闭时走 `SnapToRest` 同步直切，不产生延迟；动画中途被卸载也不会
       把页面留在半透明（`finally` 清终态）。
       有意**不做**旧页淡出：`PageContainer.LoadPage` 先 `Dispose` 旧页 VM、再把 `DataContext`
       置空（那是为避开 Avalonia 12 的逻辑树竞态），想留住旧画面就得推迟这两步，代价大于收益。
       `IndexPage` 原来的整页动画删除，只保留总览卡错峰（220ms / 36ms 间隔），避免两层淡入叠加。
-      单测 `PageMotionTests` 3 个用例：关动效零延迟直切、进场初态/终态、残留状态复位。
+      单测 `PageMotionTests` 3 个用例：关动效零延迟直切、进场初态/终态、残留状态复位；
+      其中一条断言「动画实际耗时 ≥ 60% 时长」，用来抓「动画被静默跳过」。
+
+      ⚠️ **Avalonia 12 的坑（曾让全站动效静默失效）**：`Animation.Animators` 已移除，
+      `TransformAnimator` / `TransformOperationsAnimator` 都是 internal。关键帧里只要出现
+      `RenderTransform`，`RunAsync` 会在开头抛「No animator registered for the property
+      RenderTransform」，整个动画被跳过；若 `catch` 把它吞了，页面就直接就位，看起来跟没加
+      动效一模一样（`IndexPage` 从 M3 起的进场动画一直是这个死状态）。所以位移（上移 8px）
+      全部取消，只动 `Opacity`；`catch` 必留 `Warn` 日志。以后要做位移，要么自己插值，
+      要么动 `Margin`（要接受逐帧重排）。
 - [ ] **N1 + N3** 视觉体系：多彩配色 token + 卡片组件重做 + 图表取色（两条必须同批）
 - [ ] **N6** 子母程序合并：自动判定 + 设置页「子母程序合并」管理页（子进程继承母进程分类，保留原标签）
 - [ ] **N2** 应用/网站统一实体表 + 「网站并入浏览器」开关（浏览器用真实活跃时长）

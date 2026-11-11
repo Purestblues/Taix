@@ -6,7 +6,6 @@ using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
-using Avalonia.Media.Transformation;
 using Avalonia.Styling;
 using ShiJian.Client.Librarys;
 using ShiJian.Client.ViewModels;
@@ -16,7 +15,7 @@ namespace ShiJian.Client.Views;
 public partial class IndexPage : UserControl
 {
     /// <summary>总览卡错峰进场（比整页动得轻一点）。整页淡入由 PageContainer 统一播放</summary>
-    private static readonly Animation CardAnimation = CreateFadeSlide(220, 8);
+    private static readonly Animation CardAnimation = CreateFade(220);
 
     /// <summary>相邻两张卡的开始间隔，太小看不出错峰，太大整页显得拖拉</summary>
     private const int CardStaggerMs = 36;
@@ -50,11 +49,7 @@ public partial class IndexPage : UserControl
         var cards = panel.Children.OfType<Control>().ToList();
         if (!Motion.IsEnabled)
         {
-            foreach (var card in cards)
-            {
-                card.Opacity = 1;
-                card.RenderTransform = null;
-            }
+            foreach (var card in cards) card.Opacity = 1;
 
             return;
         }
@@ -64,7 +59,6 @@ public partial class IndexPage : UserControl
         {
             var card = cards[index];
             card.Opacity = 0;
-            card.RenderTransform = TransformOperations.Parse("translateY(8px)");
             running.Add(AnimateCardAsync(card, TimeSpan.FromMilliseconds(CardStaggerMs * index)));
         }
 
@@ -82,11 +76,10 @@ public partial class IndexPage : UserControl
         catch
         {
             card.Opacity = 1;
-            card.RenderTransform = null;
         }
     }
 
-    private static Animation CreateFadeSlide(int durationMs, double offsetY)
+    private static Animation CreateFade(int durationMs)
     {
         return new Animation
         {
@@ -100,8 +93,7 @@ public partial class IndexPage : UserControl
                     Cue = new Cue(0d),
                     Setters =
                     {
-                        new Setter(OpacityProperty, 0d),
-                        new Setter(RenderTransformProperty, TransformOperations.Parse($"translateY({offsetY}px)"))
+                        new Setter(OpacityProperty, 0d)
                     }
                 },
                 new KeyFrame
@@ -109,8 +101,7 @@ public partial class IndexPage : UserControl
                     Cue = new Cue(1d),
                     Setters =
                     {
-                        new Setter(OpacityProperty, 1d),
-                        new Setter(RenderTransformProperty, TransformOperations.Parse("translateY(0px)"))
+                        new Setter(OpacityProperty, 1d)
                     }
                 }
             }
