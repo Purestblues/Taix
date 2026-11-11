@@ -25,6 +25,25 @@
 | 5 | 未提 Toast | Windows Toast AppUserModelId `Taix.Plugin` → `ShiJian.Plugin`；旧通知记录无法清理（一次性遗留） | 系统侧旧记录不在我们手里 |
 | 6 | 扩展 ID 会变 | 已确认：服务端写接口用 Origin 白名单而非扩展 ID，所以要改的是**用户自己的白名单配置**，不是代码 | `origin_check.rs` 只比对配置里的允许来源 |
 
+**发布后发现的一个回归（已修复并重传资产）**
+
+`fork.6` 的 `Setup.exe` 装不了，界面直接报「安装程序无效」。
+
+根因：SFX 的 payload 尾标记是 `TAIX_PAYLOAD_END`（16 字节），改名后变成 `SHIJIAN_PAYLOAD_END`（18 字节），
+但读取端 `sfx.rs` 仍写死 `[0u8; 16]`。偏移用的是 `PAYLOAD_MARKER.len()`（算对了），
+比较却只读了前 16 字节，于是永远不相等。
+
+典型形态：**长度与名字绑定的魔法值，改名时静默失效，CI 也照常绿**。
+
+修法（提交 `53a5c2c`）：
+
+- 新增 `shijian-installer/src/payload.rs` 作为标记与尾部长度的**唯一出处**，
+  打包器（`bin/pack-payload`）与安装器（`sfx`）共用，不再各自写一份字面量
+- 标记固定为 16 字节 `SHIJIAN_PAYLOAD!`，读取端按 `PAYLOAD_MARKER.len()` 分配缓冲
+- 用 `fork.6` 的 Setup 实测确认：文件尾确实是 `SHIJIAN_PAYLOAD_END` + 8 字节长度
+- 重新构建后用 `gh release upload --clobber` 替换 `fork.6` 的 `Setup.exe`（当时三个资产下载数均为 0）；
+  zip 与 dmg 不经 SFX，未动
+
 **本机仍需人工确认的两项**
 
 1. Windows 实机装一次 Setup，确认旧 `Data/` 被合进新目录、历史统计没丢、旧任务计划消失。
