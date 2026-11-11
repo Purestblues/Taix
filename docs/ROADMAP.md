@@ -9,7 +9,7 @@
 
 | 维度 | 状态 |
 | --- | --- |
-| 发布 | `v1.3.4-fork.5`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出） |
+| 发布 | `v1.3.4-fork.6`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
 | 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）66 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
@@ -184,7 +184,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 
 ## 发版节奏
 
-- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` = M4 工程化（测试 + CI 拦截 + 发版半自动），`fork.5` = M5 详细页看板
+- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` = M4 工程化（测试 + CI 拦截 + 发版半自动），`fork.5` = M5 详细页看板，`fork.6` = R1 改名（Taix → 时见 / ShiJian，含数据迁移）
 - `fork.5` 之后的批次切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)
 - 每条命令即可发布：`.\script\release.ps1 -Version 1.3.4-fork.N -Commit -Watch`
 - 同步上游：`git fetch upstream && git rebase upstream/main`
@@ -196,6 +196,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 | --- | --- |
 | 本地跑改动后的客户端 | `.\script\dev-run.ps1`（自动补齐图标目录，直连本机 shijian-server） |
 | 发版 | `.\script\prepare-release.ps1 [-Apply]` 生成草稿 → `.\script\release.ps1 [-Commit] [-Watch]`（版本号可省略，自动递增） |
+| 发版前置 | 必须用 **pwsh 7** 跑脚本（Windows PowerShell 5.1 会把 UTF-8 中文按 GBK 解析而报错），并带 `HTTPS_PROXY` 让 push / gh 走代理 |
 | 跑测试 | `dotnet test ShiJian.Tests/ShiJian.Tests.csproj -c Release`（CI 打包前会先跑） |
 | 本地能否打 Setup.exe | 不能：安装器（cargo）与客户端 AOT 都需要 MSVC 链接器（VS Build Tools），故统一走 GitHub Actions |
 | fork 上 tag 触发 Actions | 不会触发，`release.ps1` 内部改用 `gh workflow run --ref <tag>` |
