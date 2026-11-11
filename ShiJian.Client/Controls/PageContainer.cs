@@ -10,6 +10,7 @@ using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using ShiJian.Client.Controls.Models;
 using ShiJian.Client.Foundation;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Models;
 using ShiJian.Client.Servicers.Interfaces;
 
@@ -288,6 +289,10 @@ public class PageContainer : TemplatedControl
 
                     // 同步 Content 属性供外部 Binding 观察（不再驱动模板）
                     SetValue(ContentProperty, page.Instance);
+
+                    // 统一进场动效：所有页面的淡入都在这里做，页面自己不要再写一套。
+                    // 动效关闭时 PlayEnterAsync 会同步置为终态，不会拖慢换页。
+                    _ = PageMotion.PlayEnterAsync(page.Instance);
 
                     //  滚动条位置处理
                     if (IsBack)

@@ -9,16 +9,16 @@
 
 | 维度 | 状态 |
 | --- | --- |
-| 发布 | `v1.3.4-fork.6`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
+| 发布 | `v1.3.4-fork.6`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian)；`fork.7`（N4 换页淡入）已开发完，待发 |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）66 个用例；CI 里先跑测试再打包 |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）73 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
 | 代码规模 | 客户端 300 个 `.cs`、67 个 `.axaml`，0 处 TODO/FIXME |
 
 ## 已知问题
 
 编号用于提交信息引用，例如 `修复 G1 深色主题下图表对比度不足`。
-G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 M3 修复；G10 / G11 是 M3 收尾时发现的，G10 已规避、G11 留待继续查；下表保留原始描述用于追溯。
+G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 M3 修复；G10 / G11 是 M3 收尾时发现的，G10 已规避、G11 在 N4 批次核验为「控件层面已可达」；下表保留原始描述用于追溯。
 
 | # | 问题 | 根因 | 影响 |
 | --- | --- | --- | --- |
@@ -32,7 +32,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 | G8 | 详细页时间轴不好用 | 上方是可缩放平移的条状时间轴，下方是每应用一条泳道，两处信息重复且要手动对齐 | 想看清「今天几点在干什么」需要来回操作 |
 | G9 | 点网站分类必定闪退 | `Imager` 图标缓存淘汰时释放了仍在渲染的位图，`Image.Render` 抛 `ObjectDisposedException` | 整个客户端进程直接退出 |
 | G10 | 调试版启动弹「预料之外的错误」，主界面空白 | `AvaloniaUI.DiagnosticsSupport` 2.2.3 的样式里用了嵌套选择器，与 Avalonia 12.1.1 不兼容（`Nesting selector ... cannot determine parent selector`） | 只影响 Debug 构建；现已默认不挂 DevTools，需要时设 `TAIX_DEVTOOLS=1`。Release 构建不受影响 |
-| G11 | 自绘图表用 Tab 走不到 | Avalonia 12 的 Tab 遍历没有把这类自定义 `Control` 当成候选（`Focusable` / `IsTabStop` 都已置真） | 鼠标点一下图表即可获得焦点，之后方向键、Enter 都正常；纯键盘用户暂时进不去 |
+| G11 | 自绘图表用 Tab 走不到 | 原记录归因为 Avalonia 12 的 Tab 遍历不把自定义 `Control` 当候选，但 2026-11-11 在 Avalonia 12.1.1 headless 下逐层（StackPanel / ScrollViewer / ContentPresenter / ItemsControl 模板）都走到了，`Focusable` + `IsTabStop` + `GotFocus→InvalidateVisual` 三件套齐全 | 现已新增 `ChartTabNavigationTests` 锁住「Tab / Shift+Tab 能进出四类图表」；若实机仍复现，需要补充具体页面与操作序列 |
 
 ## 里程碑
 
@@ -131,16 +131,27 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       两处可能差几分钟（会话合并会把间隔 ≤60 秒的碎片并进去）；这是历史口径，未强行统一。
 - [x] 单测：`InsightBuilder`（切片 / 裁剪 / 星期与月日网格 / 会话汇总 / 环比 / 时段分段）新增 18 个用例。
 
-### M6 · 新一代体验（规划中，未开始）
+### M6 · 新一代体验（进行中：N4 已完成，未发布）
 
 > 详细顺序、依赖与发版切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)。以下仅为占位，动手时再补设计说明。
 
-- [ ] **N4** 页面/元素淡入淡出（Material 早期风格的克制过渡，复用 `MotionServicer` 开关）
+- [x] **N4** 页面淡入淡出
+      换页动效集中到 `PageContainer`：`Librarys/PageMotion.cs` 在页面挂上后播 260ms 淡入 +
+      上移 8px（`CubicEaseOut`），10 个页面一次全覆盖，各页面不再自己写页面级动画。
+      `Motion.IsEnabled` 关闭时走 `SnapToRest` 同步直切，不产生延迟；动画中途被卸载也不会
+      把页面留在半透明（`finally` 清终态）。
+      有意**不做**旧页淡出：`PageContainer.LoadPage` 先 `Dispose` 旧页 VM、再把 `DataContext`
+      置空（那是为避开 Avalonia 12 的逻辑树竞态），想留住旧画面就得推迟这两步，代价大于收益。
+      `IndexPage` 原来的整页动画删除，只保留总览卡错峰（220ms / 36ms 间隔），避免两层淡入叠加。
+      单测 `PageMotionTests` 3 个用例：关动效零延迟直切、进场初态/终态、残留状态复位。
 - [ ] **N1 + N3** 视觉体系：多彩配色 token + 卡片组件重做 + 图表取色（两条必须同批）
 - [ ] **N6** 子母程序合并：自动判定 + 设置页「子母程序合并」管理页（子进程继承母进程分类，保留原标签）
 - [ ] **N2** 应用/网站统一实体表 + 「网站并入浏览器」开关（浏览器用真实活跃时长）
 - [ ] **N5** 分类页「分类 / 应用」视图切换 + 应用视图快速打标签（依赖 N6 / N2）
-- [ ] **G11** 自绘图表 Tab 焦点（可随任意批次顺带修）
+- [x] **G11** 自绘图表 Tab 焦点——核验结论：控件层面已可达（`ColumnChart` / `DonutChart` /
+      `StackedBarChart` / `ClockRing` 均有 `Focusable` + `IsTabStop` + 焦点重绘），
+      新增 `ChartTabNavigationTests` 4 个用例锁住 Tab / Shift+Tab 进出图表的行为。
+      热力网格 `HeatGrid` 仍只支持鼠标悬停（没有键盘交互路径，加进 Tab 序列只会制造一个死焦点）。
 
 前置：先写《应用实体模型》文档，再动 N6 / N2 / N5。
 （已写：[`docs/ENTITY-MODEL.md`](ENTITY-MODEL.md) + [关系图](ENTITY-MODEL.html)，2026-11-11 定稿；N2 开工前还有 3 项待决策）
@@ -184,7 +195,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 
 ## 发版节奏
 
-- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` = M4 工程化（测试 + CI 拦截 + 发版半自动），`fork.5` = M5 详细页看板，`fork.6` = R1 改名（Taix → 时见 / ShiJian，含数据迁移）
+- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` = M4 工程化（测试 + CI 拦截 + 发版半自动），`fork.5` = M5 详细页看板，`fork.6` = R1 改名（Taix → 时见 / ShiJian，含数据迁移），`fork.7` = N4 换页淡入 + G11 核验与回归测试
 - `fork.5` 之后的批次切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)
 - 每条命令即可发布：`.\script\release.ps1 -Version 1.3.4-fork.N -Commit -Watch`
 - 同步上游：`git fetch upstream && git rebase upstream/main`

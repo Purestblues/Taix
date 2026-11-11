@@ -15,11 +15,11 @@ namespace ShiJian.Client.Views;
 
 public partial class IndexPage : UserControl
 {
-    /// <summary>整页进场：淡入 + 上移</summary>
-    private static readonly Animation PageAnimation = CreateFadeSlide(320, 12);
+    /// <summary>总览卡错峰进场（比整页动得轻一点）。整页淡入由 PageContainer 统一播放</summary>
+    private static readonly Animation CardAnimation = CreateFadeSlide(220, 8);
 
-    /// <summary>总览卡错峰进场（比整页动得轻一点）</summary>
-    private static readonly Animation CardAnimation = CreateFadeSlide(260, 8);
+    /// <summary>相邻两张卡的开始间隔，太小看不出错峰，太大整页显得拖拉</summary>
+    private const int CardStaggerMs = 36;
 
     private bool _entered;
 
@@ -36,31 +36,7 @@ public partial class IndexPage : UserControl
         if (_entered) return;
         _entered = true;
 
-        var root = PageRoot;
-        if (root == null) return;
-
-        // 动效关闭时不改初始透明度，页面直接就位，避免闪一下
-        if (!Motion.IsEnabled)
-        {
-            root.Opacity = 1;
-            root.RenderTransform = null;
-            return;
-        }
-
-        try
-        {
-            root.RenderTransform = TransformOperations.Parse("translateY(12px)");
-            root.Opacity = 0;
-            await PageAnimation.RunAsync(root);
-
-            await StaggerStatCardsAsync();
-        }
-        catch
-        {
-            // 动画失败不能影响页面显示
-            root.Opacity = 1;
-            root.RenderTransform = null;
-        }
+        await StaggerStatCardsAsync();
     }
 
     /// <summary>
@@ -89,7 +65,7 @@ public partial class IndexPage : UserControl
             var card = cards[index];
             card.Opacity = 0;
             card.RenderTransform = TransformOperations.Parse("translateY(8px)");
-            running.Add(AnimateCardAsync(card, TimeSpan.FromMilliseconds(42 * index)));
+            running.Add(AnimateCardAsync(card, TimeSpan.FromMilliseconds(CardStaggerMs * index)));
         }
 
         await Task.WhenAll(running);
