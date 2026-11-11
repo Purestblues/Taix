@@ -1,7 +1,8 @@
 # 路线图
 
-> 本仓库是 [NLick47/Taix](https://github.com/NLick47/Taix) 的个人 fork。
-> 改动集中在客户端（`Taix.Client`）；服务端只有一处配合改动：`General` 配置里新增 `MotionMode`
+> 本仓库是 [NLick47/Taix](https://github.com/NLick47/Taix)（现名**时见 / ShiJian**）的个人 fork。
+> 2026-11 已全量改名为 `ShiJian` / `shijian-*`，并**不再同步上游**。
+> 改动集中在客户端（`ShiJian.Client`）；服务端只有一处配合改动：`General` 配置里新增 `MotionMode`
 > 字段（配置版本 v4 → v5），否则动效开关会被服务端配置回写抹掉。监控 / 托盘 / 插件未动。
 
 ## 现状
@@ -10,8 +11,8 @@
 | --- | --- |
 | 发布 | `v1.3.4-fork.5`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出） |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `Taix.Tests`（xunit v3 + Avalonia.Headless）66 个用例；CI 里先跑测试再打包 |
-| 上游同步 | 与 `upstream/main`（v1.3.4）无偏差，随时可 rebase |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）66 个用例；CI 里先跑测试再打包 |
+| 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
 | 代码规模 | 客户端 300 个 `.cs`、67 个 `.axaml`，0 处 TODO/FIXME |
 
 ## 已知问题
@@ -147,7 +148,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 ### M4 · 工程化（3/4 完成）
 
 - [x] 增加测试工程（xunit），先覆盖纯逻辑
-      新建 `Taix.Tests`（xunit v3 + `Avalonia.Headless.XUnit`，因为 Avalonia 12 的 headless
+      新建 `ShiJian.Tests`（xunit v3 + `Avalonia.Headless.XUnit`，因为 Avalonia 12 的 headless
       包绑的是 xunit v3）。纯逻辑覆盖 `ChartColorHelper`（对比度 / 兜底 / 透明度）、
       `ChartDataMapper`（三种映射、排序、徽章、UTC→本地）、`ApiAppConfig.DetectChanges`
       （每条配置路径都钉住，防「新增配置项忘了登记」）、`WindowStatePolicy` / `WindowSnapshot`。
@@ -193,8 +194,8 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 
 | 事项 | 命令 / 说明 |
 | --- | --- |
-| 本地跑改动后的客户端 | `.\script\dev-run.ps1`（自动补齐图标目录，直连本机 taix-server） |
+| 本地跑改动后的客户端 | `.\script\dev-run.ps1`（自动补齐图标目录，直连本机 shijian-server） |
 | 发版 | `.\script\prepare-release.ps1 [-Apply]` 生成草稿 → `.\script\release.ps1 [-Commit] [-Watch]`（版本号可省略，自动递增） |
-| 跑测试 | `dotnet test Taix.Tests/Taix.Tests.csproj -c Release`（CI 打包前会先跑） |
+| 跑测试 | `dotnet test ShiJian.Tests/ShiJian.Tests.csproj -c Release`（CI 打包前会先跑） |
 | 本地能否打 Setup.exe | 不能：安装器（cargo）与客户端 AOT 都需要 MSVC 链接器（VS Build Tools），故统一走 GitHub Actions |
 | fork 上 tag 触发 Actions | 不会触发，`release.ps1` 内部改用 `gh workflow run --ref <tag>` |

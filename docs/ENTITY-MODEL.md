@@ -28,9 +28,9 @@
 
 事实依据（读代码核过）：
 
-- 应用按 `Name` 查找与自动创建，`File`（exe 路径）、`IconFile`、`Description` 是首报时回填的可空字段 —— `taix-server/src/services/app_timer.rs`。
+- 应用按 `Name` 查找与自动创建，`File`（exe 路径）、`IconFile`、`Description` 是首报时回填的可空字段 —— `shijian-server/src/services/app_timer.rs`。
 - 新建应用时按 `File` 做目录分类匹配（`CategoryService::match_category_by_path`），匹配不到落系统分类。
-- 站点身份是 `Domain`，由 `extract_domain` 归一化（小写、去端口，回环地址保留端口）—— `taix-server/src/services/web_domain.rs`。
+- 站点身份是 `Domain`，由 `extract_domain` 归一化（小写、去端口，回环地址保留端口）—— `shijian-server/src/services/web_domain.rs`。
 - 分类是**两套互不相干的命名空间**：`CategoryModels` 与 `WebSiteCategoryModels`，ID 各自自增，同 ID 不代表同一分类。
 
 ### 2.1 显示名（只影响显示，不影响身份）
@@ -62,7 +62,7 @@
 
 ### 4.1 缺口：站点记录没有浏览器标识
 
-浏览器扩展的上报体只有 `Url / Title / Icon / Duration / ActiveTime`（`taix-server/src/routes/web_sentry.rs`），其中 `ActiveTime` 名字骗人，实际是**开始时间戳**（秒），不是活跃时长。因此今天无法回答「这条 bilibili 记录发生在 Chrome 还是 Edge」。这是 N2 开工前必须先补的一块数据。
+浏览器扩展的上报体只有 `Url / Title / Icon / Duration / ActiveTime`（`shijian-server/src/routes/web_sentry.rs`），其中 `ActiveTime` 名字骗人，实际是**开始时间戳**（秒），不是活跃时长。因此今天无法回答「这条 bilibili 记录发生在 Chrome 还是 Edge」。这是 N2 开工前必须先补的一块数据。
 
 ### 4.2 已定：差额单列
 

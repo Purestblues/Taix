@@ -1,8 +1,13 @@
-# 项目介绍
+# 时见 ShiJian
+
+> 本项目原名 **Taix**，是 [NLick47/Taix](https://github.com/NLick47/Taix) 的个人 fork。
+> 2026-11 起改名为**时见**（代码标识 `ShiJian`），与上游不再同步。旧版本的数据目录会在首次启动时自动迁移，详见[改名说明](#改名说明)。
+
+## 项目介绍
 
 首先感谢原作者的开源，原项目 Tai 是用于在 Windows 上统计**软件**使用时长和**网站**浏览时长。
 
-Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全面迁移：
+时见（ShiJian）是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全面迁移：
 
 - 当前客户端已完成 .NET 10 AOT 和 Avalonia 的迁移
 - 已实现客户端与服务端的分离
@@ -14,20 +19,20 @@ Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全�
 
 | 组件 | 说明 |
 |------|------|
-| taix-shell | 创建客户端托盘，方便唤醒客户端并起到看门狗作用，协同 server 与 monitor 应用，做到客户端随用随关 |
-| taix-server | 提供数据访问接口，接收浏览器插件和平台计时统计数据并写入 SQLite |
-| taix-monitor | 监控应用睡眠及焦点切换，使用命名管道对 server 进行通讯 |
+| shijian-shell | 创建客户端托盘，方便唤醒客户端并起到看门狗作用，协同 server 与 monitor 应用，做到客户端随用随关 |
+| shijian-server | 提供数据访问接口，接收浏览器插件和平台计时统计数据并写入 SQLite |
+| shijian-monitor | 监控应用睡眠及焦点切换，使用命名管道对 server 进行通讯 |
 
-后台进程统一由 taix-shell 看门狗管理，**不要手动单独启动** taix-server 与 taix-monitor：taix-shell 会读取睡眠监控配置并通过 `--sleep-watch` 参数传给 taix-monitor，手动启动的进程既不受看门狗守护，也缺失该参数。
+后台进程统一由 shijian-shell 看门狗管理，**不要手动单独启动** shijian-server 与 shijian-monitor：shijian-shell 会读取睡眠监控配置并通过 `--sleep-watch` 参数传给 shijian-monitor，手动启动的进程既不受看门狗守护，也缺失该参数。
 
 ### 常见问题
 
 #### 客户端提示「无法连接到服务端」
 
-本质是后台进程没在运行。正常情况下 taix-server 与 taix-monitor 由 taix-shell 看门狗自动拉起并守护，**只需确保 `taix-shell` 在运行即可**（为何不要手动启动见「协同组件」）。若 server 自身异常（如端口被占用、数据库损坏）导致启动即退出，看门狗虽会自动重试（间隔 5 秒起、退避至最长 30 秒），但服务始终不可用，此时应从 server 日志定位根因。
+本质是后台进程没在运行。正常情况下 shijian-server 与 shijian-monitor 由 shijian-shell 看门狗自动拉起并守护，**只需确保 `shijian-shell` 在运行即可**（为何不要手动启动见「协同组件」）。若 server 自身异常（如端口被占用、数据库损坏）导致启动即退出，看门狗虽会自动重试（间隔 5 秒起、退避至最长 30 秒），但服务始终不可用，此时应从 server 日志定位根因。
 
-- **开机自启失效**：Windows 检查任务计划中 **TaixShell** 任务的路径是否与安装目录一致；Setup 安装器与绿色版均可用管理员终端 `taix-shell install` 补注册。macOS 则运行 `/Applications/TaixTools/install-launchagent.sh`（DMG 中 `TaixTools/` 即后台组件与安装脚本集合）
-- **端口占用**：server 默认占 `127.0.0.1:37091`、浏览器扩展 WebSocket 占 `8908`。若 37091 被占用，可设置环境变量 `TAIX_SERVER` 换端口（如 `http://127.0.0.1:37100`，客户端与 server 均读取该变量）。server 日志按 `taix-server.YYYY-MM-DD.log` 按天滚动：macOS 在 `~/Library/Logs/Taix/`；Windows 绿色版在程序目录的 `Logs\`（该目录不可写时不落盘，只输出到标准流，不会写到别处）。插件与 shell 日志也在同一目录，可用环境变量 `TAIX_LOG_DIR` 覆盖
+- **开机自启失效**：Windows 检查任务计划中 **ShiJianShell** 任务的路径是否与安装目录一致；Setup 安装器与绿色版均可用管理员终端 `shijian-shell install` 补注册。macOS 则运行 `/Applications/ShiJianTools/install-launchagent.sh`（DMG 中 `ShiJianTools/` 即后台组件与安装脚本集合）
+- **端口占用**：server 默认占 `127.0.0.1:37091`、浏览器扩展 WebSocket 占 `8908`。若 37091 被占用，可设置环境变量 `SHIJIAN_SERVER` 换端口（如 `http://127.0.0.1:37100`，客户端与 server 均读取该变量）。server 日志按 `shijian-server.YYYY-MM-DD.log` 按天滚动：macOS 在 `~/Library/Logs/ShiJian/`；Windows 绿色版在程序目录的 `Logs\`（该目录不可写时不落盘，只输出到标准流，不会写到别处）。插件与 shell 日志也在同一目录，可用环境变量 `SHIJIAN_LOG_DIR` 覆盖
 
 ### 运行表现
 
@@ -37,7 +42,9 @@ Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全�
 
 ## Fork 维护说明
 
-本仓库是 [NLick47/Taix](https://github.com/NLick47/Taix) 的个人 fork，改动集中在客户端（Avalonia），后续发版产物见 [Releases](https://github.com/Purestblues/Taix/releases)。
+本仓库是 [NLick47/Taix](https://github.com/NLick47/Taix) 的个人 fork，改动集中在客户端（Avalonia），后续发版产物见 [Releases](https://github.com/Purestblues/shijian/releases)。
+
+2026-11 起项目改名为**时见 / ShiJian**，同时**停止同步上游**：上游 v1.3.4 之后不再 rebase，`LICENSE` 与上游署名照旧保留。
 
 后续计划与已知问题清单见 [`docs/ROADMAP.md`](docs/ROADMAP.md)。
 
@@ -75,8 +82,8 @@ Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全�
 .\script\dev-run.ps1 -NoBuild     # 跳过编译直接启动
 ```
 
-- 开发运行时的数据目录是 `Taix.Client\bin\Debug\net10.0\`，图标目录为空时脚本会从安装目录（默认 `D:/Program Files/taix`）复制 `Data/AppIcons` 与 `WebFavicons`；安装位置不同时用 `-InstallDir` 指定
-- 调试版直接连本机已在运行的 taix-server（`127.0.0.1:37091`），不需要另起后端
+- 开发运行时的数据目录是 `ShiJian.Client\bin\Debug\net10.0\`，图标目录为空时脚本会从安装目录（默认 `C:/Program Files/ShiJian`）复制 `Data/AppIcons` 与 `WebFavicons`；安装位置不同时用 `-InstallDir` 指定
+- 调试版直接连本机已在运行的 shijian-server（`127.0.0.1:37091`），不需要另起后端
 - DEBUG 构建没有单实例锁，可与安装版同时运行；Release 构建有互斥锁，不能与安装版共存
 
 #### 发布新版本
@@ -92,7 +99,7 @@ Taix 是 [Tai](https://github.com/Planshit/Tai) 的一次技术及架构的全�
 #### 跑测试
 
 ```powershell
-dotnet test Taix.Tests/Taix.Tests.csproj -c Release
+dotnet test ShiJian.Tests/ShiJian.Tests.csproj -c Release
 ```
 
 CI 里打包前会先跑这一步（独立 `test` job），失败就不发产物。
@@ -105,6 +112,26 @@ CI 里打包前会先跑这一步（独立 `test` job），失败就不发产物
 
 > 本地打不出 `Setup.exe`：安装器（cargo）与客户端 AOT 发布都需要 MSVC 链接器（VS Build Tools），
 > 因此发版统一走 GitHub Actions 的 windows-latest / macos-latest。
+
+## 改名说明
+
+2026-11 起本项目由 **Taix** 改名为**时见 / ShiJian**：产品显示名为「时见」，英文界面显示 ShiJian，代码标识统一为 `ShiJian` / `shijian-*`。只碰标识，不动业务逻辑。
+
+| 项目 | 旧 | 新 |
+| --- | --- | --- |
+| 程序 / 目录 / crate | `Taix`、`taix-*` | `ShiJian`、`shijian-*` |
+| 安装目录（Windows） | `…\Taix` | `…\ShiJian`（Setup 仍可自选） |
+| 数据目录（macOS） | `~/Library/Application Support/Taix` | `~/Library/Application Support/ShiJian` |
+| 计划任务 / LaunchAgent | `TaixShell` / `com.taix.shell` | `ShiJianShell` / `com.shijian.shell` |
+| 环境变量 | `TAIX_SERVER` / `TAIX_LOG_DIR` | `SHIJIAN_SERVER` / `SHIJIAN_LOG_DIR` |
+| 浏览器扩展 | Taix Web Sentry | ShiJian Web Sentry（需重新「加载已解压的扩展」，扩展 ID 会变） |
+| 端口 | 37091（HTTP）/ 8908（WS） | 不变 |
+
+**数据不会丢**：
+
+- macOS：server 启动时把 `Application Support/Taix` 里缺失的条目补进 `ShiJian`（只补不覆盖），旧目录原地保留。
+- Windows：Setup 安装前会停掉旧进程、摘掉旧自启动项，并把旧安装目录的 `Data/` 合并进新目录；旧的安装目录本身不删，确认新版本正常后可手动清理。
+- 旧的任务计划 / 注册表自启动项会一并清掉，不会出现新旧两份同时采集。
 
 ## 对Tai数据兼容
 

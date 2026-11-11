@@ -1,7 +1,35 @@
 # 改名方案：Taix → 时见 / ShiJian
 
 > 决策：2026-11-11，用户选择 **C · 全量重命名（含数据目录与安装标识）**，并且 **GitHub 仓库也要一并改为 `shijian`**；明确 **不再同步上游**。
-> 状态：**方案已定，排入 `fork.6`，未执行**。
+> 状态：**已执行**，随 `fork.6` 发布。执行结果与方案偏离见文末「执行记录」。
+
+## 执行记录（2026-11-11）
+
+实际做过的事，以及和上面方案的差别：
+
+**结果**
+
+- 代码：15 个 `taix-*` 目录、`Taix.Client` / `Taix.Tests` / `Taix.PageState.Generator` 三个 C# 工程、`Taix.sln` 已 `git mv`；`Taix` → `ShiJian`、`taix` → `shijian`、`TAIX` → `SHIJIAN` 全量替换（629 个文本文件）。
+- 验证：`dotnet build ShiJian.sln -c Release` 0 错误；`dotnet test` 66/66 通过（headless 主题加载测试同时验证了 `avares://ShiJian/` 没漏改）。Rust 本机无法编译（`C:\Windows\System32` 的 MSVC `link.exe` 被 Git Bash 的 `/usr/bin/link` 抢先），只能靠 CI 验证。
+- 图标资源：`tai.ico` / `tai32.ico` / `taibusy.ico` 一并改名（4 处引用同步改，含 `shijian-shell/resources/icons`）。
+- 文案：「时见」用在中文界面（窗口标题、关于页、安装器、托盘、错误弹窗），英文界面保持 `ShiJian`。
+
+**偏离项（方案里没写或写得不一样）**
+
+| # | 方案 | 实际 | 理由 |
+| --- | --- | --- | --- |
+| 1 | 「迁移」整目录 | 实现为**只补不覆盖的合并**（目标里已有的文件不动） | 客户端可能先于 server 建好新目录，直接 `rename` 会因目标存在而失败，反而丢数据 |
+| 2 | 数据迁移放首次启动 | macOS 放 server 启动时（打开 DB 之前）；Windows 放**安装器**里（`shijian-installer/src/legacy.rs`） | Windows 的数据在安装目录里，客户端自己没有权限搬；且必须先停旧进程再搬 |
+| 3 | 未提旧安装目录处置 | **不删除**：只摘掉旧自启动项（任务计划 / LaunchAgent / Run 键）并停进程，旧目录留给用户确认后手动清理 | 遵守「不经允许不删文件」；同时靠摘自启动避免新旧双份采集 |
+| 4 | 应用内链指向自己仓库 | 更新检查 / 错误上报 / 设置页 / 安装器页脚 → `Purestblues/shijian`；README 与 docs 的 `NLick47/Taix` **保留** | 顺手修了一个隐患：原来的「检查更新」指向上游 releases，点下去会装回上游旧版 |
+| 5 | 未提 Toast | Windows Toast AppUserModelId `Taix.Plugin` → `ShiJian.Plugin`；旧通知记录无法清理（一次性遗留） | 系统侧旧记录不在我们手里 |
+| 6 | 扩展 ID 会变 | 已确认：服务端写接口用 Origin 白名单而非扩展 ID，所以要改的是**用户自己的白名单配置**，不是代码 | `origin_check.rs` 只比对配置里的允许来源 |
+
+**本机仍需人工确认的两项**
+
+1. Windows 实机装一次 Setup，确认旧 `Data/` 被合进新目录、历史统计没丢、旧任务计划消失。
+2. macOS 产机（暂时没有）确认 `Application Support/Taix` 被补进 `ShiJian`。
+
 
 ## 命名规范
 
