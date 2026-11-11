@@ -135,16 +135,22 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 
 > 详细顺序、依赖与发版切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)。以下仅为占位，动手时再补设计说明。
 
-- [x] **N4** 页面淡入淡出
-      换页动效集中到 `PageContainer`：`Librarys/PageMotion.cs` 在页面挂上后播 260ms 淡入
-      （`CubicEaseOut`），10 个页面一次全覆盖，各页面不再自己写页面级动画。
+- [x] **N4** 页面淡入淡出（已按参考项目 v2 重做）
+      动效标尺集中到 `Librarys/MotionTokens.cs`：时长四档 90/150/225/375ms，
+      曲线三条 `standard(.4,0,.2,1)` / `enter(0,0,.2,1)` / `leave(.4,0,1,1)`（用 `SplineEasing` 表达，
+      Avalonia 12 没有公开的 `CubicBezierEase`），页面切换 75ms 出 / 180ms 入 + 45ms 延迟。
+      换页动效集中到 `PageContainer` → `Librarys/PageMotion.cs`：新页 `opacity 0→1`（180ms，延迟 45ms）
+      + `translateY 8→0`，总 225ms，10 个页面一次全覆盖，各页面不再自己写页面级动画。
+      位移由 `Librarys/SlideMotion.cs` 逐帧插值实现（`TopLevel.RequestAnimationFrame` 驱动
+      `TranslateTransform.Y`，走渲染变换不触发 layout）；若控件在动画中被卸载会立刻落到终态。
       `Motion.IsEnabled` 关闭时走 `SnapToRest` 同步直切，不产生延迟；动画中途被卸载也不会
       把页面留在半透明（`finally` 清终态）。
       有意**不做**旧页淡出：`PageContainer.LoadPage` 先 `Dispose` 旧页 VM、再把 `DataContext`
       置空（那是为避开 Avalonia 12 的逻辑树竞态），想留住旧画面就得推迟这两步，代价大于收益。
       `IndexPage` 原来的整页动画删除，只保留总览卡错峰（220ms / 36ms 间隔），避免两层淡入叠加。
-      单测 `PageMotionTests` 3 个用例：关动效零延迟直切、进场初态/终态、残留状态复位；
-      其中一条断言「动画实际耗时 ≥ 60% 时长」，用来抓「动画被静默跳过」。
+      单测 `PageMotionTests` 3 例 + `SlideMotionTests` 3 例：关动效零延迟直切、进场初态/终态、
+      残留状态复位、位移真的花时间且结束归零、token 曲线两端收敛；
+      「动画实际耗时 ≥ 50~60% 时长」的断言用来抓「动画被静默跳过」。
 
       ⚠️ **Avalonia 12 的坑（曾让全站动效静默失效）**：`Animation.Animators` 已移除，
       `TransformAnimator` / `TransformOperationsAnimator` 都是 internal。关键帧里只要出现

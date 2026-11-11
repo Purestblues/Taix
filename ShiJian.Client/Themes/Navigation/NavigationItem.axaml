@@ -81,8 +81,8 @@
                             IsHitTestVisible="False">
                         <Border.Transitions>
                             <Transitions>
-                                <DoubleTransition Property="Opacity" Duration="0:0:0.25" />
-                                <DoubleTransition Property="Height" Duration="0:0:0.3" Easing="CubicEaseOut" />
+                                <DoubleTransition Property="Opacity" Duration="0:0:0.225" />
+                                <DoubleTransition Property="Height" Duration="0:0:0.225" Easing="CubicEaseOut" />
                             </Transitions>
                         </Border.Transitions>
                     </Border>
@@ -100,7 +100,7 @@
                             </Border.Background>
                             <Border.Transitions>
                                 <Transitions>
-                                    <DoubleTransition Property="Opacity" Duration="0:0:0.4" />
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.375" />
                                 </Transitions>
                             </Border.Transitions>
                         </Border>
@@ -118,7 +118,7 @@
                             </Border.Background>
                             <Border.Transitions>
                                 <Transitions>
-                                    <DoubleTransition Property="Opacity" Duration="0:0:0.4" />
+                                    <DoubleTransition Property="Opacity" Duration="0:0:0.375" />
                                 </Transitions>
                             </Border.Transitions>
                         </Border>
@@ -127,8 +127,8 @@
                                 x:Name="Border" BorderThickness="0.5" BorderBrush="Transparent">
                             <Border.Transitions>
                                 <Transitions>
-                                    <BrushTransition Property="Background" Duration="0:0:0.45" />
-                                    <BrushTransition Property="BorderBrush" Duration="0:0:0.45" />
+                                    <BrushTransition Property="Background" Duration="0:0:0.375" />
+                                    <BrushTransition Property="BorderBrush" Duration="0:0:0.375" />
                                 </Transitions>
                             </Border.Transitions>
 
@@ -142,8 +142,8 @@
                                     <base:Icon.RenderTransformOrigin>0.5,0.5</base:Icon.RenderTransformOrigin>
                                     <base:Icon.Transitions>
                                         <Transitions>
-                                            <BrushTransition Property="Foreground" Duration="0:0:0.3" />
-                                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.35" Easing="BackEaseOut" />
+                                            <BrushTransition Property="Foreground" Duration="0:0:0.225" />
+                                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.375" Easing="BackEaseOut" />
                                         </Transitions>
                                     </base:Icon.Transitions>
                                 </base:Icon>

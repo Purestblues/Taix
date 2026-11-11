@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Animation;
-using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Styling;
 using ShiJian.Client.Librarys;
@@ -15,10 +14,10 @@ namespace ShiJian.Client.Views;
 public partial class IndexPage : UserControl
 {
     /// <summary>总览卡错峰进场（比整页动得轻一点）。整页淡入由 PageContainer 统一播放</summary>
-    private static readonly Animation CardAnimation = CreateFade(220);
+    private static readonly Animation CardAnimation = CreateFade((int)MotionTokens.M.TotalMilliseconds);
 
     /// <summary>相邻两张卡的开始间隔，太小看不出错峰，太大整页显得拖拉</summary>
-    private const int CardStaggerMs = 36;
+    private const int CardStaggerMs = 40;
 
     private bool _entered;
 
@@ -84,7 +83,7 @@ public partial class IndexPage : UserControl
         return new Animation
         {
             Duration = TimeSpan.FromMilliseconds(durationMs),
-            Easing = new CubicEaseOut(),
+            Easing = MotionTokens.Enter(),
             FillMode = FillMode.Forward,
             Children =
             {

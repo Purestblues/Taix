@@ -18,7 +18,7 @@
                 <Style Selector="^ /template/ button|IconButton#BackBtn">
                     <Setter Property="Transitions">
                         <Transitions>
-                            <DoubleTransition Property="Width" Duration="0:0:0.1" />
+                            <DoubleTransition Property="Width" Duration="0:0:0.09" />
                         </Transitions>
                     </Setter>
                 </Style>
@@ -111,7 +111,7 @@
                                             <Border.Styles>
                                                 <Style Selector="Border">
                                                     <Style.Animations>
-                                                        <Animation Duration="0:0:4"
+                                                        <Animation Duration="0:0:0.375"
                                                                    IterationCount="INFINITE">
                                                             <KeyFrame Cue="0%">
                                                                 <Setter Property="Opacity" Value="1.0" />

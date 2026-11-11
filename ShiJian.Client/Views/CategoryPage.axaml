@@ -316,8 +316,8 @@
                                                     </Grid>
                                                     <Border.Transitions>
                                                         <Transitions>
-                                                            <BrushTransition Property="Background" Duration="0:0:0.35" />
-                                                            <BrushTransition Property="BorderBrush" Duration="0:0:0.35" />
+                                                            <BrushTransition Property="Background" Duration="0:0:0.375" />
+                                                            <BrushTransition Property="BorderBrush" Duration="0:0:0.375" />
                                                         </Transitions>
                                                     </Border.Transitions>
                                                 </Border>
@@ -509,8 +509,8 @@
                                                     </Grid>
                                                     <Border.Transitions>
                                                         <Transitions>
-                                                            <BrushTransition Property="Background" Duration="0:0:0.35" />
-                                                            <BrushTransition Property="BorderBrush" Duration="0:0:0.35" />
+                                                            <BrushTransition Property="Background" Duration="0:0:0.375" />
+                                                            <BrushTransition Property="BorderBrush" Duration="0:0:0.375" />
                                                         </Transitions>
                                                     </Border.Transitions>
                                                 </Border>

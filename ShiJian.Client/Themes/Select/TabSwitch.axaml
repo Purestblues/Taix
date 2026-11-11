@@ -33,13 +33,13 @@
                             <Border.Transitions>
                                 <Transitions>
                                     <ThicknessTransition Property="Margin"
-                                                         Duration="0:0:0.28">
+                                                         Duration="0:0:0.225">
                                         <ThicknessTransition.Easing>
                                             <CubicEaseInOut />
                                         </ThicknessTransition.Easing>
                                     </ThicknessTransition>
                                     <DoubleTransition Property="Width"
-                                                      Duration="0:0:0.28">
+                                                      Duration="0:0:0.225">
                                         <DoubleTransition.Easing>
                                             <CubicEaseInOut />
                                         </DoubleTransition.Easing>

@@ -170,7 +170,7 @@
                                     HorizontalAlignment="Left">
                                     <Rectangle.Transitions>
                                         <Transitions>
-                                            <DoubleTransition Property="Width" Duration="0:0:0.55" Easing="CubicEaseOut" />
+                                            <DoubleTransition Property="Width" Duration="0:0:0.375" Easing="CubicEaseOut" />
                                         </Transitions>
                                     </Rectangle.Transitions>
                                 </Rectangle>
