@@ -2,15 +2,17 @@
                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-               mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="650"
-xmlns:Charts="using:Taix.Client.Controls.Charts"
-                xmlns:select="using:Taix.Client.Controls.Select"
-                xmlns:base="using:Taix.Client.Controls.Base"
-                xmlns:Button="using:Taix.Client.Controls.Button"
-                xmlns:timeline="using:Taix.Client.Controls.Timeline"
-                xmlns:control="using:Taix.Client.Controls"
-                xmlns:converters="using:Taix.Client.Controls.Converters"
-                xmlns:vm="using:Taix.Client.ViewModels"
+               mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+               xmlns:Charts="using:Taix.Client.Controls.Charts"
+               xmlns:select="using:Taix.Client.Controls.Select"
+               xmlns:base="using:Taix.Client.Controls.Base"
+               xmlns:Button="using:Taix.Client.Controls.Button"
+               xmlns:timeline="using:Taix.Client.Controls.Timeline"
+               xmlns:control="using:Taix.Client.Controls"
+               xmlns:converters="using:Taix.Client.Controls.Converters"
+               xmlns:models="using:Taix.Client.Models"
+               xmlns:chartModels="using:Taix.Client.Controls.Charts.Model"
+               xmlns:vm="using:Taix.Client.ViewModels"
                x:DataType="vm:DataPageViewModel"
                IsFillPage="True"
                x:Class="Taix.Client.Views.DataPage">
@@ -37,108 +39,64 @@ xmlns:Charts="using:Taix.Client.Controls.Charts"
                                           FalseValue="1" />
         <converters:ShowTypeToContextMenuTypeConverter x:Key="ShowTypeToContextMenuTypeConverter" />
         <converters:HextoColorConverter x:Key="HextoColorConverter" />
+        <converters:BoolToGridLengthConverter x:Key="ClockColumnWidth" TrueValue="*" FalseValue="Auto" />
+        <converters:BoolToGridLengthConverter x:Key="ListColumnWidth" TrueValue="420" FalseValue="*" />
     </control:TPage.Resources>
-    <Grid>
-    <Grid Margin="{Binding IsHeaderExpanded, Converter={StaticResource PageMarginConverter}}">
-        <Grid.Transitions>
-            <Transitions>
-                <ThicknessTransition Property="Margin" Duration="0:0:0.22">
-                    <ThicknessTransition.Easing>
-                        <CubicEaseInOut />
-                    </ThicknessTransition.Easing>
-                </ThicknessTransition>
-            </Transitions>
-        </Grid.Transitions>
-        <Grid.Styles>
-            <Style Selector="select|TabSwitch#ColorModeSwitch select|TabOption">
-                <Setter Property="Padding" Value="10,3" />
-                <Setter Property="FontSize" Value="11" />
-            </Style>
-        </Grid.Styles>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
 
-        <!-- ═══ Row 0：标题 · 应用/网站切换 · 日期 · 周期 ═══ -->
-        <Border MaxHeight="{Binding IsHeaderExpanded, Converter={StaticResource HeaderMaxHeightConverter}}"
-                Opacity="{Binding IsHeaderExpanded, Converter={StaticResource BoolToOpacityConverter}}"
-                IsHitTestVisible="{Binding IsHeaderExpanded}"
-                ClipToBounds="True">
-            <Border.Transitions>
+    <control:TPage.Styles>
+        <!--看板卡片-->
+        <Style Selector="Border.insightCard">
+            <Setter Property="Background" Value="{DynamicResource SettingPanelBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SettingPanelBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+        </Style>
+
+        <Style Selector="Border.statCard">
+            <Setter Property="Background" Value="{DynamicResource SettingPanelBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SettingPanelBorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,11" />
+            <Setter Property="Transitions">
                 <Transitions>
-                    <DoubleTransition Property="MaxHeight" Duration="0:0:0.22">
-                        <DoubleTransition.Easing>
-                            <CubicEaseInOut />
-                        </DoubleTransition.Easing>
-                    </DoubleTransition>
-                    <DoubleTransition Property="Opacity" Duration="0:0:0.22">
-                        <DoubleTransition.Easing>
-                            <CubicEaseInOut />
-                        </DoubleTransition.Easing>
-                    </DoubleTransition>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
                 </Transitions>
-            </Border.Transitions>
-        <Grid ColumnDefinitions="Auto,*,Auto,Auto"
-              Margin="0,5,0,20">
-            <StackPanel Grid.Column="0" Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                <TextBlock Text="{DynamicResource SideDetails}"
-                           FontSize="18"
-                           VerticalAlignment="Center" />
-                <select:TabSwitch Margin="10,0,0,0"
-                               VerticalAlignment="Center"
-                               IsShowIcon="False"
-                               SelectedItem="{Binding ShowType,Mode=TwoWay}"
-                               Options="{Binding ShowTypeOptions}" />
-            </StackPanel>
+            </Setter>
+        </Style>
 
-            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
-                        VerticalAlignment="Center">
-                <!-- 日期选择 -->
-                <Grid VerticalAlignment="Center">
-                    <base:View Condition="0" Value="{Binding TabbarSelectedIndex}">
-                        <select:DateSelect Date="{Binding DayDate,Mode=TwoWay}" />
-                    </base:View>
-                    <base:View Condition="1" Value="{Binding TabbarSelectedIndex}">
-                        <select:DateSelect Date="{Binding WeekDate,Mode=TwoWay}"
-                                           SelectType="Week" />
-                    </base:View>
-                    <base:View Condition="2" Value="{Binding TabbarSelectedIndex}">
-                        <select:DateSelect Date="{Binding MonthDate,Mode=TwoWay}"
-                                           SelectType="Month" />
-                    </base:View>
-                    <base:View Condition="3" Value="{Binding TabbarSelectedIndex}">
-                        <select:DateSelect Date="{Binding YearDate,Mode=TwoWay}"
-                                           SelectType="Year" />
-                    </base:View>
-                </Grid>
+        <Style Selector="Border.statCard:pointerover">
+            <Setter Property="BorderBrush" Value="{DynamicResource ChartCardHoverBorderBrush}" />
+        </Style>
 
-                <!-- 周期切换 -->
-                <select:TabSwitch IsShowIcon="False"
-                                  SelectedItem="{Binding SelectedPeriod,Mode=TwoWay}"
-                                  Options="{Binding PeriodOptions}" />
-            </StackPanel>
+        <Style Selector="TextBlock.cardCaption">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
+        </Style>
 
-            <!-- 收起筛选栏 -->
-            <StackPanel Grid.Column="3" Orientation="Horizontal"
-                        VerticalAlignment="Center" Margin="10,0,0,0">
-                <Button:IconButton Width="30" Height="30" FontSize="14"
-                                   Icon="ChevronUpMed"
-                                   ToolTip.Tip="{DynamicResource CollapseHeader}"
-                                   Command="{Binding ToggleHeaderCommand}" />
-            </StackPanel>
-        </Grid>
-        </Border>
+        <Style Selector="TextBlock.statValue">
+            <Setter Property="FontSize" Value="21" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
 
-        <TabControl
-            Grid.Row="1"
-            SelectedIndex="{Binding TabbarSelectedIndex}"
-            BorderThickness="0"
-            Margin="{Binding IsHeaderExpanded, Converter={StaticResource ContentMarginConverter}}"
-            Padding="0"
-            Background="Transparent">
-            <TabControl.Transitions>
+        <Style Selector="TextBlock.cardTitle">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="TextBlock.habitValue">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+    </control:TPage.Styles>
+
+    <Grid>
+        <Grid Margin="{Binding IsHeaderExpanded, Converter={StaticResource PageMarginConverter}}">
+            <Grid.Transitions>
                 <Transitions>
                     <ThicknessTransition Property="Margin" Duration="0:0:0.22">
                         <ThicknessTransition.Easing>
@@ -146,244 +104,614 @@ xmlns:Charts="using:Taix.Client.Controls.Charts"
                         </ThicknessTransition.Easing>
                     </ThicknessTransition>
                 </Transitions>
-            </TabControl.Transitions>
-            <TabControl.Styles>
-                <Style Selector="TabItem">
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate />
-                        </Setter.Value>
-                    </Setter>
+            </Grid.Transitions>
+            <Grid.Styles>
+                <Style Selector="select|TabSwitch#ColorModeSwitch select|TabOption">
+                    <Setter Property="Padding" Value="10,3" />
+                    <Setter Property="FontSize" Value="11" />
                 </Style>
-            </TabControl.Styles>
-            <TabItem>
-                <Grid>
-                    <!-- 应用模式：环形时钟 -->
-                    <base:View Condition="0" Value="{Binding ShowType.Id}">
-                        <Grid RowDefinitions="Auto,*">
-                            <!-- 工具条：提示 + 配色模式 -->
-                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-                                <TextBlock FontSize="11"
-                                           Text="{DynamicResource ClockHint}"
-                                           Foreground="{DynamicResource SubTextBrush}"
-                                           Opacity="0.6"
-                                           VerticalAlignment="Center" />
-                                <select:TabSwitch x:Name="ColorModeSwitch"
-                                                  Grid.Column="1"
-                                                  VerticalAlignment="Center"
-                                                  IsShowIcon="False"
-                                                  SelectedItem="{Binding SelectedColorMode, Mode=TwoWay}"
-                                                  Options="{Binding ColorModeOptions}" />
-                            </Grid>
+            </Grid.Styles>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-                            <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
-                                <!-- 24 小时表盘 -->
+            <!-- ═══ Row 0：标题 · 应用/网站切换 · 日期 · 周期 ═══ -->
+            <Border MaxHeight="{Binding IsHeaderExpanded, Converter={StaticResource HeaderMaxHeightConverter}}"
+                    Opacity="{Binding IsHeaderExpanded, Converter={StaticResource BoolToOpacityConverter}}"
+                    IsHitTestVisible="{Binding IsHeaderExpanded}"
+                    ClipToBounds="True">
+                <Border.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="MaxHeight" Duration="0:0:0.22">
+                            <DoubleTransition.Easing>
+                                <CubicEaseInOut />
+                            </DoubleTransition.Easing>
+                        </DoubleTransition>
+                        <DoubleTransition Property="Opacity" Duration="0:0:0.22">
+                            <DoubleTransition.Easing>
+                                <CubicEaseInOut />
+                            </DoubleTransition.Easing>
+                        </DoubleTransition>
+                    </Transitions>
+                </Border.Transitions>
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto"
+                      Margin="0,5,0,16">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource SideDetails}"
+                                   FontSize="18"
+                                   VerticalAlignment="Center" />
+                        <select:TabSwitch Margin="10,0,0,0"
+                                          VerticalAlignment="Center"
+                                          IsShowIcon="False"
+                                          SelectedItem="{Binding ShowType,Mode=TwoWay}"
+                                          Options="{Binding ShowTypeOptions}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
+                                VerticalAlignment="Center">
+                        <!-- 日期选择 -->
+                        <Grid VerticalAlignment="Center">
+                            <base:View Condition="0" Value="{Binding TabbarSelectedIndex}">
+                                <select:DateSelect Date="{Binding DayDate,Mode=TwoWay}" />
+                            </base:View>
+                            <base:View Condition="1" Value="{Binding TabbarSelectedIndex}">
+                                <select:DateSelect Date="{Binding WeekDate,Mode=TwoWay}"
+                                                   SelectType="Week" />
+                            </base:View>
+                            <base:View Condition="2" Value="{Binding TabbarSelectedIndex}">
+                                <select:DateSelect Date="{Binding MonthDate,Mode=TwoWay}"
+                                                   SelectType="Month" />
+                            </base:View>
+                            <base:View Condition="3" Value="{Binding TabbarSelectedIndex}">
+                                <select:DateSelect Date="{Binding YearDate,Mode=TwoWay}"
+                                                   SelectType="Year" />
+                            </base:View>
+                        </Grid>
+
+                        <!-- 周期切换 -->
+                        <select:TabSwitch IsShowIcon="False"
+                                          SelectedItem="{Binding SelectedPeriod,Mode=TwoWay}"
+                                          Options="{Binding PeriodOptions}" />
+                    </StackPanel>
+
+                    <!-- 收起筛选栏 -->
+                    <StackPanel Grid.Column="3" Orientation="Horizontal"
+                                VerticalAlignment="Center" Margin="10,0,0,0">
+                        <Button:IconButton Width="30" Height="30" FontSize="14"
+                                           Icon="ChevronUpMed"
+                                           ToolTip.Tip="{DynamicResource CollapseHeader}"
+                                           Command="{Binding ToggleHeaderCommand}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ═══ Row 1：左侧主区（指标卡 / 表盘 / 柱图） + 右侧洞察栏 ═══ -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto"
+                  Margin="{Binding IsHeaderExpanded, Converter={StaticResource ContentMarginConverter}}">
+
+                <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto">
+
+                    <!-- 配色模式（只影响应用维度的表盘） -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBlock FontSize="11"
+                                   Text="{DynamicResource ClockHint}"
+                                   Foreground="{DynamicResource SubTextBrush}"
+                                   Opacity="0.6"
+                                   VerticalAlignment="Center" />
+                        <base:View Grid.Column="1" Condition="0" Value="{Binding ShowType.Id}">
+                            <select:TabSwitch x:Name="ColorModeSwitch"
+                                              VerticalAlignment="Center"
+                                              IsShowIcon="False"
+                                              SelectedItem="{Binding SelectedColorMode, Mode=TwoWay}"
+                                              Options="{Binding ColorModeOptions}" />
+                        </base:View>
+                    </Grid>
+
+                    <!-- A：关键指标卡 -->
+                    <Grid Grid.Row="1" ColumnDefinitions="*,8,*,8,*,8,*" Margin="0,0,0,12">
+                        <Border Grid.Column="0" Classes="statCard">
+                            <StackPanel Spacing="3">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <base:Icon IconType="Stopwatch" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card1.Caption}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Classes="statValue" Text="{Binding CurrentInsight.Card1.Value}" />
+                                <StackPanel Orientation="Horizontal" Spacing="4"
+                                            IsVisible="{Binding CurrentInsight.Card1.HasDiff}">
+                                    <base:Icon IconType="ArrowUp8" FontSize="10"
+                                               Foreground="{DynamicResource SuccessBrush}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding CurrentInsight.Card1.IsUp}" />
+                                    <base:Icon IconType="ArrowDown8" FontSize="10"
+                                               Foreground="{DynamicResource DangerBrush}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding CurrentInsight.Card1.IsDown}" />
+                                    <base:Icon IconType="SubtractBold" FontSize="10"
+                                               Foreground="{DynamicResource SubTextBrush}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding CurrentInsight.Card1.IsFlat}" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card1.DiffText}"
+                                               Foreground="{DynamicResource DefaultTextBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card1.DiffCaption}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card1.Sub}"
+                                           IsVisible="{Binding CurrentInsight.Card1.HasSub}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="2" Classes="statCard">
+                            <StackPanel Spacing="3">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <base:Icon IconType="Apps" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card2.Caption}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Classes="statValue" Text="{Binding CurrentInsight.Card2.Value}" />
+                                <StackPanel Orientation="Horizontal" Spacing="4"
+                                            IsVisible="{Binding CurrentInsight.Card2.HasDiff}">
+                                    <base:Icon IconType="ArrowUp8" FontSize="10"
+                                               Foreground="{DynamicResource SuccessBrush}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding CurrentInsight.Card2.IsUp}" />
+                                    <base:Icon IconType="ArrowDown8" FontSize="10"
+                                               Foreground="{DynamicResource DangerBrush}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding CurrentInsight.Card2.IsDown}" />
+                                    <base:Icon IconType="SubtractBold" FontSize="10"
+                                               Foreground="{DynamicResource SubTextBrush}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding CurrentInsight.Card2.IsFlat}" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card2.DiffText}"
+                                               Foreground="{DynamicResource DefaultTextBrush}" VerticalAlignment="Center" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card2.DiffCaption}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card2.Sub}"
+                                           IsVisible="{Binding CurrentInsight.Card2.HasSub}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="4" Classes="statCard">
+                            <StackPanel Spacing="3">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <base:Icon IconType="BulletedList" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card3.Caption}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Classes="statValue" Text="{Binding CurrentInsight.Card3.Value}" />
+                                <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card3.Sub}"
+                                           IsVisible="{Binding CurrentInsight.Card3.HasSub}" />
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="6" Classes="statCard">
+                            <StackPanel Spacing="3">
+                                <StackPanel Orientation="Horizontal" Spacing="5">
+                                    <base:Icon IconType="ScreenTime" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}"
+                                               VerticalAlignment="Center" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card4.Caption}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Classes="statValue" Text="{Binding CurrentInsight.Card4.Value}" />
+                                <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.Card4.Sub}"
+                                           IsVisible="{Binding CurrentInsight.Card4.HasSub}" />
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- 主图：环形时钟 + 图例 / 榜单 -->
+                    <TabControl Grid.Row="2"
+                                SelectedIndex="{Binding TabbarSelectedIndex}"
+                                BorderThickness="0"
+                                Margin="0,0,0,12"
+                                Padding="0"
+                                Background="Transparent">
+                        <TabControl.Styles>
+                            <Style Selector="TabItem">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate />
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </TabControl.Styles>
+                        <TabItem>
+                            <Grid>
+                                <!-- 应用模式：环形时钟 + 图例 -->
+                                <base:View Condition="0" Value="{Binding ShowType.Id}">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <timeline:ClockRing HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center"
+                                                        MaxWidth="420"
+                                                        MaxHeight="420"
+                                                        Thickness="30"
+                                                        Margin="0,4,14,4"
+                                                        Segments="{Binding DayClock.Segments}"
+                                                        TickMode="{Binding DayClock.TickMode}"
+                                                        RangeStart="{Binding DayClock.RangeStart}"
+                                                        RangeEnd="{Binding DayClock.RangeEnd}"
+                                                        UseCategoryColor="{Binding UseCategoryColor}"
+                                                        CenterText="{Binding DayClock.CenterText}"
+                                                        CenterCaption="{Binding DayClock.CenterCaption}"
+                                                        EmptyText="{DynamicResource NoData}"
+                                                        TextBrush="{DynamicResource StandardTextBrush}"
+                                                        MutedTextBrush="{DynamicResource SubTextBrush}"
+                                                        TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
+                                                        ClickCommand="{Binding ToDetailCommand}" />
+
+                                    <Border Grid.Column="1"
+                                            Width="230"
+                                            Padding="12,10"
+                                            VerticalAlignment="Center"
+                                            Background="{DynamicResource SettingPanelBgBrush}"
+                                            BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusMedium}">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{DynamicResource ClockLegendTitle}"
+                                                       FontSize="11"
+                                                       Margin="2,0,0,6"
+                                                       Foreground="{DynamicResource SubTextBrush}" />
+                                            <ItemsControl ItemsSource="{Binding DayClock.Legend}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Background="Transparent"
+                                                                BorderThickness="0"
+                                                                Padding="2,4"
+                                                                HorizontalAlignment="Stretch"
+                                                                HorizontalContentAlignment="Stretch"
+                                                                Command="{Binding $parent[UserControl].((vm:DataPageViewModel)DataContext).ClockLegendClickCommand}"
+                                                                CommandParameter="{Binding}">
+                                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                                                <Ellipse Width="9" Height="9"
+                                                                         VerticalAlignment="Center"
+                                                                         Margin="0,0,8,0"
+                                                                         Fill="{Binding Color, Converter={StaticResource HextoColorConverter}}" />
+                                                                <TextBlock Grid.Column="1"
+                                                                           Text="{Binding Name}"
+                                                                           FontSize="12"
+                                                                           TextTrimming="CharacterEllipsis"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="{DynamicResource StandardTextBrush}" />
+                                                                <TextBlock Grid.Column="2"
+                                                                           Text="{Binding DurationText}"
+                                                                           FontSize="12"
+                                                                           Margin="8,0,0,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="{DynamicResource StandardTextBrush}" />
+                                                                <TextBlock Grid.Column="3"
+                                                                           Text="{Binding ShareText}"
+                                                                           FontSize="11"
+                                                                           Width="36"
+                                                                           TextAlignment="Right"
+                                                                           Margin="8,0,0,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="{DynamicResource SubTextBrush}" />
+                                                            </Grid>
+                                                        </Button>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                </base:View>
+
+                                <!-- 网站模式：没有会话级时间轴，直接整行榜单 -->
+                                <base:View Condition="1" Value="{Binding ShowType.Id}">
+                                    <Charts:ListChart IsLoading="{Binding IsLoading}" IsShowBadge="True"
+                                                      IsSearch="True"
+                                                      MaxWidth="720"
+                                                      HorizontalAlignment="Center"
+                                                      MenuType="WebSite"
+                                                      Data="{Binding Data}"
+                                                      ClickCommand="{Binding ToDetailCommand}" />
+                                </base:View>
+                            </Grid>
+                        </TabItem>
+                        <TabItem>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ClockColumnWidth}}" />
+                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ListColumnWidth}}" />
+                                </Grid.ColumnDefinitions>
                                 <timeline:ClockRing HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
-                                                    MaxWidth="470"
-                                                    MaxHeight="470"
-                                                    Thickness="32"
-                                                    Margin="0,4,10,4"
-                                                    Segments="{Binding DayClock.Segments}"
-                                                    TickMode="{Binding DayClock.TickMode}"
-                                                    RangeStart="{Binding DayClock.RangeStart}"
-                                                    RangeEnd="{Binding DayClock.RangeEnd}"
+                                                    MaxWidth="420"
+                                                    MaxHeight="420"
+                                                    Thickness="30"
+                                                    Margin="0,0,14,0"
+                                                    IsVisible="{Binding WeekClock.HasData}"
+                                                    Segments="{Binding WeekClock.Segments}"
+                                                    TickMode="{Binding WeekClock.TickMode}"
+                                                    RangeStart="{Binding WeekClock.RangeStart}"
+                                                    RangeEnd="{Binding WeekClock.RangeEnd}"
                                                     UseCategoryColor="{Binding UseCategoryColor}"
-                                                    CenterText="{Binding DayClock.CenterText}"
-                                                    CenterCaption="{Binding DayClock.CenterCaption}"
+                                                    CenterText="{Binding WeekClock.CenterText}"
+                                                    CenterCaption="{Binding WeekClock.CenterCaption}"
                                                     EmptyText="{DynamicResource NoData}"
                                                     TextBrush="{DynamicResource StandardTextBrush}"
                                                     MutedTextBrush="{DynamicResource SubTextBrush}"
                                                     TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
                                                     ClickCommand="{Binding ToDetailCommand}" />
-
-                                <!-- 前 5 名 + 其他 -->
-                                <Border Grid.Column="1"
-                                        Width="230"
-                                        Margin="0,4,0,4"
-                                        Padding="12,10"
-                                        VerticalAlignment="Center"
-                                        Background="{DynamicResource SettingPanelBgBrush}"
-                                        BorderBrush="{DynamicResource SettingPanelBorderBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="{StaticResource RadiusMedium}">
-                                    <StackPanel Spacing="2">
-                                        <TextBlock Text="{DynamicResource ClockLegendTitle}"
-                                                   FontSize="11"
-                                                   Margin="2,0,0,6"
-                                                   Foreground="{DynamicResource SubTextBrush}" />
-                                        <ItemsControl ItemsSource="{Binding DayClock.Legend}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Background="Transparent"
-                                                            BorderThickness="0"
-                                                            Padding="2,4"
-                                                            HorizontalAlignment="Stretch"
-                                                            HorizontalContentAlignment="Stretch"
-                                                            Command="{Binding $parent[UserControl].((vm:DataPageViewModel)DataContext).ClockLegendClickCommand}"
-                                                            CommandParameter="{Binding}">
-                                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                                                            <Ellipse Width="9" Height="9"
-                                                                     VerticalAlignment="Center"
-                                                                     Margin="0,0,8,0"
-                                                                     Fill="{Binding Color, Converter={StaticResource HextoColorConverter}}" />
-                                                            <TextBlock Grid.Column="1"
-                                                                       Text="{Binding Name}"
-                                                                       FontSize="12"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource StandardTextBrush}" />
-                                                            <TextBlock Grid.Column="2"
-                                                                       Text="{Binding DurationText}"
-                                                                       FontSize="12"
-                                                                       Margin="8,0,0,0"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource StandardTextBrush}" />
-                                                            <TextBlock Grid.Column="3"
-                                                                       Text="{Binding ShareText}"
-                                                                       FontSize="11"
-                                                                       Width="36"
-                                                                       TextAlignment="Right"
-                                                                       Margin="8,0,0,0"
-                                                                       VerticalAlignment="Center"
-                                                                       Foreground="{DynamicResource SubTextBrush}" />
-                                                        </Grid>
-                                                    </Button>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </Border>
+                                <Charts:ListChart IsLoading="{Binding IsLoading}" Grid.Column="1"
+                                                  MaxWidth="720"
+                                                  HorizontalAlignment="Stretch"
+                                                  IsShowBadge="True"
+                                                  IsSearch="True"
+                                                  MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
+                                                  Data="{Binding WeekData}"
+                                                  ClickCommand="{Binding ToDetailCommand}" />
                             </Grid>
+                        </TabItem>
+                        <TabItem>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ClockColumnWidth}}" />
+                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ListColumnWidth}}" />
+                                </Grid.ColumnDefinitions>
+                                <timeline:ClockRing HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    MaxWidth="420"
+                                                    MaxHeight="420"
+                                                    Thickness="30"
+                                                    Margin="0,0,14,0"
+                                                    IsVisible="{Binding MonthClock.HasData}"
+                                                    Segments="{Binding MonthClock.Segments}"
+                                                    TickMode="{Binding MonthClock.TickMode}"
+                                                    RangeStart="{Binding MonthClock.RangeStart}"
+                                                    RangeEnd="{Binding MonthClock.RangeEnd}"
+                                                    UseCategoryColor="{Binding UseCategoryColor}"
+                                                    CenterText="{Binding MonthClock.CenterText}"
+                                                    CenterCaption="{Binding MonthClock.CenterCaption}"
+                                                    EmptyText="{DynamicResource NoData}"
+                                                    TextBrush="{DynamicResource StandardTextBrush}"
+                                                    MutedTextBrush="{DynamicResource SubTextBrush}"
+                                                    TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
+                                                    ClickCommand="{Binding ToDetailCommand}" />
+                                <Charts:ListChart IsLoading="{Binding IsLoading}" Grid.Column="1"
+                                                  MaxWidth="720"
+                                                  HorizontalAlignment="Stretch"
+                                                  IsShowBadge="True"
+                                                  IsSearch="True"
+                                                  MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
+                                                  Data="{Binding MonthData}"
+                                                  ClickCommand="{Binding ToDetailCommand}" />
+                            </Grid>
+                        </TabItem>
+                        <TabItem>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ClockColumnWidth}}" />
+                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ListColumnWidth}}" />
+                                </Grid.ColumnDefinitions>
+                                <timeline:ClockRing HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    MaxWidth="420"
+                                                    MaxHeight="420"
+                                                    Thickness="30"
+                                                    Margin="0,0,14,0"
+                                                    IsVisible="{Binding YearClock.HasData}"
+                                                    Segments="{Binding YearClock.Segments}"
+                                                    TickMode="{Binding YearClock.TickMode}"
+                                                    RangeStart="{Binding YearClock.RangeStart}"
+                                                    RangeEnd="{Binding YearClock.RangeEnd}"
+                                                    UseCategoryColor="{Binding UseCategoryColor}"
+                                                    CenterText="{Binding YearClock.CenterText}"
+                                                    CenterCaption="{Binding YearClock.CenterCaption}"
+                                                    EmptyText="{DynamicResource NoData}"
+                                                    TextBrush="{DynamicResource StandardTextBrush}"
+                                                    MutedTextBrush="{DynamicResource SubTextBrush}"
+                                                    TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
+                                                    ClickCommand="{Binding ToDetailCommand}" />
+                                <Charts:ListChart IsLoading="{Binding IsLoading}" Grid.Column="1"
+                                                  MaxWidth="720"
+                                                  HorizontalAlignment="Stretch"
+                                                  IsShowBadge="True"
+                                                  IsSearch="True"
+                                                  MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
+                                                  Data="{Binding YearData}"
+                                                  ClickCommand="{Binding ToDetailCommand}" />
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+
+                    <!-- B：时段分布柱图 -->
+                    <Border Grid.Row="3" Classes="insightCard" Height="176"
+                            IsVisible="{Binding IsDistributionVisible}">
+                        <Grid RowDefinitions="Auto,*">
+                            <Grid ColumnDefinitions="*,Auto" Margin="16,12,16,0">
+                                <TextBlock Classes="cardTitle" Text="{DynamicResource InsightDistribution}" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10"
+                                            VerticalAlignment="Center">
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.BucketTotalText}"
+                                               Foreground="{DynamicResource DefaultTextBrush}" />
+                                    <TextBlock Classes="cardCaption" Text="{Binding CurrentInsight.CompareCaption}" />
+                                </StackPanel>
+                            </Grid>
+                            <Charts:StackedBarChart Grid.Row="1" Margin="16,6,16,8"
+                                                    Series="{Binding CurrentInsight.HourSeries}"
+                                                    Labels="{Binding CurrentInsight.HourLabels}"
+                                                    CompareValues="{Binding CurrentInsight.CompareValues}"
+                                                    EmptyText="{DynamicResource NoData}"
+                                                    TextBrush="{DynamicResource SubTextBrush}"
+                                                    MutedTextBrush="{DynamicResource SubTextBrush}"
+                                                    AxisBrush="{DynamicResource WindowBorderBrush}"
+                                                    HoverBrush="{DynamicResource HoverBackgroundBrush}" />
                         </Grid>
-                    </base:View>
+                    </Border>
+                </Grid>
 
-                    <!-- 网站模式：列表图表 -->
-                    <base:View Condition="1" Value="{Binding ShowType.Id}">
-                        <Charts:ListChart IsLoading="{Binding IsLoading}" IsShowBadge="True"
-                                          IsSearch="True"
-                                          MenuType="WebSite"
-                                          Data="{Binding Data}"
-                                          Margin="0,20,0,0"
-                                          ClickCommand="{Binding ToDetailCommand}" />
-                    </base:View>
-                </Grid>
-            </TabItem>
-            <TabItem>
-                <Grid ColumnDefinitions="*,420">
-                    <timeline:ClockRing HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        MaxWidth="470"
-                                        MaxHeight="470"
-                                        Thickness="32"
-                                        Margin="0,0,14,0"
-                                        IsVisible="{Binding WeekClock.HasData}"
-                                        Segments="{Binding WeekClock.Segments}"
-                                        TickMode="{Binding WeekClock.TickMode}"
-                                        RangeStart="{Binding WeekClock.RangeStart}"
-                                        RangeEnd="{Binding WeekClock.RangeEnd}"
-                                        UseCategoryColor="{Binding UseCategoryColor}"
-                                        CenterText="{Binding WeekClock.CenterText}"
-                                        CenterCaption="{Binding WeekClock.CenterCaption}"
-                                        EmptyText="{DynamicResource NoData}"
-                                        TextBrush="{DynamicResource StandardTextBrush}"
-                                        MutedTextBrush="{DynamicResource SubTextBrush}"
-                                        TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
-                                        ClickCommand="{Binding ToDetailCommand}" />
-                    <Charts:ListChart IsLoading="{Binding IsLoading}" Grid.Column="1"
-                               IsShowBadge="True"
-                               IsSearch="True"
-                               MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
-                               Data="{Binding WeekData}"
-                               ClickCommand="{Binding ToDetailCommand}" />
-                </Grid>
-            </TabItem>
-            <TabItem>
-                <Grid ColumnDefinitions="*,420">
-                    <timeline:ClockRing HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        MaxWidth="470"
-                                        MaxHeight="470"
-                                        Thickness="32"
-                                        Margin="0,0,14,0"
-                                        IsVisible="{Binding MonthClock.HasData}"
-                                        Segments="{Binding MonthClock.Segments}"
-                                        TickMode="{Binding MonthClock.TickMode}"
-                                        RangeStart="{Binding MonthClock.RangeStart}"
-                                        RangeEnd="{Binding MonthClock.RangeEnd}"
-                                        UseCategoryColor="{Binding UseCategoryColor}"
-                                        CenterText="{Binding MonthClock.CenterText}"
-                                        CenterCaption="{Binding MonthClock.CenterCaption}"
-                                        EmptyText="{DynamicResource NoData}"
-                                        TextBrush="{DynamicResource StandardTextBrush}"
-                                        MutedTextBrush="{DynamicResource SubTextBrush}"
-                                        TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
-                                        ClickCommand="{Binding ToDetailCommand}" />
-                    <Charts:ListChart IsLoading="{Binding IsLoading}" Grid.Column="1"
-                               IsShowBadge="True"
-                               IsSearch="True"
-                               MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
-                               Data="{Binding MonthData}"
-                               ClickCommand="{Binding ToDetailCommand}" />
-                </Grid>
-            </TabItem>
-            <TabItem>
-                <Grid ColumnDefinitions="*,420">
-                    <timeline:ClockRing HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        MaxWidth="470"
-                                        MaxHeight="470"
-                                        Thickness="32"
-                                        Margin="0,0,14,0"
-                                        IsVisible="{Binding YearClock.HasData}"
-                                        Segments="{Binding YearClock.Segments}"
-                                        TickMode="{Binding YearClock.TickMode}"
-                                        RangeStart="{Binding YearClock.RangeStart}"
-                                        RangeEnd="{Binding YearClock.RangeEnd}"
-                                        UseCategoryColor="{Binding UseCategoryColor}"
-                                        CenterText="{Binding YearClock.CenterText}"
-                                        CenterCaption="{Binding YearClock.CenterCaption}"
-                                        EmptyText="{DynamicResource NoData}"
-                                        TextBrush="{DynamicResource StandardTextBrush}"
-                                        MutedTextBrush="{DynamicResource SubTextBrush}"
-                                        TrackBrush="{DynamicResource MultiTrackRowBorderBrush}"
-                                        ClickCommand="{Binding ToDetailCommand}" />
-                    <Charts:ListChart IsLoading="{Binding IsLoading}" Grid.Column="1"
-                               IsShowBadge="True"
-                               IsSearch="True"
-                               MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
-                               Data="{Binding YearData}"
-                               ClickCommand="{Binding ToDetailCommand}" />
-                </Grid>
-            </TabItem>
-        </TabControl>
-    </Grid>
+                <!-- 右侧洞察栏：C 使用习惯 / D 热力图 / E 分类占比 -->
+                <Grid Grid.Column="1" Width="400" Margin="14,0,0,0"
+                      IsVisible="{Binding IsInsightVisible}"
+                      RowDefinitions="Auto,*,Auto">
 
-    <!-- 悬浮展开按钮：头部收起时悬浮在页面右上角留白处，不占用布局、不遮挡内容 -->
-    <Border HorizontalAlignment="Right"
-            VerticalAlignment="Top"
-            Margin="0,4,4,0"
-            Padding="1"
-            CornerRadius="11"
-            Background="{DynamicResource SettingPanelBgBrush}"
-            BorderBrush="{DynamicResource SettingPanelBorderBrush}"
-            BorderThickness="1"
-            ZIndex="50"
-            Opacity="{Binding IsHeaderExpanded, Converter={StaticResource InverseOpacityConverter}}"
-            IsHitTestVisible="{Binding !IsHeaderExpanded}">
-        <Border.Transitions>
-            <Transitions>
-                <DoubleTransition Property="Opacity" Duration="0:0:0.22">
-                    <DoubleTransition.Easing>
-                        <CubicEaseInOut />
-                    </DoubleTransition.Easing>
-                </DoubleTransition>
-            </Transitions>
-        </Border.Transitions>
-        <Button:IconButton Width="18" Height="18" FontSize="9"
-                           Icon="ChevronDownMed"
-                           ToolTip.Tip="{DynamicResource ExpandHeader}"
-                           Command="{Binding ToggleHeaderCommand}" />
-    </Border>
+                    <!-- C：使用习惯 -->
+                    <Border Classes="insightCard">
+                        <StackPanel Margin="16,12,16,14">
+                            <TextBlock Classes="cardTitle" Text="{DynamicResource InsightHabits}"
+                                       Margin="0,0,0,10" />
+
+                            <ItemsControl ItemsSource="{Binding CurrentInsight.Habits}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:InsightHabitRow">
+                                        <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,6">
+                                            <TextBlock FontSize="12" Text="{Binding Label}"
+                                                       Foreground="{DynamicResource SubTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Classes="habitValue" Text="{Binding Value}"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,6">
+                                <TextBlock FontSize="11" Text="{DynamicResource InsightBands}"
+                                           Foreground="{DynamicResource SubTextBrush}" />
+                            </Grid>
+
+                            <ItemsControl ItemsSource="{Binding CurrentInsight.Bands}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:InsightBand">
+                                        <Grid ColumnDefinitions="40,Auto,*" Margin="0,0,0,5">
+                                            <TextBlock FontSize="11" Text="{Binding Name}"
+                                                       Foreground="{DynamicResource SubTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                            <Border Grid.Column="1" Width="96" Height="6" CornerRadius="3"
+                                                    VerticalAlignment="Center"
+                                                    Background="{DynamicResource MultiTrackRowBorderBrush}">
+                                                <Border HorizontalAlignment="Left"
+                                                        Width="{Binding BarWidth}"
+                                                        CornerRadius="3"
+                                                        Background="{DynamicResource ThemeBrush}" />
+                                            </Border>
+                                            <TextBlock Grid.Column="2" FontSize="11" Margin="8,0,0,0"
+                                                       Text="{Binding ShareText}"
+                                                       Foreground="{DynamicResource SubTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- D：热力图 -->
+                    <Border Grid.Row="1" Classes="insightCard" Margin="0,12,0,12">
+                        <Grid RowDefinitions="Auto,Auto,*" Margin="16,12,16,12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Classes="cardTitle" Text="{DynamicResource InsightHeatmap}" />
+                                <TextBlock Grid.Column="1" Classes="cardCaption"
+                                           VerticalAlignment="Center"
+                                           Text="{Binding CurrentInsight.Heatmap.PeakText}" />
+                            </Grid>
+                            <TextBlock Grid.Row="1" Classes="cardCaption" Margin="0,2,0,8"
+                                       Text="{Binding CurrentInsight.Heatmap.Caption}" />
+
+                            <Charts:HeatGrid Grid.Row="2"
+                                             Rows="{Binding CurrentInsight.Heatmap.Rows}"
+                                             ColumnLabels="{Binding CurrentInsight.Heatmap.ColumnLabels}"
+                                             MaxValue="{Binding CurrentInsight.Heatmap.MaxValue}"
+                                             RowLabelWidth="76"
+                                             SquareCells="{Binding CurrentInsight.Heatmap.IsCalendar}"
+                                             EmptyText="{DynamicResource NoData}"
+                                             AccentBrush="{DynamicResource ThemeBrush}"
+                                             TextBrush="{DynamicResource DefaultTextBrush}"
+                                             MutedTextBrush="{DynamicResource SubTextBrush}"
+                                             HoverBrush="{DynamicResource HoverBackgroundBrush}" />
+                        </Grid>
+                    </Border>
+
+                    <!-- E：分类占比 -->
+                    <Border Grid.Row="2" Classes="insightCard">
+                        <StackPanel Margin="16,12,16,12">
+                            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                                <TextBlock Classes="cardTitle" Text="{DynamicResource InsightCategoryShare}" />
+                                <TextBlock Grid.Column="1" Classes="cardCaption"
+                                           VerticalAlignment="Center"
+                                           Text="{Binding CurrentInsight.CategoryCaption}" />
+                            </Grid>
+
+                            <Grid ColumnDefinitions="Auto,*">
+                                <Charts:DonutChart Width="104" Height="104"
+                                                   Thickness="12"
+                                                   Series="{Binding CurrentInsight.CategorySeries}"
+                                                   CenterText="{Binding CurrentInsight.CategoryTotalText}"
+                                                   CenterCaption="{Binding CurrentInsight.CategoryCaption}"
+                                                   EmptyText="{DynamicResource NoData}"
+                                                   TextBrush="{DynamicResource DefaultTextBrush}"
+                                                   MutedTextBrush="{DynamicResource SubTextBrush}"
+                                                   TrackBrush="{DynamicResource GrayDark}" />
+
+                                <ScrollViewer Grid.Column="1" Margin="12,0,0,0"
+                                              VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsControl ItemsSource="{Binding CurrentInsight.CategorySeries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="chartModels:ChartsDataModel">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,5">
+                                                    <Border Width="8" Height="8" CornerRadius="4"
+                                                            VerticalAlignment="Center"
+                                                            Background="{Binding Color, Converter={StaticResource HextoColorConverter}}" />
+                                                    <TextBlock Grid.Column="1" Margin="6,0,0,0" FontSize="11"
+                                                               Text="{Binding Name}"
+                                                               TextTrimming="CharacterEllipsis"
+                                                               Foreground="{DynamicResource DefaultTextBrush}"
+                                                               VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="2" FontSize="11"
+                                                               Text="{Binding Tag}"
+                                                               Foreground="{DynamicResource SubTextBrush}"
+                                                               VerticalAlignment="Center" />
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- 悬浮展开按钮：头部收起时悬浮在页面右上角留白处，不占用布局、不遮挡内容 -->
+        <Border HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,4,4,0"
+                Padding="1"
+                CornerRadius="11"
+                Background="{DynamicResource SettingPanelBgBrush}"
+                BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+                BorderThickness="1"
+                ZIndex="50"
+                Opacity="{Binding IsHeaderExpanded, Converter={StaticResource InverseOpacityConverter}}"
+                IsHitTestVisible="{Binding !IsHeaderExpanded}">
+            <Border.Transitions>
+                <Transitions>
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.22">
+                        <DoubleTransition.Easing>
+                            <CubicEaseInOut />
+                        </DoubleTransition.Easing>
+                    </DoubleTransition>
+                </Transitions>
+            </Border.Transitions>
+            <Button:IconButton Width="18" Height="18" FontSize="9"
+                               Icon="ChevronDownMed"
+                               ToolTip.Tip="{DynamicResource ExpandHeader}"
+                               Command="{Binding ToggleHeaderCommand}" />
+        </Border>
     </Grid>
 </control:TPage>

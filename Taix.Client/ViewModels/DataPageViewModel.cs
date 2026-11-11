@@ -18,6 +18,7 @@ using Taix.Client.Models.Navigation;
 using Taix.Client.Servicers;
 using Taix.Client.Servicers.Interfaces;
 using Taix.Client.Shared.Models;
+using Taix.Client.Shared.Models.Data;
 using Taix.Client.Shared.Models.Web;
 using Taix.Client.Shared.Servicers.Interfaces;
 using Taix.Client.Views;
@@ -29,21 +30,31 @@ public partial class DataPageViewModel : DataPageModel
 {
     private readonly IWebData _webDataService;
     private readonly IData _dataService;
+    private readonly ICategorys _categoryService;
     private readonly INavigationService _navigationService;
     private readonly IStateService _stateService;
     private readonly IAppEventService _appEventService;
 
-
+    // 会话 / 浏览记录只缓存最近一次请求：一次加载里环形时钟和看板用的是同一段区间，
+    // 命中缓存就不会把几 MB 的会话数据拉两遍
+    private DateTime _sessionCacheStart;
+    private DateTime _sessionCacheEnd;
+    private List<AppSessionModel>? _sessionCache;
+    private DateTime _browseCacheStart;
+    private DateTime _browseCacheEnd;
+    private List<WebBrowseLogModel>? _browseCache;
 
     public DataPageViewModel(
         IData data,
         IWebData webData,
+        ICategorys categories,
         INavigationService navigationService,
         IStateService stateService,
         IAppEventService appEventService)
     {
         _dataService = data;
         _webDataService = webData;
+        _categoryService = categories;
         _navigationService = navigationService;
         _stateService = stateService;
         _appEventService = appEventService;
@@ -137,6 +148,9 @@ public partial class DataPageViewModel : DataPageModel
             {
                 return;
             }
+
+            // 先切到对应周期的看板，再去拉数据；数据回来前不会闪空白
+            CurrentInsight = InsightAt(index);
             await LoadDataAsync(date, dataType);
         }, skipInitial: false);
 
@@ -167,6 +181,8 @@ public partial class DataPageViewModel : DataPageModel
     public override Task OnNavigatedToAsync()
     {
         var restored = TryRestoreState(_navigationService, _stateService);
+        // 状态恢复只还原了数据，当前看板指针要手动指过去
+        CurrentInsight = InsightAt(TabbarSelectedIndex);
         return RestoreCachedDataOrLoadAsync(
             restored,
             _stateService,
@@ -295,6 +311,13 @@ public partial class DataPageViewModel : DataPageModel
                 case 2: MonthData = chartData; break;
                 case 3: YearData = chartData; break;
             }
+
+            // 看板只算当前页签：切应用/网站时会顺次预热四个周期，
+            // 每个周期都算一遍看板要多拨好几次会话请求，不划算
+            if (dataType != TabbarSelectedIndex) return;
+
+            var insight = await BuildInsightAsync(date, dataType, ct);
+            ApplyInsight(dataType, insight);
         });
     }
 
@@ -316,7 +339,7 @@ public partial class DataPageViewModel : DataPageModel
         var dayEnd = dayStart.AddDays(1);
         var periodSeconds = (dayEnd - dayStart).TotalSeconds;
 
-        var sessions = await _dataService.GetAppSessionsAsync(dayStart, dayEnd.AddSeconds(-1), ct);
+        var sessions = await GetSessionsCachedAsync(dayStart, dayEnd.AddSeconds(-1), ct);
         ct.ThrowIfCancellationRequested();
 
         var isDark = IsDarkTheme();
@@ -558,6 +581,667 @@ public partial class DataPageViewModel : DataPageModel
         });
 
         return legend;
+    }
+
+    #endregion
+
+    #region 看板
+
+    /// <summary>热力图最多画几行分类（日视图）</summary>
+    private const int HeatmapTopRows = 6;
+
+    /// <summary>分类占比环形图最多画几段，剩下合并成「其他」</summary>
+    private const int CategoryShareTopCount = 6;
+
+    /// <summary>时段偏好横条的最大宽度（右侧洞察栏的可用宽度）</summary>
+    private const double BandMaxWidth = 96;
+
+    private sealed record CategoryVisual(string Name, string Color);
+
+    private DataPageInsight InsightAt(int index) => index switch
+    {
+        0 => DayInsight,
+        1 => WeekInsight,
+        2 => MonthInsight,
+        3 => YearInsight,
+        _ => DataPageInsight.Empty
+    };
+
+    private void ApplyInsight(int dataType, DataPageInsight insight)
+    {
+        switch (dataType)
+        {
+            case 0: DayInsight = insight; break;
+            case 1: WeekInsight = insight; break;
+            case 2: MonthInsight = insight; break;
+            case 3: YearInsight = insight; break;
+            default: return;
+        }
+
+        if (dataType == TabbarSelectedIndex) CurrentInsight = insight;
+    }
+
+    private async Task<DataPageInsight> BuildInsightAsync(DateTime date, int dataType, CancellationToken ct)
+    {
+        var isWeb = ShowType.Id == 1;
+        var (start, end) = GetDateRange(date, dataType);
+        var previousDate = PreviousDate(date, dataType);
+        var (prevStart, prevEnd) = GetDateRange(previousDate, dataType);
+
+        // 分类 × 时段矩阵：一份数据同时供柱图与分类占比使用
+        var currentColumns = await GetCategoryColumnsAsync(date, dataType, isWeb, ct);
+        ct.ThrowIfCancellationRequested();
+        var previousColumns = await GetCategoryColumnsAsync(previousDate, dataType, isWeb, ct);
+        ct.ThrowIfCancellationRequested();
+
+        var spans = await GetSpansAsync(start, end, isWeb, ct);
+        ct.ThrowIfCancellationRequested();
+        var periodSpans = spans.Select(s => (s.Start, s.End)).ToList();
+
+        var visuals = await GetCategoryVisualsAsync(isWeb, ct);
+        ct.ThrowIfCancellationRequested();
+
+        var buckets = BucketTotals(currentColumns, dataType, start);
+        var prevBuckets = BucketTotals(previousColumns, dataType, prevStart);
+        var labels = BucketLabels(dataType, buckets.Length, start);
+
+        var totalSeconds = buckets.Sum();
+        var prevTotalSeconds = prevBuckets.Sum();
+        var summary = InsightBuilder.Summarize(periodSpans, start, end);
+        var hourOfDay = InsightBuilder.HourOfDayHistogram(periodSpans, start, end);
+
+        var listCount = CurrentList(dataType)?.Count ?? 0;
+        var previousCount = isWeb
+            ? await _webDataService.GetBrowseSitesTotalAsync(prevStart, prevEnd, ct)
+            : await _dataService.GetDateRangeAppCountAsync(prevStart, prevEnd, ct);
+        ct.ThrowIfCancellationRequested();
+
+        var pageCount = isWeb ? await _webDataService.GetBrowsePagesTotalAsync(start, end, ct) : 0;
+        ct.ThrowIfCancellationRequested();
+
+        var vsCaption = VersusCaption(dataType);
+        var totalDiff = InsightBuilder.BuildDiff(totalSeconds, prevTotalSeconds);
+        var countDiff = InsightBuilder.BuildDiff(listCount, previousCount);
+
+        var cards = new List<InsightStatCard>(4)
+        {
+            BuildCard(ResourceStrings.CategoryTotalUsage, InsightBuilder.FormatDuration(totalSeconds), totalDiff, vsCaption),
+            BuildCard(isWeb ? ResourceStrings.InsightSites : ResourceStrings.InsightApps, listCount.ToString(),
+                countDiff, vsCaption),
+            isWeb
+                ? BuildCard(ResourceStrings.InsightPages, pageCount.ToString(), null, null)
+                : BuildCard(ResourceStrings.InsightSessions, summary.Count.ToString(), null, null,
+                    $"{ResourceStrings.InsightAverageSession} {InsightBuilder.FormatDuration(summary.AverageSeconds)}"),
+            isWeb
+                ? BuildCard(ResourceStrings.InsightRecords, spans.Count.ToString(), null, null,
+                    summary.HasData
+                        ? $"{ResourceStrings.InsightLongestRecord} {InsightBuilder.FormatDuration(summary.LongestSeconds)}"
+                        : null)
+                : BuildCard(ResourceStrings.InsightLongest, InsightBuilder.FormatDuration(summary.LongestSeconds),
+                    null, null,
+                    summary.HasData ? InsightBuilder.FormatMoment(summary.LongestStart, start, end) : null)
+        };
+
+        var peakHour = InsightBuilder.PeakHour(hourOfDay);
+        var activeCount = buckets.Count(v => v > 0);
+        var activeCaption = dataType switch
+        {
+            0 => ResourceStrings.InsightActiveHours,
+            3 => ResourceStrings.InsightActiveMonths,
+            _ => ResourceStrings.CategoryActiveDays
+        };
+
+        var habits = new List<InsightHabitRow>
+        {
+            new()
+            {
+                Label = isWeb ? ResourceStrings.InsightFirstBrowse : ResourceStrings.InsightFirstUse,
+                Value = summary.HasData ? InsightBuilder.FormatMoment(summary.FirstStart, start, end) : "—"
+            },
+            new()
+            {
+                Label = isWeb ? ResourceStrings.InsightLastBrowse : ResourceStrings.InsightLastUse,
+                Value = summary.HasData ? InsightBuilder.FormatMoment(summary.LastEnd, start, end) : "—"
+            },
+            new()
+            {
+                Label = ResourceStrings.InsightPeakHour,
+                Value = peakHour >= 0 ? $"{peakHour:00}:00" : "—"
+            },
+            new()
+            {
+                Label = activeCaption,
+                Value = activeCount.ToString()
+            }
+        };
+
+        var bandNames = new[]
+        {
+            ResourceStrings.InsightBandDawn,
+            ResourceStrings.InsightBandMorning,
+            ResourceStrings.InsightBandAfternoon,
+            ResourceStrings.InsightBandEvening
+        };
+        var bands = InsightBuilder.BuildBands(hourOfDay, bandNames, BandMaxWidth);
+
+        var (categorySeries, categoryTotalText) = BuildCategoryShare(currentColumns, visuals);
+
+        var compare = new double[buckets.Length];
+        for (var i = 0; i < compare.Length && i < prevBuckets.Length; i++) compare[i] = prevBuckets[i];
+
+        var accent = ChartColorHelper.Resolve(null, true);
+        var hourSeries = buckets.Length == 0
+            ? []
+            : new List<ChartsDataModel>
+            {
+                new()
+                {
+                    Name = ResourceStrings.CategoryTotalUsage,
+                    Color = accent,
+                    Values = buckets
+                }
+            };
+
+        return new DataPageInsight
+        {
+            Cards = cards,
+            Habits = habits,
+            Bands = bands,
+            Heatmap = BuildHeatmap(dataType, isWeb, spans, periodSpans, buckets, start, end),
+            HourSeries = hourSeries,
+            HourLabels = labels,
+            CompareValues = compare,
+            CompareCaption = CompareCaption(dataType),
+            BucketTotalText = InsightBuilder.FormatDuration(totalSeconds),
+            CategorySeries = categorySeries,
+            CategoryTotalText = categoryTotalText,
+            CategoryCaption = isWeb ? ResourceStrings.Website : ResourceStrings.App
+        };
+    }
+
+    private static InsightStatCard BuildCard(string caption, string value,
+        InsightBuilder.InsightDiff? diff, string? diffCaption, string? sub = null)
+    {
+        return new InsightStatCard
+        {
+            Caption = caption,
+            Value = value,
+            Sub = sub,
+            DiffText = diff?.Text,
+            DiffCaption = diff is null ? null : diffCaption,
+            IsUp = diff?.IsUp ?? false,
+            IsDown = diff?.IsDown ?? false,
+            IsFlat = diff?.IsFlat ?? false
+        };
+    }
+
+    private List<ChartsDataModel>? CurrentList(int dataType) => dataType switch
+    {
+        0 => Data,
+        1 => WeekData,
+        2 => MonthData,
+        3 => YearData,
+        _ => null
+    };
+
+    private static DateTime PreviousDate(DateTime date, int dataType) => dataType switch
+    {
+        0 => date.AddDays(-1),
+        1 => date.AddDays(-7),
+        2 => date.AddMonths(-1),
+        3 => date.AddYears(-1),
+        _ => date
+    };
+
+    private static string VersusCaption(int dataType) => dataType switch
+    {
+        0 => ResourceStrings.InsightVsYesterday,
+        1 => ResourceStrings.InsightVsLastWeek,
+        2 => ResourceStrings.InsightVsLastMonth,
+        3 => ResourceStrings.InsightVsLastYear,
+        _ => ResourceStrings.CategoryVsPrevious
+    };
+
+    private static string CompareCaption(int dataType) => dataType switch
+    {
+        0 => ResourceStrings.InsightCompareYesterday,
+        1 => ResourceStrings.InsightCompareLastWeek,
+        2 => ResourceStrings.InsightCompareLastMonth,
+        3 => ResourceStrings.InsightCompareLastYear,
+        _ => ResourceStrings.CategoryVsPrevious
+    };
+
+    /// <summary>
+    /// 分类 × 时段矩阵。日 = 24 小时，周 / 月 = 按天，年 = 12 个月。
+    /// 网站维度只有这一个接口，年的按天数据在这里折成月份
+    /// </summary>
+    private async Task<IReadOnlyList<ColumnDataModel>> GetCategoryColumnsAsync(DateTime date, int dataType,
+        bool isWeb, CancellationToken ct)
+    {
+        if (isWeb)
+        {
+            var (start, end) = GetDateRange(date, dataType);
+            return await _webDataService.GetBrowseDataByCategoryStatisticsAsync(start, end, ct);
+        }
+
+        return dataType switch
+        {
+            0 => await _dataService.GetCategoryHoursDataAsync(date, ct),
+            1 or 2 => await _dataService.GetCategoryRangeDataAsync(GetDateRange(date, dataType).Start,
+                GetDateRange(date, dataType).End, ct),
+            3 => await _dataService.GetCategoryYearDataAsync(date, ct),
+            _ => []
+        };
+    }
+
+    /// <summary>把「分类 × 时段」矩阵按列求和，得到每个时段的总时长</summary>
+    private static double[] BucketTotals(IReadOnlyList<ColumnDataModel> columns, int dataType, DateTime rangeStart)
+    {
+        if (columns.Count == 0) return [];
+
+        var length = columns.Max(c => c.Values?.Length ?? 0);
+        if (length == 0) return [];
+
+        var sums = new double[length];
+        foreach (var column in columns)
+        {
+            var values = column.Values;
+            if (values == null) continue;
+            for (var i = 0; i < values.Length && i < length; i++) sums[i] += values[i];
+        }
+
+        // 网站年的矩阵是按天的（365 列），柱图要的是 12 个月
+        if (dataType != 3 || length <= 12) return sums;
+
+        var months = new double[12];
+        for (var i = 0; i < length; i++)
+            months[rangeStart.AddDays(i).Month - 1] += sums[i];
+
+        return months;
+    }
+
+    private static string[] BucketLabels(int dataType, int count, DateTime rangeStart)
+    {
+        var labels = new string[Math.Max(0, count)];
+        for (var i = 0; i < labels.Length; i++)
+        {
+            labels[i] = dataType switch
+            {
+                0 => i.ToString(),
+                1 => WeekdayName(i),
+                2 => rangeStart.AddDays(i).Day.ToString(),
+                3 => MonthName(i),
+                _ => i.ToString()
+            };
+        }
+
+        return labels;
+    }
+
+    private static string WeekdayName(int index) => index switch
+    {
+        0 => ResourceStrings.Monday,
+        1 => ResourceStrings.Tuesday,
+        2 => ResourceStrings.Wednesday,
+        3 => ResourceStrings.Thursday,
+        4 => ResourceStrings.Friday,
+        5 => ResourceStrings.Saturday,
+        6 => ResourceStrings.Sunday,
+        _ => string.Empty
+    };
+
+    private static string MonthName(int index) =>
+        Application.Current?.Resources[$"{index + 1}Month"] as string ?? $"{index + 1}";
+
+    /// <summary>分类 id → 显示名 / 颜色（颜色已按当前主题算过对比度）</summary>
+    private async Task<Dictionary<int, CategoryVisual>> GetCategoryVisualsAsync(bool isWeb, CancellationToken ct)
+    {
+        var map = new Dictionary<int, CategoryVisual>();
+
+        if (isWeb)
+        {
+            foreach (var item in await _webDataService.GetWebSiteCategoriesAsync(ct))
+                map[item.ID] = new CategoryVisual(item.Name ?? ResourceStrings.Uncategorized,
+                    ChartColorHelper.Resolve(item.Color, item.IsSystem));
+        }
+        else
+        {
+            foreach (var item in await _categoryService.GetCategoriesAsync(ct))
+                map[item.ID] = new CategoryVisual(item.Name ?? ResourceStrings.Uncategorized,
+                    ChartColorHelper.Resolve(item.Color, item.IsSystem));
+        }
+
+        return map;
+    }
+
+    private static (IReadOnlyList<ChartsDataModel> Series, string TotalText) BuildCategoryShare(
+        IReadOnlyList<ColumnDataModel> columns, IReadOnlyDictionary<int, CategoryVisual> visuals)
+    {
+        var totals = new Dictionary<int, double>();
+        foreach (var column in columns)
+        {
+            var sum = column.Values?.Sum() ?? 0;
+            if (sum <= 0) continue;
+
+            totals[column.CategoryID] = totals.TryGetValue(column.CategoryID, out var existing)
+                ? existing + sum
+                : sum;
+        }
+
+        var total = totals.Values.Sum();
+        if (total <= 0) return ([], string.Empty);
+
+        var ordered = totals.OrderByDescending(x => x.Value).ToList();
+        var series = new List<ChartsDataModel>();
+        var unknown = new CategoryVisual(ResourceStrings.Uncategorized, ChartColorHelper.Resolve(null, true));
+
+        foreach (var (id, value) in ordered.Take(CategoryShareTopCount))
+        {
+            var visual = visuals.TryGetValue(id, out var found) ? found : unknown;
+            series.Add(new ChartsDataModel
+            {
+                Name = visual.Name,
+                Color = visual.Color,
+                Value = value,
+                Tag = InsightBuilder.FormatDuration(value)
+            });
+        }
+
+        var rest = ordered.Skip(CategoryShareTopCount).Sum(x => x.Value);
+        if (rest > 0)
+        {
+            series.Add(new ChartsDataModel
+            {
+                Name = ResourceStrings.ClockLegendOther,
+                Color = "#8b949e",
+                Value = rest,
+                Tag = InsightBuilder.FormatDuration(rest)
+            });
+        }
+
+        return (series, InsightBuilder.FormatDuration(total));
+    }
+
+    #region 热力图
+
+    private HeatmapData BuildHeatmap(int dataType, bool isWeb,
+        IReadOnlyList<(DateTime Start, DateTime End, string Name)> namedSpans,
+        IReadOnlyList<(DateTime Start, DateTime End)> spans,
+        IReadOnlyList<double> dayBuckets,
+        DateTime rangeStart, DateTime rangeEnd)
+    {
+        return dataType switch
+        {
+            0 => BuildNameHourHeatmap(namedSpans, rangeStart, rangeEnd, isWeb),
+            2 => BuildMonthCalendarHeatmap(dayBuckets, rangeStart),
+            3 => BuildMonthDayHeatmap(spans, rangeStart, rangeEnd),
+            _ => BuildWeekHourHeatmap(spans, rangeStart, rangeEnd)
+        };
+    }
+
+    /// <summary>
+    /// 月视图：日历热力（行＝周、列＝星期、格子＝当天总时长）。
+    /// 月里已经有「每天时长」柱图，但柱图看的是量级，日历看的是「哪几天连着头忙」。
+    /// </summary>
+    private static HeatmapData BuildMonthCalendarHeatmap(IReadOnlyList<double> dayTotals, DateTime rangeStart)
+    {
+        if (dayTotals.Count == 0) return HeatmapData.Empty;
+
+        var max = dayTotals.Max();
+        if (max <= 0) return HeatmapData.Empty;
+
+        // 每周从周一算起
+        var firstColumn = ((int)rangeStart.DayOfWeek + 6) % 7;
+        var weeks = (int)Math.Ceiling((firstColumn + dayTotals.Count) / 7d);
+
+        var rows = new List<HeatRow>(weeks);
+        var peakLabel = string.Empty;
+        var peakValue = 0d;
+
+        for (var week = 0; week < weeks; week++)
+        {
+            var cells = new List<HeatCell>(7);
+            for (var column = 0; column < 7; column++)
+            {
+                var index = week * 7 + column - firstColumn;
+                if (index < 0 || index >= dayTotals.Count)
+                {
+                    cells.Add(new HeatCell { IsPlaceholder = true });
+                    continue;
+                }
+
+                var day = rangeStart.AddDays(index);
+                var value = dayTotals[index];
+                cells.Add(new HeatCell
+                {
+                    Value = value,
+                    Tip = $"{day:M/d} {WeekdayName(column)} · {InsightBuilder.FormatDuration(value)}"
+                });
+
+                if (value <= peakValue) continue;
+                peakValue = value;
+                peakLabel = $"{day:M/d} {WeekdayName(column)}";
+            }
+
+            rows.Add(new HeatRow
+            {
+                Label = string.Format(ResourceStrings.InsightWeekOfMonth, week + 1),
+                Cells = cells
+            });
+        }
+
+        return new HeatmapData
+        {
+            Rows = rows,
+            ColumnLabels = Enumerable.Range(0, 7).Select(WeekdayName).ToArray(),
+            Caption = ResourceStrings.InsightHeatmapByCalendar,
+            PeakText = $"{peakLabel} · {InsightBuilder.FormatDuration(peakValue)}",
+            MaxValue = max,
+            IsCalendar = true
+        };
+    }
+
+    /// <summary>日视图：当天用得最多的几个应用 / 站点 × 小时</summary>
+    private static HeatmapData BuildNameHourHeatmap(
+        IReadOnlyList<(DateTime Start, DateTime End, string Name)> spans,
+        DateTime rangeStart, DateTime rangeEnd, bool isWeb)
+    {
+        var grid = InsightBuilder.NameHourGrid(spans, rangeStart, rangeEnd);
+        if (grid.Count == 0) return HeatmapData.Empty;
+
+        var rows = grid
+            .Where(x => x.Value.Sum() > 0)
+            .OrderByDescending(x => x.Value.Sum())
+            .Take(HeatmapTopRows)
+            .ToList();
+
+        if (rows.Count == 0) return HeatmapData.Empty;
+
+        var max = rows.Max(x => x.Value.Max());
+        if (max <= 0) return HeatmapData.Empty;
+
+        var result = new List<HeatRow>(rows.Count);
+        var peakName = string.Empty;
+        var peakHour = 0;
+        var peakValue = 0d;
+
+        foreach (var (name, values) in rows)
+        {
+            var label = ShortenName(name);
+            var cells = new List<HeatCell>(24);
+            for (var hour = 0; hour < 24; hour++)
+            {
+                var value = values[hour];
+                cells.Add(new HeatCell
+                {
+                    Value = value,
+                    Tip = $"{name} {hour:00}:00 · {InsightBuilder.FormatDuration(value)}"
+                });
+
+                if (value <= peakValue) continue;
+                peakValue = value;
+                peakHour = hour;
+                peakName = name;
+            }
+
+            result.Add(new HeatRow { Label = label, Cells = cells });
+        }
+
+        return new HeatmapData
+        {
+            Rows = result,
+            ColumnLabels = Enumerable.Range(0, 24).Select(i => i.ToString()).ToArray(),
+            Caption = isWeb ? ResourceStrings.InsightHeatmapBySite : ResourceStrings.InsightHeatmapByApp,
+            PeakText = $"{peakName} {peakHour:00}:00 · {InsightBuilder.FormatDuration(peakValue)}",
+            MaxValue = max
+        };
+    }
+
+    /// <summary>热力图左侧行名只有窄窄一列，长的应用名截断，免得压到格子上</summary>
+    private static string ShortenName(string name, int max = 7)
+    {
+        if (string.IsNullOrEmpty(name) || name.Length <= max) return name;
+        return string.Concat(name.AsSpan(0, max), "…");
+    }
+
+    /// <summary>星期 × 小时：作息地图</summary>
+    private static HeatmapData BuildWeekHourHeatmap(IReadOnlyList<(DateTime Start, DateTime End)> spans,
+        DateTime rangeStart, DateTime rangeEnd)
+    {
+        var grid = InsightBuilder.WeekHourGrid(spans, rangeStart, rangeEnd);
+        var max = InsightBuilder.Max(grid);
+        if (max <= 0) return HeatmapData.Empty;
+
+        var rows = new List<HeatRow>(7);
+        var peakLabel = string.Empty;
+        var peakValue = 0d;
+
+        for (var row = 0; row < 7; row++)
+        {
+            var weekday = WeekdayName(row);
+            var cells = new List<HeatCell>(24);
+            for (var hour = 0; hour < 24; hour++)
+            {
+                var value = grid[row, hour];
+                cells.Add(new HeatCell
+                {
+                    Value = value,
+                    Tip = $"{weekday} {hour:00}:00 · {InsightBuilder.FormatDuration(value)}"
+                });
+
+                if (value <= peakValue) continue;
+                peakValue = value;
+                peakLabel = $"{weekday} {hour:00}:00";
+            }
+
+            rows.Add(new HeatRow { Label = weekday, Cells = cells });
+        }
+
+        return new HeatmapData
+        {
+            Rows = rows,
+            ColumnLabels = Enumerable.Range(0, 24).Select(i => i.ToString()).ToArray(),
+            Caption = ResourceStrings.InsightHeatmapByWeekday,
+            PeakText = $"{peakLabel} · {InsightBuilder.FormatDuration(peakValue)}",
+            MaxValue = max
+        };
+    }
+
+    /// <summary>月份 × 日期：一年的日历热力</summary>
+    private static HeatmapData BuildMonthDayHeatmap(IReadOnlyList<(DateTime Start, DateTime End)> spans,
+        DateTime rangeStart, DateTime rangeEnd)
+    {
+        var grid = InsightBuilder.MonthDayGrid(spans, rangeStart, rangeEnd);
+        var max = InsightBuilder.Max(grid);
+        if (max <= 0) return HeatmapData.Empty;
+
+        var rows = new List<HeatRow>(12);
+        var peakLabel = string.Empty;
+        var peakValue = 0d;
+
+        for (var month = 0; month < 12; month++)
+        {
+            var name = MonthName(month);
+            var cells = new List<HeatCell>(31);
+            for (var day = 0; day < 31; day++)
+            {
+                var value = grid[month, day];
+                cells.Add(new HeatCell
+                {
+                    Value = value,
+                    Tip = $"{name}{day + 1}日 · {InsightBuilder.FormatDuration(value)}"
+                });
+
+                if (value <= peakValue) continue;
+                peakValue = value;
+                peakLabel = $"{name}{day + 1}日";
+            }
+
+            rows.Add(new HeatRow { Label = name, Cells = cells });
+        }
+
+        return new HeatmapData
+        {
+            Rows = rows,
+            ColumnLabels = Enumerable.Range(1, 31).Select(i => i.ToString()).ToArray(),
+            Caption = ResourceStrings.InsightHeatmapByMonth,
+            PeakText = $"{peakLabel} · {InsightBuilder.FormatDuration(peakValue)}",
+            MaxValue = max
+        };
+    }
+
+    #endregion
+
+    /// <summary>会话 / 浏览记录统一成「本地时间片段 + 名称」，热力图和使用习惯共用</summary>
+    private async Task<IReadOnlyList<(DateTime Start, DateTime End, string Name)>> GetSpansAsync(
+        DateTime start, DateTime end, bool isWeb, CancellationToken ct)
+    {
+        if (isWeb)
+        {
+            var logs = await GetBrowseLogsCachedAsync(start, end, ct);
+            return logs
+                .Select(log =>
+                {
+                    var logStart = ToLocal(log.LogTime);
+                    var name = log.Site?.Title ?? log.Site?.Domain ?? string.Empty;
+                    return (Start: logStart, End: logStart.AddSeconds(Math.Max(1, log.Duration)), Name: name);
+                })
+                .Where(x => x.End > x.Start)
+                .ToList();
+        }
+
+        var sessions = await GetSessionsCachedAsync(start, end, ct);
+        return sessions
+            .Select(session => (Start: ToLocal(session.StartTime), End: ToLocal(session.EndTime),
+                Name: session.AppModel?.GetDisplayName() ?? string.Empty))
+            .Where(x => x.End > x.Start)
+            .ToList();
+    }
+
+    private async Task<List<AppSessionModel>> GetSessionsCachedAsync(DateTime start, DateTime end,
+        CancellationToken ct)
+    {
+        if (_sessionCache != null && _sessionCacheStart == start && _sessionCacheEnd == end)
+            return _sessionCache;
+
+        var list = (await _dataService.GetAppSessionsAsync(start, end, ct)).ToList();
+        _sessionCacheStart = start;
+        _sessionCacheEnd = end;
+        _sessionCache = list;
+        return list;
+    }
+
+    private async Task<List<WebBrowseLogModel>> GetBrowseLogsCachedAsync(DateTime start, DateTime end,
+        CancellationToken ct)
+    {
+        if (_browseCache != null && _browseCacheStart == start && _browseCacheEnd == end)
+            return _browseCache;
+
+        var list = (await _webDataService.GetBrowseLogListAsync(start, end, cancellationToken: ct)).ToList();
+        _browseCacheStart = start;
+        _browseCacheEnd = end;
+        _browseCache = list;
+        return list;
     }
 
     #endregion

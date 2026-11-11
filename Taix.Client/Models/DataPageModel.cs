@@ -39,8 +39,15 @@ public partial class DataPageModel : ModelBase
     public new SelectItemModel ShowType
     {
         get => base.ShowType;
-        set => base.ShowType = value;
+        set
+        {
+            base.ShowType = value;
+            OnPropertyChanged(nameof(IsAppDimension));
+        }
     }
+
+    /// <summary>应用维度（有表盘）/ 网站维度（没有表盘，榜单占满整行）</summary>
+    public bool IsAppDimension => ShowType?.Id == 0;
 
     #region 环形时钟
 
@@ -102,6 +109,68 @@ public partial class DataPageModel : ModelBase
         new() { Id = 0, Name = ResourceStrings.TimelineAppColor },
         new() { Id = 1, Name = ResourceStrings.TimelineCategoryColor }
     ];
+
+    #endregion
+
+    #region 看板
+
+    private DataPageInsight _dayInsight = DataPageInsight.Empty;
+    [PageState(DataCache = true)]
+    public DataPageInsight DayInsight
+    {
+        get => _dayInsight;
+        set { _dayInsight = value; OnPropertyChanged(); }
+    }
+
+    private DataPageInsight _weekInsight = DataPageInsight.Empty;
+    [PageState(DataCache = true)]
+    public DataPageInsight WeekInsight
+    {
+        get => _weekInsight;
+        set { _weekInsight = value; OnPropertyChanged(); }
+    }
+
+    private DataPageInsight _monthInsight = DataPageInsight.Empty;
+    [PageState(DataCache = true)]
+    public DataPageInsight MonthInsight
+    {
+        get => _monthInsight;
+        set { _monthInsight = value; OnPropertyChanged(); }
+    }
+
+    private DataPageInsight _yearInsight = DataPageInsight.Empty;
+    [PageState(DataCache = true)]
+    public DataPageInsight YearInsight
+    {
+        get => _yearInsight;
+        set { _yearInsight = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>
+    /// 当前周期的看板：四个周期的数据各自缓存，这里只指向当前那份，
+    /// 免得 XAML 里把同一套面板写四遍
+    /// </summary>
+    private DataPageInsight _currentInsight = DataPageInsight.Empty;
+    public DataPageInsight CurrentInsight
+    {
+        get => _currentInsight;
+        set { _currentInsight = value; OnPropertyChanged(); }
+    }
+
+    /// <summary>窗口够不够大（太小就把右侧洞察栏和底部柱图藏掉，保证表盘还有地方）</summary>
+    private bool _isInsightVisible = true;
+    public bool IsInsightVisible
+    {
+        get => _isInsightVisible;
+        set { _isInsightVisible = value; OnPropertyChanged(); }
+    }
+
+    private bool _isDistributionVisible = true;
+    public bool IsDistributionVisible
+    {
+        get => _isDistributionVisible;
+        set { _isDistributionVisible = value; OnPropertyChanged(); }
+    }
 
     #endregion
 

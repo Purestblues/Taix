@@ -180,6 +180,46 @@ public static class ResourceStrings
     public static string Days => GetStringValue("Days");
     public static string Custom => GetStringValue("Custom");
 
+    // 详细页看板
+    public static string InsightApps => GetStringValue("InsightApps");
+    public static string InsightSites => GetStringValue("InsightSites");
+    public static string InsightPages => GetStringValue("InsightPages");
+    public static string InsightSessions => GetStringValue("InsightSessions");
+    public static string InsightAverageSession => GetStringValue("InsightAverageSession");
+    public static string InsightLongest => GetStringValue("InsightLongest");
+    public static string InsightRecords => GetStringValue("InsightRecords");
+    public static string InsightLongestRecord => GetStringValue("InsightLongestRecord");
+    public static string InsightFirstUse => GetStringValue("InsightFirstUse");
+    public static string InsightLastUse => GetStringValue("InsightLastUse");
+    public static string InsightFirstBrowse => GetStringValue("InsightFirstBrowse");
+    public static string InsightLastBrowse => GetStringValue("InsightLastBrowse");
+    public static string InsightPeakHour => GetStringValue("InsightPeakHour");
+    public static string InsightActiveHours => GetStringValue("InsightActiveHours");
+    public static string InsightActiveMonths => GetStringValue("InsightActiveMonths");
+    public static string InsightBands => GetStringValue("InsightBands");
+    public static string InsightBandDawn => GetStringValue("InsightBandDawn");
+    public static string InsightBandMorning => GetStringValue("InsightBandMorning");
+    public static string InsightBandAfternoon => GetStringValue("InsightBandAfternoon");
+    public static string InsightBandEvening => GetStringValue("InsightBandEvening");
+    public static string InsightHabits => GetStringValue("InsightHabits");
+    public static string InsightHeatmap => GetStringValue("InsightHeatmap");
+    public static string InsightHeatmapByApp => GetStringValue("InsightHeatmapByApp");
+    public static string InsightHeatmapBySite => GetStringValue("InsightHeatmapBySite");
+    public static string InsightHeatmapByWeekday => GetStringValue("InsightHeatmapByWeekday");
+    public static string InsightHeatmapByMonth => GetStringValue("InsightHeatmapByMonth");
+    public static string InsightHeatmapByCalendar => GetStringValue("InsightHeatmapByCalendar");
+    public static string InsightWeekOfMonth => GetStringValue("InsightWeekOfMonth");
+    public static string InsightCategoryShare => GetStringValue("InsightCategoryShare");
+    public static string InsightDistribution => GetStringValue("InsightDistribution");
+    public static string InsightVsYesterday => GetStringValue("InsightVsYesterday");
+    public static string InsightVsLastWeek => GetStringValue("InsightVsLastWeek");
+    public static string InsightVsLastMonth => GetStringValue("InsightVsLastMonth");
+    public static string InsightVsLastYear => GetStringValue("InsightVsLastYear");
+    public static string InsightCompareYesterday => GetStringValue("InsightCompareYesterday");
+    public static string InsightCompareLastWeek => GetStringValue("InsightCompareLastWeek");
+    public static string InsightCompareLastMonth => GetStringValue("InsightCompareLastMonth");
+    public static string InsightCompareLastYear => GetStringValue("InsightCompareLastYear");
+
     private static string GetStringValue(string key)
     {
         if (Application.Current == null) return string.Empty;

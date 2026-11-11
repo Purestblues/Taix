@@ -395,6 +395,46 @@
     <system:String x:Key="TimelineAppColor">App</system:String>
     <system:String x:Key="TimelineCategoryColor">Category</system:String>
 
+    <!-- Detail page dashboard -->
+    <system:String x:Key="InsightApps">Apps Used</system:String>
+    <system:String x:Key="InsightSites">Sites</system:String>
+    <system:String x:Key="InsightPages">Pages</system:String>
+    <system:String x:Key="InsightSessions">Sessions</system:String>
+    <system:String x:Key="InsightAverageSession">Average</system:String>
+    <system:String x:Key="InsightLongest">Longest Session</system:String>
+    <system:String x:Key="InsightRecords">Visits</system:String>
+    <system:String x:Key="InsightLongestRecord">Longest</system:String>
+    <system:String x:Key="InsightFirstUse">First Use</system:String>
+    <system:String x:Key="InsightLastUse">Last Use</system:String>
+    <system:String x:Key="InsightFirstBrowse">First Visit</system:String>
+    <system:String x:Key="InsightLastBrowse">Last Visit</system:String>
+    <system:String x:Key="InsightPeakHour">Peak Hour</system:String>
+    <system:String x:Key="InsightActiveHours">Active Hours</system:String>
+    <system:String x:Key="InsightActiveMonths">Active Months</system:String>
+    <system:String x:Key="InsightBands">Time of Day</system:String>
+    <system:String x:Key="InsightBandDawn">Night</system:String>
+    <system:String x:Key="InsightBandMorning">Morning</system:String>
+    <system:String x:Key="InsightBandAfternoon">Afternoon</system:String>
+    <system:String x:Key="InsightBandEvening">Evening</system:String>
+    <system:String x:Key="InsightHabits">Usage Habits</system:String>
+    <system:String x:Key="InsightHeatmap">Usage Heatmap</system:String>
+    <system:String x:Key="InsightHeatmapByApp">Rows: top apps · Columns: hour</system:String>
+    <system:String x:Key="InsightHeatmapBySite">Rows: top sites · Columns: hour</system:String>
+    <system:String x:Key="InsightHeatmapByWeekday">Rows: weekday · Columns: hour</system:String>
+    <system:String x:Key="InsightHeatmapByMonth">Rows: month · Columns: day</system:String>
+    <system:String x:Key="InsightHeatmapByCalendar">Rows: week · Columns: weekday</system:String>
+    <system:String x:Key="InsightWeekOfMonth">W{0}</system:String>
+    <system:String x:Key="InsightCategoryShare">Category Share</system:String>
+    <system:String x:Key="InsightDistribution">Time Distribution</system:String>
+    <system:String x:Key="InsightVsYesterday">vs yesterday</system:String>
+    <system:String x:Key="InsightVsLastWeek">vs last week</system:String>
+    <system:String x:Key="InsightVsLastMonth">vs last month</system:String>
+    <system:String x:Key="InsightVsLastYear">vs last year</system:String>
+    <system:String x:Key="InsightCompareYesterday">Faint bar = yesterday</system:String>
+    <system:String x:Key="InsightCompareLastWeek">Faint bar = last week</system:String>
+    <system:String x:Key="InsightCompareLastMonth">Faint bar = last month</system:String>
+    <system:String x:Key="InsightCompareLastYear">Faint bar = last year</system:String>
+
     <!-- Sleep detection config -->
     <system:String x:Key="InactiveThreshold">Inactive Threshold</system:String>
     <system:String x:Key="InactiveThresholdDesc">How long before idle system pauses tracking, restart monitor process to apply</system:String>

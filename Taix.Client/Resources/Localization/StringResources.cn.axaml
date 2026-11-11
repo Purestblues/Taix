@@ -409,6 +409,46 @@
     <system:String x:Key="TimelineAppColor">应用</system:String>
     <system:String x:Key="TimelineCategoryColor">分类</system:String>
 
+    <!-- 详细页看板 -->
+    <system:String x:Key="InsightApps">使用应用</system:String>
+    <system:String x:Key="InsightSites">访问站点</system:String>
+    <system:String x:Key="InsightPages">访问网页</system:String>
+    <system:String x:Key="InsightSessions">会话次数</system:String>
+    <system:String x:Key="InsightAverageSession">平均</system:String>
+    <system:String x:Key="InsightLongest">最长单次</system:String>
+    <system:String x:Key="InsightRecords">浏览记录</system:String>
+    <system:String x:Key="InsightLongestRecord">最长</system:String>
+    <system:String x:Key="InsightFirstUse">首次使用</system:String>
+    <system:String x:Key="InsightLastUse">末次使用</system:String>
+    <system:String x:Key="InsightFirstBrowse">首次浏览</system:String>
+    <system:String x:Key="InsightLastBrowse">末次浏览</system:String>
+    <system:String x:Key="InsightPeakHour">峰值时段</system:String>
+    <system:String x:Key="InsightActiveHours">活跃小时</system:String>
+    <system:String x:Key="InsightActiveMonths">活跃月份</system:String>
+    <system:String x:Key="InsightBands">时段偏好</system:String>
+    <system:String x:Key="InsightBandDawn">凌晨</system:String>
+    <system:String x:Key="InsightBandMorning">上午</system:String>
+    <system:String x:Key="InsightBandAfternoon">下午</system:String>
+    <system:String x:Key="InsightBandEvening">晚上</system:String>
+    <system:String x:Key="InsightHabits">使用习惯</system:String>
+    <system:String x:Key="InsightHeatmap">使用热力</system:String>
+    <system:String x:Key="InsightHeatmapByApp">行＝主要应用 · 列＝小时</system:String>
+    <system:String x:Key="InsightHeatmapBySite">行＝主要站点 · 列＝小时</system:String>
+    <system:String x:Key="InsightHeatmapByWeekday">行＝星期 · 列＝小时</system:String>
+    <system:String x:Key="InsightHeatmapByMonth">行＝月份 · 列＝日期</system:String>
+    <system:String x:Key="InsightHeatmapByCalendar">行＝周 · 列＝星期</system:String>
+    <system:String x:Key="InsightWeekOfMonth">第{0}周</system:String>
+    <system:String x:Key="InsightCategoryShare">分类占比</system:String>
+    <system:String x:Key="InsightDistribution">时段分布</system:String>
+    <system:String x:Key="InsightVsYesterday">比昨日</system:String>
+    <system:String x:Key="InsightVsLastWeek">比上周</system:String>
+    <system:String x:Key="InsightVsLastMonth">比上月</system:String>
+    <system:String x:Key="InsightVsLastYear">比去年</system:String>
+    <system:String x:Key="InsightCompareYesterday">浅色为昨日</system:String>
+    <system:String x:Key="InsightCompareLastWeek">浅色为上周</system:String>
+    <system:String x:Key="InsightCompareLastMonth">浅色为上月</system:String>
+    <system:String x:Key="InsightCompareLastYear">浅色为去年</system:String>
+
     <!-- 睡眠检测配置 -->
     <system:String x:Key="InactiveThreshold">空闲阈值</system:String>
     <system:String x:Key="InactiveThresholdDesc">系统无操作多久后自动暂停统计，重启 monitor 进程生效</system:String>
