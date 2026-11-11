@@ -1,51 +1,59 @@
 # v{version} 更新日志
 
-> 本版本基于上游 [NLick47/Taix](https://github.com/NLick47/Taix) v1.3.4，是个人修改版（fork）。
-> **这一版只做一件事：改名。** Taix → 时见 / ShiJian，代码标识、安装标识、数据目录一次性换掉，
-> 历史数据自动迁移，功能与上一版（fork.5）完全一致。
+> 本版本基于上游 [NLick47/Taix](https://github.com/NLick47/Taix) v1.3.4 的个人 fork，接在 `fork.6`（改名）之后。
+> **这一版只动外观与动效，功能与数据口径与 fork.6 完全一致。**
+> 视觉与动效的目标来自开源项目 [Super Productivity](https://github.com/johannesjo/super-productivity)。
 
 ## 主要变化
 
-- **改名：Taix → 时见 / ShiJian**
-  - 中文界面显示「时见」，英文界面显示 ShiJian；程序、目录、crate、命名空间统一为 `ShiJian` / `shijian-*`
-  - 安装目录：`…\Taix` → `…\ShiJian`（Setup 里仍可自选）
-  - macOS 数据目录：`~/Library/Application Support/Taix` → `…/ShiJian`
-  - 计划任务 / LaunchAgent：`TaixShell` / `com.taix.shell` → `ShiJianShell` / `com.shijian.shell`
-  - 环境变量：`TAIX_SERVER` / `TAIX_LOG_DIR` → `SHIJIAN_SERVER` / `SHIJIAN_LOG_DIR`
-  - 端口不变（HTTP 37091 / 扩展 WS 8908），插件通信不受影响
-  - **仓库也改名**：`Purestblues/Taix` → [Purestblues/shijian](https://github.com/Purestblues/shijian)（旧地址会 301 重定向）
+- **视觉体系：卡片换成「8px 圆角 + 1px 发丝边 + 零阴影」**
+  - 原来各页卡片圆角 10/12/14/16 混用、多数没有边框、靠深灰色块分层次；现在统一为一套语汇
+  - 共整理 8 个页面 29 个卡片容器（统计 / 分类 / 分类汇总 / 详细 / 应用详情 / 网站详情 / 设置 / 搜索结果）
+  - 阴影只留给真正浮起来的层（弹窗、浮层），卡片静置零阴影
 
-- **历史数据自动迁移，不会丢**
-  - Windows：Setup 在装之前先停掉旧进程、摘掉旧自启动项，再把旧安装目录的 `Data/` 合并进新目录
-    （只补不覆盖，目标里已有的文件不动）
-  - macOS：server 启动时把 `Application Support/Taix`、`Library/Logs/Taix`、`Library/Caches/Taix`、
-    `/Applications/TaixTools` 里缺失的条目补进新名字下，并停掉旧进程与旧 LaunchAgent
-  - 旧的安装目录 / 数据目录**不会被删除**，确认新版本正常后可以自己清理
+- **明暗两套色板重做**
+  - 暗色：页面 `#131314`、卡片 `#242424`、抬升 `#333`，去掉原来的偏蓝色调
+  - 亮色：页面 `#F8F8F7`、卡片 `#FFF`——亮色刻意不用明度分层，层级靠发丝线
+  - 文字四档按对比度重排（正文不再用纯黑，次要文字保证 WCAG AA）
 
-- **应用内链接指向自己的仓库**：顺手修掉一个隐患——原来的「检查更新」指向上游 releases，
-  点下去会装回上游旧版本；现在指向 `Purestblues/shijian` 的 releases。
+- **主题色默认改为紫**
+  - 暗色用亮一档 `#C08AC9`，亮色用 `#A05DB1`；图表兜底色、焦点环、无分类时的图表色同步
+  - ⚠️ 主题色存在服务端配置里，**升级后仍是你原来的颜色**（比如蓝色）。想用新紫色请到 设置 → 主题颜色 重新选
+
+- **榜单行改成扁平行**：50px 圆角色块 → 26px 图标、名称 13px、进度条 8px → 3px、行底 1px 发丝线
+
+- **留白与氛围**：页面边距 20 → 24、滚动页底部留 64px 呼吸；内容区加两层极淡径向光晕（明暗不同参数）
+
+- **动效体系 v2（按参考项目的标尺重做）**
+  - 时长只有四档：90 / 150 / 225 / 375ms；曲线只有三条：standard / enter / leave
+  - 换页：旧页不再硬切，新页 180ms 淡入（延迟 45ms）+ 8px 上移，总计 225ms
+  - 展开 / 收起（概览「自定义」范围面板、设置页规则列表）走高度动画，不再是硬跳
+  - 界面里散落的 12 个文件过渡时长全部归一到上面四档
+
+## 修复
+
+- **换页动效其实从未生效**：Avalonia 12 移除了 `Animation.Animators`，关键帧里带 `RenderTransform` 会让整个动画在开头就抛异常并被吞掉，页面直接就位。现在位移改为逐帧插值，并且动画失败会写日志。
+- **浅色模式卡片全黑**：新增的颜色 token 只加进了暗色字典，浅色模式回落到深色值。现在两套字典都补齐。
+- **榜单进度条不显示 / 快速滚动后消失**：宽度靠代码手算，虚拟化复用行时容器尺寸不再变化，宽度永久停在 0。改为绘制时按实际宽度现算。
+- **概览卡片 hover 上浮无效**：与第一条同源（RenderTransform 不可动画），现在改为只变边框色。
+- **设置页规则列表展开 / 收起无动画**：`Expander` 的 `OnExpand()` 原本是空方法。
 
 ## 升级注意事项
 
-1. **浏览器扩展要重新加载**：扩展目录名变了（`taix-browser-extension` → `shijian-browser-extension`），
-   重新「加载已解压的扩展程序」即可。未打包扩展的 ID 会随路径变化，
-   如果你在服务端配过 Origin 白名单，需要把新的扩展来源补进去。
-2. **自己写的脚本如果用了 `TAIX_*` 环境变量**，要改成 `SHIJIAN_*`。
-3. 装完如果看到旧版本的自启动项还在（任务计划里带 `Taix` 的条目），删掉即可；
-   安装器正常情况下会自己清。
-4. 覆盖安装前建议先退出正在运行的旧版本（托盘 → 退出），
-   否则安装器会强停进程——数据库本身是安全的，只是可能丢失最后几秒的记录。
+1. 本版不带数据结构变更，直接覆盖安装即可，历史数据不需要迁移。
+2. 主题色不会自动更新（见上文），语言、动效开关等设置保持不变。
+3. 如果你之前手动改过 `app.config.cache.json` 里的颜色值，升级后会被服务端配置覆盖，属正常行为。
 
 ## 已知问题
 
 - macOS 产物仍然只验证过「能构建 + 打包成功」，没有 Apple Silicon 机器实机跑过。
-- Windows 通知中心里旧的 `Taix.Plugin` 通知记录无法清除（系统侧数据，不在本项目控制内）。
-- 目录里的旧安装残留（`…\Taix`）需要手动删，本项目不会替你删文件。
+- 设置页「忽略应用 / 忽略 URL」的折叠头没有展开箭头，点标题也没反应（只有右侧 `...` 菜单可用）。
+- 分类页信息密度偏低（150×150 方块卡，一屏 3–4 个），已排进下一版。
+- 环形时钟中心时长（会话口径）与指标卡/柱图（小时桶口径）仍可能差几分钟，属历史口径差异，未强行统一。
 
 ## 工程侧
 
-- 全量替换 629 个文本文件，15 个 `taix-*` 目录与 3 个 C# 工程目录 `git mv` 保留历史
-- `dotnet test` 66/66 通过（headless 主题加载顺带验证了 `avares://ShiJian/` 没有漏改）
-- CI 在 Windows / macOS 双平台重新走通：Rust（server / shell / monitor / plugin-sdk / installer）、
-  Swift（monitor / notify / windowkit）、Avalonia AOT、webui / 插件前端
-- 迁移逻辑新增两个模块：`shijian-server/src/legacy.rs`（macOS）、`shijian-installer/src/legacy.rs`（Windows）
+- 自动化测试 66 → **79** 例（新增换页动效 / 位移 / 展开收起各 3 例，图表 Tab 可达 4 例）
+- 新增 `Librarys/MotionTokens.cs`（动效标尺）、`PageMotion` / `SlideMotion`（换页与位移）、
+  `ExpandMotion`（高度展开）、`Controls/Base/RatioBar`（占比条）、`Themes/Base/UiKit.axaml`（全局视觉语汇）
+- 所有动效只允许引用标尺里的时长与曲线，代码里不再出现散落的裸毫秒数
