@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>应用实体模型 · 一页看懂</title>
+<style>
+  :root{
+    --bg:#f7f7f5; --panel:#ffffff; --ink:#1d1d1f; --muted:#6b6b70;
+    --line:#e3e3df; --app:#4f6bed; --site:#e0703c; --group:#2f9e6f;
+    --warn:#c9463c; --soft-app:#eef1fe; --soft-site:#fdf0e8; --soft-group:#e9f6ef;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#141416; --panel:#1c1c1f; --ink:#ececee; --muted:#9a9aa1;
+      --line:#2c2c31; --soft-app:#1e2440; --soft-site:#3a2418; --soft-group:#16301f; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.7 "Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1000px;margin:0 auto;padding:48px 24px 80px}
+  h1{font-size:30px;letter-spacing:-.02em;margin:0 0 6px}
+  h2{font-size:17px;margin:44px 0 14px;letter-spacing:.01em}
+  h2 .n{color:var(--muted);font-weight:500;margin-right:8px;font-variant-numeric:tabular-nums}
+  p{margin:0 0 12px}
+  .sub{color:var(--muted);margin-bottom:28px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px 22px}
+  .panel + .panel{margin-top:14px}
+  code{font:13px/1.5 ui-monospace,"Cascadia Mono",Consolas,monospace;
+    background:var(--soft-app);padding:1px 5px;border-radius:4px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:500;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;border:1px solid}
+  .tag.a{color:var(--app);border-color:var(--app);background:var(--soft-app)}
+  .tag.s{color:var(--site);border-color:var(--site);background:var(--soft-site)}
+  .tag.g{color:var(--group);border-color:var(--group);background:var(--soft-group)}
+
+  /* 层次图 */
+  .layers{display:grid;grid-template-columns:1fr 44px 1fr 44px 1fr;align-items:stretch;gap:0}
+  .layer{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .layer h3{font-size:13px;margin:0 0 10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+  .layer ul{margin:0;padding-left:16px;font-size:13px;color:var(--ink)}
+  .layer li{margin:5px 0}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:18px}
+  .mediator{display:flex;flex-direction:column;gap:6px;margin-top:14px;font-size:12.5px;color:var(--muted)}
+  .mediator b{color:var(--ink);font-weight:600}
+
+  /* 时间轴 */
+  .track{margin:10px 0 4px}
+  .track .label{font-size:12.5px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between}
+  .bar{position:relative;height:26px;background:var(--bg);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .seg{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;
+    font-size:11.5px;color:#fff;white-space:nowrap}
+  .seg.a{background:var(--app)}
+  .seg.s{background:var(--site)}
+  .seg.rest{background:repeating-linear-gradient(45deg,var(--soft-app),var(--soft-app) 6px,var(--panel) 6px,var(--panel) 12px);
+    color:var(--app);border-right:1px dashed var(--app)}
+  .axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px}
+
+  /* 视图对比 */
+  .views{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .view{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .view h4{margin:0 0 4px;font-size:14px}
+  .view .hint{font-size:12px;color:var(--muted);margin-bottom:12px}
+  .row{display:grid;grid-template-columns:1fr 88px;gap:10px;align-items:center;font-size:13px;margin:7px 0}
+  .meter{height:8px;border-radius:4px;background:var(--app);opacity:.85}
+  .meter.s{background:var(--site)}
+  .meter.rest{background:var(--muted);opacity:.35}
+  .val{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12.5px}
+
+  .note{font-size:13px;color:var(--muted);border-left:2px solid var(--line);padding-left:12px;margin-top:14px}
+  .kpi{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+  .kpi div{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .kpi b{display:block;font-size:20px;font-variant-numeric:tabular-nums;margin-bottom:2px}
+  .kpi span{font-size:12px;color:var(--muted)}
+  @media (max-width:820px){
+    .layers{grid-template-columns:1fr}
+    .arrow{height:26px;transform:rotate(90deg)}
+    .views{grid-template-columns:1fr}
+    .kpi{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>应用实体模型</h1>
+  <div class="sub">一页看懂：屏幕上的一段时间，怎么被认成「一个东西」。2026-11-11 定稿 · 未实现</div>
+
+  <div class="kpi">
+    <div><b>3</b><span>种实体：应用 / 网站 / 合并组</span></div>
+    <div><b>2</b><span>套分类命名空间（互不相干）</span></div>
+    <div><b>1</b><span>条守恒：总额两种视图都不变</span></div>
+  </div>
+
+  <h2><span class="n">01</span>三个层次：数据不进实体层，视图不改数据</h2>
+  <div class="layers">
+    <div class="layer">
+      <h3>原始数据表</h3>
+      <ul>
+        <li><code>AppModels</code><br>Name 是身份，File 是路径</li>
+        <li><code>AppSessions</code><br>会话区间（UTC）</li>
+        <li><code>HoursLog / DailyLog</code><br>应用 × 小时 / 天</li>
+        <li><code>WebSiteModels</code><br>Domain 是身份</li>
+        <li><code>WebBrowseLogModels</code><br>单次访问 + Duration</li>
+      </ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="layer">
+      <h3>实体层（新增）</h3>
+      <ul>
+        <li><span class="tag a">应用实体</span> app:{ID}</li>
+        <li><span class="tag s">网站实体</span> site:{ID}</li>
+        <li><span class="tag g">合并组</span> grp:{ID}</li>
+        <li style="margin-top:10px">合并 = <b>视图期映射</b><br>不写回任何表</li>
+      </ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="layer">
+      <h3>视图</h3>
+      <ul>
+        <li>统一实体表（默认）<br>站点独立成行</li>
+        <li>网站并入浏览器（开关）<br>站点折回浏览器</li>
+        <li>分类 / 应用 两种视图</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">合并组是可逆的映射层：拆开后成员自动回到自己的分类，因为它自身的 <code>CategoryID</code> 从来没被改过。</div>
+
+  <h2><span class="n">02</span>核心难题：浏览器和网站是同一段时间的两次记录</h2>
+  <div class="panel">
+    <div class="track">
+      <div class="label"><span>Chrome 的 AppSessions</span><span>60 分钟</span></div>
+      <div class="bar"><div class="seg a" style="left:0;width:100%">chrome.exe</div></div>
+    </div>
+    <div class="track">
+      <div class="label"><span>bilibili 的浏览记录</span><span>40 分钟</span></div>
+      <div class="bar"><div class="seg s" style="left:8%;width:67%">bilibili.com</div></div>
+      <div class="axis"><span>09:00</span><span>10:00</span></div>
+    </div>
+    <p class="note" style="margin-top:16px">直接相加会把这 40 分钟算两遍。今天靠「应用 / 网站」切换器回避矛盾；合成一张表就必须先扣减。</p>
+  </div>
+
+  <h2><span class="n">03</span>扣减后：浏览器只剩余额，差额有名字</h2>
+  <div class="panel">
+    <div class="track">
+      <div class="label"><span>现状（未扣减）</span><span>100 分钟</span></div>
+      <div class="bar"><div class="seg a" style="left:0;width:60%">Chrome 60 分钟</div><div class="seg s" style="left:60%;width:40%">bilibili 40（重复）</div></div>
+    </div>
+    <div class="track" style="margin-top:14px">
+      <div class="label"><span>扣减后（统一实体表）</span><span>60 分钟</span></div>
+      <div class="bar">
+        <div class="seg s" style="left:0;width:40%">bilibili 40</div>
+        <div class="seg rest" style="left:40%;width:20%">其他页面 20</div>
+      </div>
+    </div>
+    <p class="note">新标签页、没收录的域名、扩展没上报的页面 → 一行「浏览器内其他页面」。它必须存在，否则那几分钟就从总额里凭空消失了。</p>
+  </div>
+
+  <h2><span class="n">04</span>两种视图，总额一样</h2>
+  <div class="views">
+    <div class="view">
+      <h4>默认 · 统一实体表</h4>
+      <div class="hint">站点等同应用实体，独立成行</div>
+      <div class="row"><span>bilibili</span><div class="meter s" style="width:75%"></div><div class="val">3h · 27%</div></div>
+      <div class="row"><span>ChatGPT 网页</span><div class="meter s" style="width:75%"></div><div class="val">3h · 27%</div></div>
+      <div class="row"><span>Word</span><div class="meter a" style="width:100%"></div><div class="val">4h · 36%</div></div>
+      <div class="row"><span>浏览器内其他页面</span><div class="meter rest" style="width:25%"></div><div class="val">1h · 9%</div></div>
+      <div class="row" style="border-top:1px solid var(--line);padding-top:8px"><span><b>合计</b></span><div></div><div class="val"><b>11h · 100%</b></div></div>
+    </div>
+    <div class="view">
+      <h4>开关打开 · 网站并入浏览器</h4>
+      <div class="hint">站点折回浏览器，差额并进去</div>
+      <div class="row"><span>Chrome（真实活跃 7h）</span><div class="meter a" style="width:100%"></div><div class="val">7h · 64%</div></div>
+      <div class="row"><span>Word</span><div class="meter a" style="width:57%"></div><div class="val">4h · 36%</div></div>
+      <div class="row"><span></span><div></div><div class="val"></div></div>
+      <div class="row"><span></span><div></div><div class="val"></div></div>
+      <div class="row" style="border-top:1px solid var(--line);padding-top:8px"><span><b>合计</b></span><div></div><div class="val"><b>11h · 100%</b></div></div>
+    </div>
+  </div>
+  <div class="note">开关改的是「浏览器行有多大」，不是总额。占比分母恒为实体总时长，两种视图都是 100%。</div>
+
+  <h2><span class="n">05</span>合并组：自动判定 + 可逆拆解</h2>
+  <div class="panel">
+    <table>
+      <tr><th>判定输入</th><th>规则</th><th>结果</th></tr>
+      <tr><td>Windows：exe 路径 + <code>Publisher</code></td><td>同目录同发布者 → 候选组</td><td rowspan="3">主成员 = 组内时长最长者<br>组名可改，成员可拆<br>解散过的组不再重建</td></tr>
+      <tr><td>macOS：bundle id</td><td>同 bundle 前缀 → 候选组</td></tr>
+      <tr><td>跨源（网页版 ↔ 客户端）</td><td><b>仅手动</b>绑定，不做语义猜测</td></tr>
+    </table>
+    <p class="note" style="margin-top:16px">分类：组跟母成员走，成员自己的分类一行不改 —— 拆分后它自动回到原分类，这就是「保留原有标签」在单值分类模型下的落地。</p>
+  </div>
+
+  <h2><span class="n">06</span>验收线</h2>
+  <div class="panel">
+    <table>
+      <tr><th>不变式</th><th>含义</th></tr>
+      <tr><td>守恒</td><td><code>Σ 实体时长 = Σ 应用总时长</code>，两种视图都成立</td></tr>
+      <tr><td>可逆</td><td>合并 / 拆分 / 开关来十次，原始表一字未变</td></tr>
+      <tr><td>可下钻</td><td>每一行都能点进详情；组合实体先列成员</td></tr>
+      <tr><td>身份不变</td><td>改别名、改标题、换图标都不影响归属</td></tr>
+      <tr><td>差额可见</td><td>为 0 隐藏，不为 0 必须有一行说明它是什么</td></tr>
+    </table>
+  </div>
+
+  <p class="note" style="margin-top:40px">完整定义、schema 增量与实现顺序见 <code>docs/ENTITY-MODEL.md</code>。待决策 3 项：浏览器标识粒度、默认浏览器怎么定、合并排序放服务端还是客户端。</p>
+
+</div>
+</body>
+</html>
