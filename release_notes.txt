@@ -1,99 +1,51 @@
 # v{version} 更新日志
 
 > 本版本基于上游 [NLick47/Taix](https://github.com/NLick47/Taix) v1.3.4，是个人修改版（fork）。
-> 这一版把「详细」页从「一个大表盘 + 一个榜单」做成了数据看板：加了指标准、时段对比、使用习惯、
-> 热力图和分类占比，并把网站维度的空白补上。
+> **这一版只做一件事：改名。** Taix → 时见 / ShiJian，代码标识、安装标识、数据目录一次性换掉，
+> 历史数据自动迁移，功能与上一版（fork.5）完全一致。
 
 ## 主要变化
 
-- **详细页加数据看板**（日 / 周 / 月 / 年 × 应用 / 网站都生效）
-  - 顶部四张指标卡：总使用时长、应用数（网站维度为站点数）、会话次数（网站维度为浏览记录）、
-    最长单次；前两项带「比昨日 / 上周 / 上月 / 去年」的环比
-  - 时段分布柱图：日 = 24 小时、周 = 7 天、月 = 当月每天、年 = 12 个月，
-    叠「上一周期」的淡色对比柱，右侧标注本期合计与对比口径
-  - 使用习惯：首次 / 末次使用（网站为浏览）、峰值时段、活跃小时·天数·月份，
-    以及「凌晨 / 上午 / 下午 / 晚上」四段偏好条
-  - 使用热力：日 = 主要应用 / 站点 × 小时、周 = 星期 × 小时、月 = 日历热力（周 × 星期）、
-    年 = 月 × 日；悬停看具体时长，右上角标出峰值
-  - 分类占比：环形图 + 前 6 类，其余归入「其他」；网站维度走网站分类体系
-- **表盘放大**：环形时钟从 470 缩到 420 上限后，随窗口实际高度自适应，观感比原来紧凑
-- **网站维度不再是「右边一个列表、左边全空」**：周 / 月 / 年切到网站后榜单铺满整行并居中，
-  日视图也恢复了列表视图
-- **响应式**：窗口宽度 < 1080 自动收起右侧洞察栏，高度 < 660 收起底部柱图，
-  最小窗口（860×553）下仍然是「指标卡 + 表盘」的清爽样子
+- **改名：Taix → 时见 / ShiJian**
+  - 中文界面显示「时见」，英文界面显示 ShiJian；程序、目录、crate、命名空间统一为 `ShiJian` / `shijian-*`
+  - 安装目录：`…\Taix` → `…\ShiJian`（Setup 里仍可自选）
+  - macOS 数据目录：`~/Library/Application Support/Taix` → `…/ShiJian`
+  - 计划任务 / LaunchAgent：`TaixShell` / `com.taix.shell` → `ShiJianShell` / `com.shijian.shell`
+  - 环境变量：`TAIX_SERVER` / `TAIX_LOG_DIR` → `SHIJIAN_SERVER` / `SHIJIAN_LOG_DIR`
+  - 端口不变（HTTP 37091 / 扩展 WS 8908），插件通信不受影响
+  - **仓库也改名**：`Purestblues/Taix` → [Purestblues/shijian](https://github.com/Purestblues/shijian)（旧地址会 301 重定向）
 
-## 优化与修复
+- **历史数据自动迁移，不会丢**
+  - Windows：Setup 在装之前先停掉旧进程、摘掉旧自启动项，再把旧安装目录的 `Data/` 合并进新目录
+    （只补不覆盖，目标里已有的文件不动）
+  - macOS：server 启动时把 `Application Support/Taix`、`Library/Logs/Taix`、`Library/Caches/Taix`、
+    `/Applications/TaixTools` 里缺失的条目补进新名字下，并停掉旧进程与旧 LaunchAgent
+  - 旧的安装目录 / 数据目录**不会被删除**，确认新版本正常后可以自己清理
 
-- 新增纯计算层 `Librarys/InsightBuilder`（时间切片、星期 / 月日网格、会话汇总、环比、时段分段），
-  自带 18 个单测，`Taix.Tests` 用例数 48 → 66
-- 新增自绘控件 `Controls/Charts/HeatGrid`：行数少时格子不拉长、日历模式画成方块、
-  非当月格子留空且不响应悬停
-- 详细页的会话 / 浏览记录请求做了单槽缓存：一次加载里表盘和看板共用同一段区间，不会重复拉取
-- 看板只算当前选中的周期；切应用 / 网站时不会顺带给四个周期都算一遍
+- **应用内链接指向自己的仓库**：顺手修掉一个隐患——原来的「检查更新」指向上游 releases，
+  点下去会装回上游旧版本；现在指向 `Purestblues/shijian` 的 releases。
+
+## 升级注意事项
+
+1. **浏览器扩展要重新加载**：扩展目录名变了（`taix-browser-extension` → `shijian-browser-extension`），
+   重新「加载已解压的扩展程序」即可。未打包扩展的 ID 会随路径变化，
+   如果你在服务端配过 Origin 白名单，需要把新的扩展来源补进去。
+2. **自己写的脚本如果用了 `TAIX_*` 环境变量**，要改成 `SHIJIAN_*`。
+3. 装完如果看到旧版本的自启动项还在（任务计划里带 `Taix` 的条目），删掉即可；
+   安装器正常情况下会自己清。
+4. 覆盖安装前建议先退出正在运行的旧版本（托盘 → 退出），
+   否则安装器会强停进程——数据库本身是安全的，只是可能丢失最后几秒的记录。
 
 ## 已知问题
 
-- 口径差异：环形时钟中心的时长按「会话」统计，指标卡 / 柱图 / 占比按「小时桶」统计，
-  两者可能差几分钟（会话合并会把间隔 ≤60 秒的碎片并进去）
-- 自绘图表还不能用 `Tab` 直接走到（鼠标点一下即可获得焦点，之后方向键、Enter 正常）
-- macOS 产物仍未做真机验证，只验证过「能构建」
+- macOS 产物仍然只验证过「能构建 + 打包成功」，没有 Apple Silicon 机器实机跑过。
+- Windows 通知中心里旧的 `Taix.Plugin` 通知记录无法清除（系统侧数据，不在本项目控制内）。
+- 目录里的旧安装残留（`…\Taix`）需要手动删，本项目不会替你删文件。
 
-## 下载与安装
+## 工程侧
 
-本次发布提供以下产物，按需选择
-
-| 产物 | 文件名 | 适用场景 |
-| --- | --- | --- |
-| Windows 安装器 | `Taix-{version}-Setup.exe` | 推荐普通用户使用 |
-| Windows 绿色版 | `Taix-{version}-win-x64.zip` | 便携使用，需手动执行脚本注册开机自启（任务计划）服务 |
-| macOS | `Taix-{version}-macos-arm64.dmg` | Apple Silicon 设备，macOS 12.0+ |
-
-### Windows 安装器（推荐）
-
-1. 下载 `Taix-{version}-Setup.exe`
-2. 双击运行，按引导完成安装
-3. 安装器会自动注册服务并启动，无需手动操作
-
-> 💡 **从绿色版切换到安装器**：若想从绿色版切换到安装器，只需指定安装器的安装目录为绿色版 exe 文件所在的文件夹，安装器会自动完成服务停止和文件替换
-
-### Windows 绿色版
-
-1. 下载并解压 `Taix-{version}-win-x64.zip` 到任意目录（建议非系统盘）
-2. 以**管理员身份**打开 PowerShell，进入解压目录
-3. 运行 `install.ps1` 完成服务注册（脚本成功后会自动启动相关服务）
-4. 卸载时同样以管理员身份运行 `uninstall.ps1`
-
-> ⚠️ **重要**：`install.ps1` 会创建任务计划并指向当前解压目录，因此绿色版**安装后请勿移动或重命名该目录**，否则任务计划指向的路径失效将导致开机自启失败。若必须迁移位置，将整个目录移动到新位置后，直接在新目录重新运行 `install.ps1` 即可（脚本会强制覆盖原任务计划并刷新指向路径）
-
-> 绿色版升级：若从 1.2.0 及之后版本升级，可解压后直接替换 exe；若更换了安装目录，在新目录运行 `install.ps1` 即可覆盖注册，请保留原图标目录与数据目录
-
-### macOS
-
-DMG 内含 `Taix.app`（客户端）和 `TaixTools/`（后台服务 + 安装脚本），两者都需要部署
-
-1. **清除隔离标记**：
-   ```bash
-   xattr -dr com.apple.quarantine ~/Downloads/Taix-{version}-macos-arm64.dmg
-   ```
-2. 将 `Taix.app` 和 `TaixTools` 一起拖入 `Applications`
-3. 终端运行 `/Applications/TaixTools/install-launchagent.sh` 注册后台服务
-4. 启动 `Taix.app`
-
-跳过第 1 步的补救：启动被拦截时右键 Taix.app → 「打开」→ 弹窗中确认，或到「系统设置 → 隐私与安全性」点击「仍要打开」。每次重新下载新版 DMG 都会重新带上隔离标记，更新时需再次执行第 1 步。
-
-卸载运行 `/Applications/TaixTools/uninstall.sh`
-
-
-## 注意事项
-
-**1. 从上游版本升级**
-
-本版数据目录、配置格式与上游 v1.3.4 完全一致，可以直接覆盖安装，原有统计数据和分类不会丢。但**建议先备份 `<安装目录>\Data\data.db`**。
-
-**2. 启动时间说明**
-
-> ⚠️ **重要**：1.2.6 版本已针对冷启动优化，自测冷启动在 0.5 秒左右。若启动时间明显偏长，可能是腾讯电脑管家等安全类软件扫描拦截所致，可将其加入对应软件的信任白名单
-
-**3. Windows 绿色版升级可删除旧动态库**
-
-> 新版已改为全静态链接，客户端只依赖一个 exe。若你是绿色版、直接替换 exe 升级，旧目录中遗留的 `libSkiaSharp.dll`、`libHarfBuzzSharp.dll`、`av_libglesv2.dll` 三个文件已不再使用，可手动删除
+- 全量替换 629 个文本文件，15 个 `taix-*` 目录与 3 个 C# 工程目录 `git mv` 保留历史
+- `dotnet test` 66/66 通过（headless 主题加载顺带验证了 `avares://ShiJian/` 没有漏改）
+- CI 在 Windows / macOS 双平台重新走通：Rust（server / shell / monitor / plugin-sdk / installer）、
+  Swift（monitor / notify / windowkit）、Avalonia AOT、webui / 插件前端
+- 迁移逻辑新增两个模块：`shijian-server/src/legacy.rs`（macOS）、`shijian-installer/src/legacy.rs`（Windows）
