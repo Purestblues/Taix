@@ -34,7 +34,7 @@
 <div class="shell">
   <header class="topbar">
     <a class="home" href="#/plugins" onclick={onCrumbClick} title={t('topbar.home')}>
-      <span class="brand">ShiJian</span>
+      <span class="brand">时见</span>
     </a>
     <span class="spacer"></span>
     <span class="conn" class:bad={pluginStore.conn !== 'live'} title={t('topbar.conn', { host: location.host })}>

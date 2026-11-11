@@ -2,9 +2,9 @@ export type Locale = 'zh' | 'en';
 export type LocaleChoice = 'auto' | Locale;
 
 const zh = {
-  'app.title.list': '插件 · ShiJian',
-  'app.title.config': '{name} 配置 · ShiJian',
-  'app.title.detail': '{name} · ShiJian',
+  'app.title.list': '插件 · 时见',
+  'app.title.config': '{name} 配置 · 时见',
+  'app.title.detail': '{name} · 时见',
 
   'topbar.home': '返回插件列表',
   'topbar.conn': '本地服务 {host}',
@@ -77,13 +77,13 @@ const zh = {
   'err.api404': '本地服务（{at}）没有这个接口，通常是 shijian-server 版本较旧。请重新编译并重启 shijian-server 后再试。',
   'err.busy': '本地服务暂时不可用（HTTP {status}），可能正在重启，稍后会自动重连。',
   'err.http': '本地服务返回异常（HTTP {status}），地址 {at}',
-  'err.connect': '无法连接本地服务（{host}），请确认 ShiJian 后台正在运行',
+  'err.connect': '无法连接本地服务（{host}），请确认时见后台正在运行',
 };
 
 const en: Record<keyof typeof zh, string> = {
   'app.title.list': 'Plugins · ShiJian',
   'app.title.config': '{name} Config · ShiJian',
-  'app.title.detail': '{name} · ShiJian',
+  'app.title.detail': '{name} · 时见',
 
   'topbar.home': 'Back to plugin list',
   'topbar.conn': 'Local service {host}',
