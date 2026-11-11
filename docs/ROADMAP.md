@@ -9,11 +9,11 @@
 
 | 维度 | 状态 |
 | --- | --- |
-| 发布 | `v1.3.4-fork.6`（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian)；`fork.7`（N4 换页淡入）已开发完，待发 |
+| 发布 | [`v1.3.4-fork.7`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.7)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）73 个用例；CI 里先跑测试再打包 |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）79 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
-| 代码规模 | 客户端 300 个 `.cs`、67 个 `.axaml`，0 处 TODO/FIXME |
+| 代码规模 | 客户端 307 个 `.cs`、67 个 `.axaml`，0 处 TODO/FIXME |
 
 ## 已知问题
 
@@ -32,6 +32,8 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 | G8 | 详细页时间轴不好用 | 上方是可缩放平移的条状时间轴，下方是每应用一条泳道，两处信息重复且要手动对齐 | 想看清「今天几点在干什么」需要来回操作 |
 | G9 | 点网站分类必定闪退 | `Imager` 图标缓存淘汰时释放了仍在渲染的位图，`Image.Render` 抛 `ObjectDisposedException` | 整个客户端进程直接退出 |
 | G10 | 调试版启动弹「预料之外的错误」，主界面空白 | `AvaloniaUI.DiagnosticsSupport` 2.2.3 的样式里用了嵌套选择器，与 Avalonia 12.1.1 不兼容（`Nesting selector ... cannot determine parent selector`） | 只影响 Debug 构建；现已默认不挂 DevTools，需要时设 `TAIX_DEVTOOLS=1`。Release 构建不受影响 |
+| G12 | 榜单进度条不显示 / 滚动后消失 | 宽度靠代码手算（`容器宽*0.95 - 文字宽`），依赖「布局已完成」与「尺寸还会再变一次」两个假设；虚拟化复用的行尺寸不再变化，宽度永久停在 0 | 切页瞬间、快速滚动后榜单只剩文字没有条。`fork.7` 已修为布局驱动的 `RatioBar` |
+| G13 | 设置页折叠头不可点 | `SettingPanelMultiItem` 的 `Expander` 头部没渲染展开箭头，标题区也没有点击热区 | 用户只能靠右侧 `...` 菜单操作，折叠功能实际不可达 |
 | G11 | 自绘图表用 Tab 走不到 | 原记录归因为 Avalonia 12 的 Tab 遍历不把自定义 `Control` 当候选，但 2026-11-11 在 Avalonia 12.1.1 headless 下逐层（StackPanel / ScrollViewer / ContentPresenter / ItemsControl 模板）都走到了，`Focusable` + `IsTabStop` + `GotFocus→InvalidateVisual` 三件套齐全 | 现已新增 `ChartTabNavigationTests` 锁住「Tab / Shift+Tab 能进出四类图表」；若实机仍复现，需要补充具体页面与操作序列 |
 
 ## 里程碑
@@ -131,9 +133,10 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       两处可能差几分钟（会话合并会把间隔 ≤60 秒的碎片并进去）；这是历史口径，未强行统一。
 - [x] 单测：`InsightBuilder`（切片 / 裁剪 / 星期与月日网格 / 会话汇总 / 环比 / 时段分段）新增 18 个用例。
 
-### M6 · 新一代体验（进行中：N4 已完成，未发布）
+### M6 · 新一代体验（进行中：视觉体系 v1 + 动效 v2 已随 `fork.7` 发布）
 
-> 详细顺序、依赖与发版切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)。以下仅为占位，动手时再补设计说明。
+> 详细顺序、依赖与发版切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)；
+> 视觉/动效目标与逐项差距见 [`docs/DESIGN-SP-ALIGN.md`](DESIGN-SP-ALIGN.md)。
 
 - [x] **N4** 页面淡入淡出（已按参考项目 v2 重做）
       动效标尺集中到 `Librarys/MotionTokens.cs`：时长四档 90/150/225/375ms，
@@ -162,7 +165,10 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       动效一模一样（`IndexPage` 从 M3 起的进场动画一直是这个死状态）。所以位移（上移 8px）
       全部取消，只动 `Opacity`；`catch` 必留 `Warn` 日志。以后要做位移，要么自己插值，
       要么动 `Margin`（要接受逐帧重排）。
-- [ ] **N1 + N3** 视觉体系：多彩配色 token + 卡片组件重做 + 图表取色（两条必须同批）
+- [x] **N1 + N3** 视觉体系 v1（已随 `fork.7` 发布）
+      颜色 token（明暗两套字典 + 发丝线 + Elevation + 字号标尺）、全局 `.card`/`.statCard`/`.listRow`/`.eyebrow`、
+      29 个卡片容器与 8 个页面统一到 8px 圆角 + 1px 发丝边 + 零阴影、页面留白与内容区光晕。
+      剩余：第二强调色的实际使用点、图表按分类取色阶、408 处硬编码色清洗（随 `fork.8` 一起做）
 - [ ] **N6** 子母程序合并：自动判定 + 设置页「子母程序合并」管理页（子进程继承母进程分类，保留原标签）
 - [ ] **N2** 应用/网站统一实体表 + 「网站并入浏览器」开关（浏览器用真实活跃时长）
 - [ ] **N7** 分类页（发现页）信息密度：卡片瘦身 + 紧凑视图 + 排序（方案见 `PLAN-2026-11.md` 三·五，`fork.8.5`）
@@ -214,7 +220,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 
 ## 发版节奏
 
-- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` = M4 工程化（测试 + CI 拦截 + 发版半自动），`fork.5` = M5 详细页看板，`fork.6` = R1 改名（Taix → 时见 / ShiJian，含数据迁移），`fork.7` = N4 换页淡入 + G11 核验与回归测试
+- 里程碑合并发布：`fork.2` = M1 + M2 + M3 前两项，`fork.3` = M3 收尾（动效开关、键盘导航、空态），`fork.4` = M4 工程化（测试 + CI 拦截 + 发版半自动），`fork.5` = M5 详细页看板，`fork.6` = R1 改名（Taix → 时见 / ShiJian，含数据迁移），`fork.7` = 视觉体系 v1（卡片/配色/间距/光晕）+ 动效 v2（标尺 + 换页 8px 上移 + 展开收起）+ G11/G12 修复
 - `fork.5` 之后的批次切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)
 - 每条命令即可发布：`.\script\release.ps1 -Version 1.3.4-fork.N -Commit -Watch`
 - 同步上游：`git fetch upstream && git rebase upstream/main`

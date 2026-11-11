@@ -121,12 +121,12 @@
 
 开工顺序：阶段 A（token 层）→ 阶段 B（卡片/列表/标题/图表取色）→ 阶段 C（动效 v2）。
 
-**进度（2026-11-11）**
+**进度（2026-11-11，阶段 A/B 主体 + C 已随 [`v1.3.4-fork.7`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.7) 发布）**
 
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
 | A · token 层 | ✅ 暗色 + 浅色都完成 | 表面阶梯 / 文字四档 / 发丝线 / 卡片 / Elevation / 字号标尺；新增 `Themes/Base/UiKit.axaml` 全局语汇 |
 | B · 组件视觉 | 🚧 卡片 + 榜单行已改 | `.card`/`.statCard`/`.listRow` 落地；榜单行改扁平行（26px 裸图标 / 3px 进度条 / 行底发丝线）；9 个页面的其余卡片、图表卡玻璃质感、间距、光晕待铺 |
 | C · 动效 v2 | ✅ 完成 | `MotionTokens`（4 档时长 + 3 条曲线）、`PageMotion`（180ms 淡入 + 45ms 延迟 + 8px 上移）、`SlideMotion`（逐帧插值）、`ExpandMotion`（高度展开/收起）、`Expander` 收起动画、XAML 里 12 个文件的过渡时长归一到 token |
-| 遗留 | — | 列表行进出 stagger、408 处硬编码色清洗、N7 分类页信息密度（见 PLAN 三·五） |
+| 遗留（`fork.8`） | — | 列表行进出 stagger、408 处硬编码色清洗、N7 分类页信息密度（见 PLAN 三·五）、设置页折叠头不可点（G13） |
 阶段 C 里「8px 位移」需自写插值（`Motion/SlideAnimator`），其余（淡入/height/展开）可直接用 Avalonia 原生动画。
