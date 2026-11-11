@@ -46,10 +46,10 @@
     <control:TPage.Styles>
         <!--看板卡片-->
         <Style Selector="Border.insightCard">
-            <Setter Property="Background" Value="{DynamicResource SettingPanelBgBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SettingPanelBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+            <Setter Property="CornerRadius" Value="8" />
         </Style>
 
         <Style Selector="TextBlock.statValue">
@@ -332,8 +332,8 @@
                                             Width="230"
                                             Padding="12,10"
                                             VerticalAlignment="Center"
-                                            Background="{DynamicResource SettingPanelBgBrush}"
-                                            BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+                                            Background="{DynamicResource CardBgBrush}"
+                                            BorderBrush="{DynamicResource CardBorderBrush}"
                                             BorderThickness="1"
                                             CornerRadius="{StaticResource RadiusMedium}">
                                         <StackPanel Spacing="2">
@@ -670,9 +670,9 @@
                 VerticalAlignment="Top"
                 Margin="0,4,4,0"
                 Padding="1"
-                CornerRadius="11"
-                Background="{DynamicResource SettingPanelBgBrush}"
-                BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+                CornerRadius="8"
+                Background="{DynamicResource CardBgBrush}"
+                BorderBrush="{DynamicResource CardBorderBrush}"
                 BorderThickness="1"
                 ZIndex="50"
                 Opacity="{Binding IsHeaderExpanded, Converter={StaticResource InverseOpacityConverter}}"

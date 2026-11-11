@@ -105,10 +105,10 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="Border.category-card">
-            <Setter Property="Background" Value="{DynamicResource SettingPanelBgBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SettingPanelBorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Transitions">
                 <Transitions>
@@ -316,7 +316,7 @@
             <Border x:DataType="vm:SearchPaletteViewModel"
                     DataContext="{Binding SearchVm}"
                     Width="640" Height="480"
-                    CornerRadius="14"
+                    CornerRadius="8"
                     Background="{DynamicResource SearchSurfaceBrush}"
                     BorderBrush="{DynamicResource SearchBorderLightBrush}"
                     BorderThickness="1"

@@ -83,15 +83,15 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Margin="0,5,0,0" Background="{DynamicResource SettingPanelBgBrush}"
-                                        Padding="10" CornerRadius="10">
+                                <Border Margin="0,5,0,0" Background="{DynamicResource CardBgBrush}"
+                                        Padding="10" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="14">
+                                        <Border Width="40" Height="40" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush>
                                                     <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
@@ -132,15 +132,15 @@
                                 </Border>
 
                                 <Border Grid.Column="1" Margin="20,5,0,0"
-                                        Background="{DynamicResource SettingPanelBgBrush}"
-                                        Padding="10" CornerRadius="10">
+                                        Background="{DynamicResource CardBgBrush}"
+                                        Padding="10" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="14">
+                                        <Border Width="40" Height="40" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush>
                                                     <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
@@ -180,16 +180,16 @@
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Column="2" Margin="20,5,0,0" Background="{DynamicResource SettingPanelBgBrush}"
-                                        Padding="10" CornerRadius="10"
-                                        ToolTip.Tip="{Binding Top1App.Description}">
+                                <Border Grid.Column="2" Margin="20,5,0,0" Background="{DynamicResource CardBgBrush}"
+                                        Padding="10" CornerRadius="8"
+                                        ToolTip.Tip="{Binding Top1App.Description}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="14">
+                                        <Border Width="40" Height="40" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush>
                                                     <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
@@ -238,14 +238,14 @@
                                         <RowDefinition Height="*" />
                                     </Grid.RowDefinitions>
                                     <Border Grid.Row="1" Margin="0,10,0,0"
-                                            Background="{DynamicResource SettingPanelBgBrush}" Padding="20" CornerRadius="10">
+                                            Background="{DynamicResource CardBgBrush}" Padding="20" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                         <StackPanel>
                                             <charts:ColumnChart IsStack="True" Height="310" ColumnSelectedIndex="{Binding ColumnSelectedIndex,Mode=TwoWay}" IsShowTotal="False" DataMaximum="{Binding DataMaximum}" NameIndexStart="{Binding NameIndexStart}" Data="{Binding Data}" IsCanColumnSelect="{Binding IsCanColumnSelect}" />
 
                                             <base:View Value="{Binding DayHoursSelectedTime}" Condition="not empty">
                                                 <StackPanel>
                                                     <Border Margin="0,5,0,0" HorizontalAlignment="Left" Padding="10"
-                                                            CornerRadius="10">
+                                                            CornerRadius="8">
                                                         <Border.Background>
                                                             <SolidColorBrush Color="{DynamicResource ThemeColor}" Opacity=".05" />
                                                         </Border.Background>
@@ -281,8 +281,8 @@
                                     <TextBlock Text="{DynamicResource Classification}" Foreground="{DynamicResource SubTextBrush}" FontSize="15"
                                                Margin="0,20,0,5" />
                                     <Border Margin="0,5,0,0" Grid.Row="1"
-                                            Background="{DynamicResource SettingPanelBgBrush}"
-                                            Padding="20" CornerRadius="10">
+                                            Background="{DynamicResource CardBgBrush}"
+                                            Padding="20" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                         <charts:RadarChartView Margin="10,20,10,10" Height="300" Width="310" Data="{Binding RadarData}" />
                                     </Border>
                                 </Grid>
@@ -296,8 +296,8 @@
                                     <TextBlock Text="{DynamicResource MostFrequent}" Foreground="{DynamicResource SubTextBrush}" FontSize="15"
                                                Margin="0,20,0,5" />
                                     <Border Grid.Row="1" Margin="0,5,0,0"
-                                            Background="{DynamicResource SettingPanelBgBrush}"
-                                            Padding="20" CornerRadius="10">
+                                            Background="{DynamicResource CardBgBrush}"
+                                            Padding="20" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                         <charts:ListChart IsLoading="{Binding IsLoading}" MenuType="App" Data="{Binding TopData}" ClickCommand="{Binding ToDetailCommand}" IsCanScroll="False" />
                                     </Border>
                                 </Grid>
@@ -316,15 +316,15 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
 
-                                <Border Margin="0,5,0,0" Padding="10" CornerRadius="10"
-                                        Background="{DynamicResource SettingPanelBgBrush}">
+                                <Border Margin="0,5,0,0" Padding="10" CornerRadius="8"
+                                        Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="14">
+                                        <Border Width="40" Height="40" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush>
                                                     <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
@@ -354,15 +354,15 @@
                                 </Border>
 
                                 <Border Grid.Column="1" Margin="20,5,0,0"
-                                        Background="{DynamicResource SettingPanelBgBrush}"
-                                        Padding="10" CornerRadius="10">
+                                        Background="{DynamicResource CardBgBrush}"
+                                        Padding="10" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="14">
+                                        <Border Width="40" Height="40" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush>
                                                     <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
@@ -392,14 +392,14 @@
                                 </Border>
 
                                 <Border Grid.Column="2" Margin="20,5,0,0"
-                                        Background="{DynamicResource SettingPanelBgBrush}" Padding="10" CornerRadius="10">
+                                        Background="{DynamicResource CardBgBrush}" Padding="10" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="14">
+                                        <Border Width="40" Height="40" CornerRadius="8">
                                             <Border.Background>
                                                 <LinearGradientBrush>
                                                     <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
@@ -434,15 +434,15 @@
                                 <i:Interaction.Behaviors>
                                     <behaviors:RowWidthBehavior RowWidth="{Binding RowWidth, Mode=TwoWay}" />
                                 </i:Interaction.Behaviors>
-                                <Border Margin="10,10,0,0" Background="{DynamicResource SettingPanelBgBrush}"
-                                        CornerRadius="10" Width="{Binding ColumnChartWidth}" Padding="20">
+                                <Border Margin="10,10,0,0" Background="{DynamicResource CardBgBrush}"
+                                        CornerRadius="8" Width="{Binding ColumnChartWidth}" Padding="20" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <StackPanel>
                                         <charts:ColumnChart IsCanColumnSelect="True" ColumnSelectedIndex="{Binding WebColSelectedIndex,Mode=TwoWay}" IsShowTotal="False" NameIndexStart="{Binding NameIndexStart}" IsStack="True" Height="305" Data="{Binding WebBrowseStatisticsData}" />
 
                                         <base:View Condition="!=-1" Value="{Binding WebColSelectedIndex}">
                                             <StackPanel>
                                                 <Border Margin="0,5,0,0" HorizontalAlignment="Left" Padding="10"
-                                                        CornerRadius="10">
+                                                        CornerRadius="8">
                                                     <Border.Background>
                                                         <SolidColorBrush Color="{DynamicResource ThemeColor}" Opacity=".05" />
                                                     </Border.Background>
@@ -468,8 +468,8 @@
 
                                 <!-- 饼图 -->
                                 <Border Margin="10,10,0,0" Width="{Binding RadarChartWidth}" Height="300" Padding="20"
-                                        Background="{DynamicResource SettingPanelBgBrush}"
-                                        CornerRadius="10" VerticalAlignment="Top">
+                                        Background="{DynamicResource CardBgBrush}"
+                                        CornerRadius="8" VerticalAlignment="Top" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="auto" />
@@ -541,9 +541,9 @@
                                 </Border>
 
                                 <!-- 最为频繁 -->
-                                <Border Margin="10,10,0,0" Background="{DynamicResource SettingPanelBgBrush}"
-                                        Padding="20" CornerRadius="10" Width="{Binding TopListWidth}" Height="300"
-                                        VerticalAlignment="Top">
+                                <Border Margin="10,10,0,0" Background="{DynamicResource CardBgBrush}"
+                                        Padding="20" CornerRadius="8" Width="{Binding TopListWidth}" Height="300"
+                                        VerticalAlignment="Top" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="auto" />

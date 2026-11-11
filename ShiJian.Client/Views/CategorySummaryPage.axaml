@@ -109,8 +109,8 @@
         <StackPanel Spacing="16">
 
             <!-- 周期概览 -->
-            <Border Background="{DynamicResource SettingPanelBgBrush}"
-                    BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+            <Border Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource RadiusMedium}">
                 <StackPanel>
@@ -220,8 +220,8 @@
             </Border>
 
             <!-- 使用趋势 -->
-            <Border Background="{DynamicResource SettingPanelBgBrush}"
-                    BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+            <Border Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
                     BorderThickness="1"
                     CornerRadius="{StaticResource RadiusMedium}">
                 <StackPanel>
@@ -271,7 +271,7 @@
                             <StackPanel Grid.Row="1">
                                 <!-- 时间标签条：全选时显示周期名，点列时显示该列标签 -->
                                 <Border Margin="0,5,0,0" HorizontalAlignment="Left" Padding="10"
-                                        CornerRadius="10">
+                                        CornerRadius="8">
                                     <Border.Background>
                                         <SolidColorBrush Color="{DynamicResource ThemeColor}" Opacity=".05" />
                                     </Border.Background>

@@ -295,7 +295,7 @@
                                                         BoxShadow="0 4 16 0 #15000000" />
                                                 <Border BorderBrush="Transparent"
                                                         BorderThickness="1.5" x:Name="Border"
-                                                        Background="{DynamicResource CategoryCardGlassBgBrush}"
+                                                        Background="{DynamicResource CardBgBrush}"
                                                         Margin="8" CornerRadius="{StaticResource RadiusLarge}">
                                                     <Grid>
                                                         <Border CornerRadius="{StaticResource RadiusLarge}"
@@ -384,8 +384,8 @@
                                                 <Border Grid.Row="3">
                                                     <Border Margin="10,0,10,0"
                                                             CornerRadius="{StaticResource RadiusMedium}"
-                                                            Background="{DynamicResource CategoryCardGlassBgBrush}"
-                                                            BorderBrush="{DynamicResource CategoryCardGlassBorderBrush}"
+                                                            Background="{DynamicResource CardBgBrush}"
+                                                            BorderBrush="{DynamicResource CardBorderBrush}"
                                                             BorderThickness="1"
                                                             HorizontalAlignment="Right" VerticalAlignment="Center"
                                                             Padding="10,5"
@@ -488,7 +488,7 @@
                                                         BoxShadow="0 4 16 0 #15000000" />
                                                 <Border BorderBrush="Transparent"
                                                         BorderThickness="1.5" x:Name="Border"
-                                                        Background="{DynamicResource CategoryCardGlassBgBrush}"
+                                                        Background="{DynamicResource CardBgBrush}"
                                                         Margin="8" CornerRadius="{StaticResource RadiusLarge}">
                                                     <Grid>
                                                         <Border CornerRadius="{StaticResource RadiusLarge}"
@@ -577,8 +577,8 @@
                                                 <Border Grid.Row="3">
                                                     <Border Margin="10,0,10,0"
                                                             CornerRadius="{StaticResource RadiusMedium}"
-                                                            Background="{DynamicResource CategoryCardGlassBgBrush}"
-                                                            BorderBrush="{DynamicResource CategoryCardGlassBorderBrush}"
+                                                            Background="{DynamicResource CardBgBrush}"
+                                                            BorderBrush="{DynamicResource CardBorderBrush}"
                                                             BorderThickness="1"
                                                             HorizontalAlignment="Right" VerticalAlignment="Center"
                                                             Padding="10,5"

@@ -43,9 +43,9 @@
                 </StackPanel>
 
                 <StackPanel x:Name="Section2" Margin="0,44,0,0">
-                    <Border Background="{DynamicResource SettingPanelBgBrush}"
+                    <Border Background="{DynamicResource CardBgBrush}"
                             CornerRadius="{StaticResource RadiusLarge}"
-                            Margin="0,0,0,0" BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+                            Margin="0,0,0,0" BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1">
                         <StackPanel>
                             <StackPanel.Styles>
@@ -162,10 +162,10 @@
                 </StackPanel>
 
                 <StackPanel x:Name="Section3" Margin="0,44,0,0">
-                    <Border Background="{DynamicResource SettingPanelBgBrush}"
+                    <Border Background="{DynamicResource CardBgBrush}"
                             CornerRadius="{StaticResource RadiusLarge}"
                             Margin="0,0,0,0"
-                            BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1">
                         <StackPanel>
                             <StackPanel.Styles>
@@ -270,9 +270,9 @@
                 </StackPanel>
 
 <StackPanel x:Name="Section4" Margin="0,44,0,0">
-                    <Border Background="{DynamicResource SettingPanelBgBrush}"
+                    <Border Background="{DynamicResource CardBgBrush}"
                             CornerRadius="{StaticResource RadiusLarge}"
-                            BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
                             BorderThickness="1">
                         <StackPanel>
                             <!-- 应用信息 -->
