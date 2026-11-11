@@ -16,7 +16,7 @@ public class GeneralModel
 
     [Config(Name = "主题颜色", Description = "", Group = "界面", CultureCode = CultureCode.ZhCn)]
     [Config(Name = "Theme Color", Description = "", Group = "Interface", CultureCode = CultureCode.EnUs)]
-    public string ThemeColor { get; set; } = "#FFFF1BBC";
+    public string ThemeColor { get; set; } = "#FFA05DB1";
 
     [Config(Options = "自动|中|English", Name = "语言", Description = "设置程序首选的显示语言", Group = "界面",
         OptionsChangedRefresh = true, CultureCode = CultureCode.ZhCn)]

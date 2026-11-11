@@ -628,7 +628,7 @@ public class ClockRing : Control, ICustomHitTest
             ? segment.CategoryColor
             : segment.Color;
 
-        _fallbackBrush ??= new SolidColorBrush(Color.Parse("#8780F7"));
+        _fallbackBrush ??= new SolidColorBrush(Color.Parse("#C08AC9"));
 
         if (string.IsNullOrWhiteSpace(color)) return _fallbackBrush;
         if (_brushCache.TryGetValue(color, out var cached)) return cached;

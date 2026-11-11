@@ -21,7 +21,7 @@ public static class FocusVisual
             return brush;
         }
 
-        return new SolidColorBrush(Color.Parse("#8780F7"));
+        return new SolidColorBrush(Color.Parse("#C08AC9"));
     }
 
     public static void Draw(DrawingContext context, Control control, double cornerRadius = 10)

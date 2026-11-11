@@ -52,28 +52,6 @@
             <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
         </Style>
 
-        <Style Selector="Border.statCard">
-            <Setter Property="Background" Value="{DynamicResource SettingPanelBgBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SettingPanelBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="14,11" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Border.statCard:pointerover">
-            <Setter Property="BorderBrush" Value="{DynamicResource ChartCardHoverBorderBrush}" />
-        </Style>
-
-        <Style Selector="TextBlock.cardCaption">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
-        </Style>
-
         <Style Selector="TextBlock.statValue">
             <Setter Property="FontSize" Value="21" />
             <Setter Property="FontWeight" Value="SemiBold" />

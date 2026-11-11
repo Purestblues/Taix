@@ -25,7 +25,7 @@ public static class ChartColorHelper
     private const string FallbackColor = "#C6C1D6";
 
     /// <summary>主题色拿不到时的兜底（与 Theme.axaml 的默认 ThemeColor 一致）</summary>
-    private const string FallbackAccent = "#8780F7";
+    private const string FallbackAccent = "#C08AC9";
 
     /// <summary>图形元素的最低对比度（WCAG 2.1 AA 对非文本图形的要求）</summary>
     public const double TargetContrast = 3d;

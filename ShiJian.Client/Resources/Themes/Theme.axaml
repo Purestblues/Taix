@@ -12,26 +12,53 @@
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Default">
             <!--【主题颜色】-->
-            <Color x:Key="ThemeColor">#FF8780F7</Color>
+            <Color x:Key="ThemeColor">#FFC08AC9</Color>
+            <!--第二强调色：只给「瞬时交互/差额项」用，不参与归属语义-->
+            <Color x:Key="AccentColor">#FFFF4081</Color>
 
-            <Color x:Key="Surface0">#0C0C0C</Color>
-            <Color x:Key="Surface1">#161618</Color>
-            <Color x:Key="Surface2">#1E1E22</Color>
-            <Color x:Key="Surface3">#28282E</Color>
-            <Color x:Key="Surface4">#383840</Color>
+            <!-- 表面阶梯：对齐 Super Productivity 的中性暗色（不再偏蓝） -->
+            <Color x:Key="Surface0">#0A0A0B</Color>
+            <Color x:Key="Surface1">#131314</Color>
+            <Color x:Key="Surface2">#242424</Color>
+            <Color x:Key="Surface3">#333333</Color>
+            <Color x:Key="Surface4">#383838</Color>
 
-            <Color x:Key="BorderSubtle">#252528</Color>
-            <Color x:Key="BorderDefault">#35353A</Color>
-            <Color x:Key="BorderStrong">#484850</Color>
+            <Color x:Key="BorderSubtle">#262628</Color>
+            <Color x:Key="BorderDefault">#333335</Color>
+            <Color x:Key="BorderStrong">#4A4A4C</Color>
 
             <!--【色阶系统 - 文字】-->
-            <Color x:Key="TextPrimary">#F0F0F0</Color>
-            <Color x:Key="TextSecondary">#A8A8B0</Color>
-            <Color x:Key="TextTertiary">#686870</Color>
-            <Color x:Key="TextDisabled">#505058</Color>
+            <Color x:Key="TextPrimary">#F5F5F5</Color>
+            <Color x:Key="TextSecondary">#B4B4B6</Color>
+            <Color x:Key="TextTertiary">#808082</Color>
+            <Color x:Key="TextDisabled">#5A5A5C</Color>
 
             <!--鼠标经过背景颜色-->
-            <Color x:Key="HoverBackgroundColor">#4A4A52</Color>
+            <Color x:Key="HoverBackgroundColor">#2A2A2C</Color>
+
+            <!--【设计 token：卡片 / 分隔线 / 层级】-->
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+            <!-- 发丝线：卡片描边与列表行分隔都用它 -->
+            <SolidColorBrush x:Key="DividerBrush" Color="#FFFFFF" Opacity="0.10" />
+            <SolidColorBrush x:Key="CardBgBrush" Color="{StaticResource Surface2}" />
+            <SolidColorBrush x:Key="CardBorderBrush" Color="#FFFFFF" Opacity="0.10" />
+            <SolidColorBrush x:Key="CardBorderHoverBrush" Color="#FFFFFF" Opacity="0.18" />
+            <SolidColorBrush x:Key="RowHoverBrush" Color="#FFFFFF" Opacity="0.04" />
+            <SolidColorBrush x:Key="RowSelectedBrush" Color="{DynamicResource ThemeColor}" Opacity="0.14" />
+
+            <!-- 阴影只给真正浮起来的层（弹窗 / 拖拽 / 浮层），卡片静置零阴影 -->
+            <BoxShadows x:Key="Elevation1">0 2 8 0 #1F000000, 0 1 3 -2 #29000000</BoxShadows>
+            <BoxShadows x:Key="Elevation2">0 4 12 0 #24000000, 0 6 16 -4 #1F000000</BoxShadows>
+            <BoxShadows x:Key="Elevation3">0 8 24 0 #24000000, 0 12 28 -6 #1F000000</BoxShadows>
+
+            <!-- 排版标尺（字号 / 字重） -->
+            <x:Double x:Key="FontSizeXs">11</x:Double>
+            <x:Double x:Key="FontSizeSm">12</x:Double>
+            <x:Double x:Key="FontSizeMd">14</x:Double>
+            <x:Double x:Key="FontSizeLg">16</x:Double>
+            <x:Double x:Key="FontSizeXl">18</x:Double>
+            <x:Double x:Key="FontSizeXxl">22</x:Double>
+            <x:Double x:Key="FontSizeSection">12</x:Double>
 
             <x:Double x:Key="TitleBarIconStroke">1.25</x:Double>
 
@@ -87,7 +114,7 @@
                 <GradientStop Color="#1A1A32" Offset="0.5" />
                 <GradientStop Color="#2E2E52" Offset="1" />
             </LinearGradientBrush>
-            <SolidColorBrush x:Key="WindowContentBackground" Color="{StaticResource Surface3}" Opacity="0.6" />
+            <SolidColorBrush x:Key="WindowContentBackground" Color="{StaticResource Surface1}" />
             <SolidColorBrush x:Key="WindowContentBorder" Color="{StaticResource BorderSubtle}" />
             <SolidColorBrush x:Key="CardBorder" Color="Transparent" />
             <SolidColorBrush x:Key="WindowBackgroundSolid" Color="{StaticResource Surface1}" />
@@ -113,7 +140,7 @@
             <SolidColorBrush x:Key="DatePickerHoverGlassBrush" Color="#ffffff" Opacity="0.12" />
 
             <!--设置面板-->
-            <Color x:Key="SettingPanelBgColor">#2A2A30</Color>
+            <Color x:Key="SettingPanelBgColor">#242424</Color>
             <SolidColorBrush x:Key="SettingPanelBgBrush" Color="{StaticResource SettingPanelBgColor}" />
             <SolidColorBrush x:Key="SettingPanelBorderBrush" Color="#FFFFFF" Opacity="0.04" />
             <SolidColorBrush x:Key="SettingPanelHoverBrush" Color="#ffffff" Opacity="0.05" />
@@ -171,7 +198,7 @@
             <SolidColorBrush x:Key="TitleBarBtnBrush" Color="{StaticResource TitleBarBtnColor}" />
 
             <!--分割线颜色-->
-            <Color x:Key="SeparatorColor">#404048</Color>
+            <Color x:Key="SeparatorColor">#2E2E30</Color>
             <SolidColorBrush x:Key="SeparatorBrush" Color="{StaticResource SeparatorColor}" />
 
             <!--上下文菜单-->
@@ -233,7 +260,7 @@
             <SolidColorBrush x:Key="DisabledTextBrush" Color="{StaticResource DisabledTextColor}" />
 
             <!--滚动条-->
-            <Color x:Key="ScrollBarColor">#787880</Color>
+            <Color x:Key="ScrollBarColor">#969696</Color>
             <SolidColorBrush x:Key="ScrollBarBrush" Color="{StaticResource ScrollBarColor}" />
 
             <!--列表图表-->
@@ -337,6 +364,33 @@
         <ResourceDictionary x:Key="Light">
             <!--【主题颜色】-->
             <Color x:Key="ThemeColor">#2b20d9</Color>
+            <!--第二强调色：只给「瞬时交互/差额项」用-->
+            <Color x:Key="AccentColor">#FFFF4081</Color>
+
+            <!-- 表面阶梯：亮色刻意不用明度分层（叠靠发丝线），2/3/4 都是白 -->
+            <Color x:Key="Surface0">#EBEBEB</Color>
+            <Color x:Key="Surface1">#F8F8F7</Color>
+            <Color x:Key="Surface2">#FFFFFF</Color>
+            <Color x:Key="Surface3">#FFFFFF</Color>
+            <Color x:Key="Surface4">#FFFFFF</Color>
+
+            <Color x:Key="BorderSubtle">#EAEAEA</Color>
+            <Color x:Key="BorderDefault">#DCDCDC</Color>
+            <Color x:Key="BorderStrong">#C8C8C8</Color>
+
+            <Color x:Key="TextPrimary">#000000</Color>
+            <Color x:Key="TextSecondary">#5F5F5F</Color>
+            <Color x:Key="TextTertiary">#8A8A8A</Color>
+            <Color x:Key="TextDisabled">#B4B4B4</Color>
+
+            <!-- 设计 token：卡片 / 分隔线 / 层级（与暗色字典同名，差在取值） -->
+            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+            <SolidColorBrush x:Key="DividerBrush" Color="#000000" Opacity="0.10" />
+            <SolidColorBrush x:Key="CardBgBrush" Color="{StaticResource Surface2}" />
+            <SolidColorBrush x:Key="CardBorderBrush" Color="#000000" Opacity="0.10" />
+            <SolidColorBrush x:Key="CardBorderHoverBrush" Color="#000000" Opacity="0.20" />
+            <SolidColorBrush x:Key="RowHoverBrush" Color="#000000" Opacity="0.04" />
+            <SolidColorBrush x:Key="RowSelectedBrush" Color="{DynamicResource ThemeColor}" Opacity="0.12" />
 
             <!--鼠标经过背景颜色-->
             <Color x:Key="HoverBackgroundColor">#eaeaea</Color>

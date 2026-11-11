@@ -12,7 +12,7 @@
             <converter:HextoColorConverter x:Key="HextoColorConverter" />
         </ControlTheme.Resources>
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Margin" Value="0,5" />
+        <Setter Property="Margin" Value="0" />
         <Setter Property="BarBrush" Value="{DynamicResource ChartTypeListProgressBarBrush}" />
         <Styles>
             <Style Selector="controls|ChartsItemTypeList">
@@ -62,16 +62,19 @@
         <Setter Property="Template">
 
             <ControlTemplate>
-                <Grid Background="{TemplateBinding Background}">
+                <!-- 扁平行：底部 1px 发丝线，无圆角无阴影（相邻行由 BorderThickness 共享一条线） -->
+                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
+                        Padding="6,7" Background="{TemplateBinding Background}">
+                <Grid>
                     <Grid x:Name="Normal">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <Border Margin="0,0,10,0" x:Name="IconBorder" BorderBrush="Transparent" BorderThickness="2"
-                                Background="{DynamicResource ListItemIconBgBrush}" CornerRadius="6" Width="50"
-                                Height="50"
+                        <Border Margin="0,0,10,0" x:Name="IconBorder" BorderBrush="Transparent" BorderThickness="0"
+                                Background="Transparent" CornerRadius="6" Width="26"
+                                Height="26"
                                 HorizontalAlignment="Left">
                             <base:Img x:Name="IconObj" Width="{TemplateBinding IconSize}"
                                              Height="{TemplateBinding IconSize}"
@@ -91,6 +94,7 @@
                                 <TextBlock x:Name="NameTextObj"
                                            Text="{Binding Data.Name,RelativeSource={RelativeSource TemplatedParent}}"
                                            Foreground="{DynamicResource DefaultTextBrush}"
+                                           FontSize="13" FontWeight="Medium"
                                            HorizontalAlignment="Left"
                                            VerticalAlignment="Center" />
 
@@ -158,10 +162,10 @@
                             <StackPanel Orientation="Horizontal">
                                 <Rectangle
                                     x:Name="ValueBlockObj"
-                                    RadiusX="4"
-                                    RadiusY="4"
+                                    RadiusX="1.5"
+                                    RadiusY="1.5"
                                     Fill="{TemplateBinding BarBrush}"
-                                    Height="8"
+                                    Height="3"
                                     VerticalAlignment="Center"
                                     HorizontalAlignment="Left">
                                     <Rectangle.Transitions>
@@ -185,19 +189,20 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <base:Placeholder Margin="0,0,10,0" CornerRadius="6" Width="50" Height="50"
+                        <base:Placeholder Margin="0,0,10,0" CornerRadius="6" Width="26" Height="26"
                                           HorizontalAlignment="Left" />
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <Rectangle
                                 RadiusX="0"
                                 RadiusY="0"
                                 Fill="{DynamicResource PlaceholderRectBgBrush}"
-                                Height="8"
+                                Height="3"
                                 VerticalAlignment="Center"
                                 HorizontalAlignment="Stretch" />
                         </StackPanel>
                     </Grid>
                 </Grid>
+                </Border>
             </ControlTemplate>
         </Setter>
     </ControlTheme>

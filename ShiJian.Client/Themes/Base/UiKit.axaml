@@ -1,0 +1,97 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+      全局视觉语汇（对齐 Super Productivity，见 docs/DESIGN-SP-ALIGN.md）
+      · 卡片 = 8px 圆角 + 1px 发丝边 + surface-2 底，静置零阴影
+      · 列表行 = 扁平行 + 底部 1px 发丝线，无圆角无阴影
+      · 阴影只给真正浮起来的层（弹窗 / 拖拽 / 浮层），走 Elevation1..3
+      页面里不要再各自定义 .card / .statCard，否则会盖掉这一套。
+    -->
+
+    <!-- ═══ 卡片 ═══ -->
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,12" />
+    </Style>
+
+    <Style Selector="Border.card:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
+    </Style>
+
+    <!-- 总览指标卡：卡片语汇 + 更紧的内边距 -->
+    <Style Selector="Border.statCard">
+        <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="14,12" />
+    </Style>
+
+    <Style Selector="Border.statCard:pointerover">
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
+    </Style>
+
+    <!-- 抬升卡片：只有浮层 / 拖拽预览 / 便签用 -->
+    <Style Selector="Border.cardElevated">
+        <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="BoxShadow" Value="{DynamicResource Elevation2}" />
+    </Style>
+
+    <!-- ═══ 扁平行 + 发丝线（榜单 / 应用列表 / 分类列表） ═══ -->
+    <Style Selector="Border.listRow">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="Padding" Value="8,7" />
+    </Style>
+
+    <Style Selector="Border.listRow:pointerover">
+        <Setter Property="Background" Value="{DynamicResource RowHoverBrush}" />
+    </Style>
+
+    <!-- 选中态：底色 tint + 一条左边缘，绝不只靠底色 -->
+    <Style Selector="Border.listRow.selected">
+        <Setter Property="Background" Value="{DynamicResource RowSelectedBrush}" />
+        <Setter Property="BorderThickness" Value="2,0,0,1" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+    </Style>
+
+    <!-- ═══ 排版 ═══ -->
+    <!-- 页面标题 -->
+    <Style Selector="TextBlock.pageTitle">
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeXl}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource StandardTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 区块标题（eyebrow）：故意比内容小一号 + 更淡 + 字距更宽 -->
+    <Style Selector="TextBlock.eyebrow">
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeSection}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="LetterSpacing" Value="0.24" />
+        <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 卡片说明文字 -->
+    <Style Selector="TextBlock.cardCaption">
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeXs}" />
+        <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
+    </Style>
+
+    <!-- 大数字：tabular-nums 让数字不跳动（不用等宽字体） -->
+    <Style Selector="TextBlock.statValue">
+        <Setter Property="FontSize" Value="{DynamicResource FontSizeXxl}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+</Styles>

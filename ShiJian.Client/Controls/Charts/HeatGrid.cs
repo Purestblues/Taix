@@ -65,7 +65,7 @@ public class HeatGrid : Control
     private const double ColumnLabelHeight = 15;
     private const double MinLabelSpacing = 26;
 
-    private static readonly IBrush FallbackAccent = new SolidColorBrush(Color.Parse("#8780F7"));
+    private static readonly IBrush FallbackAccent = new SolidColorBrush(Color.Parse("#C08AC9"));
 
     private (int Row, int Column) _hover = (-1, -1);
 

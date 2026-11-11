@@ -29,59 +29,11 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
-        <!--通用卡片-->
-        <Style Selector="Border.card">
-            <Setter Property="Background" Value="{DynamicResource SettingPanelBgBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource WindowBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Border.card:pointerover">
-            <Setter Property="BorderBrush" Value="{DynamicResource ChartCardHoverBorderBrush}" />
-        </Style>
-
-        <Style Selector="Border.statCard">
-            <Setter Property="Background" Value="{DynamicResource SettingPanelBgBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource WindowBorderBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="12" />
-            <Setter Property="Padding" Value="14,12" />
-            <Setter Property="Transitions">
-                <Transitions>
-                    <BrushTransition Property="BorderBrush" Duration="0:0:0.2" />
-                    <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.18" />
-                </Transitions>
-            </Setter>
-        </Style>
-
-        <Style Selector="Border.statCard:pointerover">
-            <Setter Property="BorderBrush" Value="{DynamicResource ChartCardHoverBorderBrush}" />
-            <Setter Property="RenderTransform" Value="translateY(-2px)" />
-        </Style>
-
-        <Style Selector="TextBlock.cardCaption">
-            <Setter Property="FontSize" Value="11" />
-            <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
-        </Style>
-
-        <!--Avalonia 的类型选择器不匹配派生类，CountUpText 需要单独声明-->
+        <!--Avalonia 的类型选择器不匹配派生类，CountUpText 需要单独声明；卡片本身走全局 UiKit-->
         <Style Selector="base|CountUpText.statValue">
-            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontSize" Value="{DynamicResource FontSizeXxl}" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
-        </Style>
-
-        <Style Selector="TextBlock.sectionTitle">
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
-            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
     </UserControl.Styles>
 
@@ -273,7 +225,7 @@
             </Grid>
 
             <!-- ═══ 最为频繁 ═══ -->
-            <TextBlock Text="{DynamicResource MostFrequent}" Classes="sectionTitle" Margin="0,16,0,8" />
+            <TextBlock Text="{DynamicResource MostFrequent}" Classes="eyebrow" Margin="0,16,0,8" />
 
             <Grid ColumnDefinitions="3*,12,2*">
                 <!--应用-->
@@ -335,7 +287,7 @@
 
             <!-- ═══ 更多 ═══ -->
             <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                <TextBlock Text="{DynamicResource More}" Classes="sectionTitle" />
+                <TextBlock Text="{DynamicResource More}" Classes="eyebrow" />
                 <select:TabSwitch Margin="10,0,0,0"
                                   VerticalAlignment="Center" IsShowIcon="False"
                                   SelectedItem="{Binding MoreType,Mode=TwoWay}"

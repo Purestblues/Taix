@@ -7,6 +7,7 @@
     <Application.Styles>
         <SimpleTheme />
         <StyleInclude Source="/Themes/Base/FocusStyles.axaml" />
+        <StyleInclude Source="/Themes/Base/UiKit.axaml" />
     </Application.Styles>
 
     <Application.Resources>
