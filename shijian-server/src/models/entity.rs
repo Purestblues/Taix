@@ -84,3 +84,31 @@ pub struct MergeGroupListModel {
     pub groups: Vec<MergeGroupModel>,
     pub suppressed: Vec<String>,
 }
+
+/// `/api/entity/hours` 的一行：一个实体在时间轴上的时长分布
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityHoursRow {
+    pub key: String,
+    pub kind: String,
+    pub name: String,
+    pub icon: Option<String>,
+    pub category_id: i64,
+    pub category_kind: String,
+    pub category_name: Option<String>,
+    pub category_color: Option<String>,
+    pub is_browser: bool,
+    /// 与 `labels` 一对一，单位秒
+    pub values: Vec<i64>,
+    pub members: Vec<EntityMemberModel>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityHoursModel {
+    /// 桶边界（本地时间 ISO），客户端切换周期时用它对齐坐标轴
+    pub labels: Vec<String>,
+    pub rows: Vec<EntityHoursRow>,
+    pub browser_merged: bool,
+    pub bucket_count: i32,
+}

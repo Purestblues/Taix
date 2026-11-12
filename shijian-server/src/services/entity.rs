@@ -10,20 +10,20 @@
 //!
 //! 合并组（子母程序）在这一层应用：母成员保留一行，其余成员折进来并在 `members` 里交代。
 
-use chrono::{DateTime, Duration, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
 use sqlx::SqlitePool;
 use std::collections::{HashMap, HashSet};
 
 use crate::error::AppError;
 use crate::models::app::AppJoinCols;
 use crate::models::entity::{
-    BrowserOptionModel, EntityListModel, EntityMemberModel, EntityModel, MergeGroupListModel,
-    MergeGroupModel,
+    BrowserOptionModel, EntityHoursModel, EntityHoursRow, EntityListModel, EntityMemberModel,
+    EntityModel, MergeGroupListModel, MergeGroupModel,
 };
 use crate::models::web::WebSiteJoinCols;
 use crate::services::app_merge::{self, MergeCandidate};
 use crate::services::config::ConfigService;
-use crate::utils::{parse_timezone, tz_date_to_utc_range};
+use crate::utils::{parse_timezone, tz_date_to_utc_range, tz_naive_to_utc};
 
 /// 每个浏览器标识的候选进程名片段：扩展按构建目标上报 chrome / firefox / safari，
 /// 而 Chromium 系（Edge / Brave / Arc）装 chrome 版扩展时也会上报 chrome，
@@ -71,6 +71,7 @@ impl EntityService {
         end: NaiveDate,
         tz_id: &str,
         browser_merged: bool,
+        take: Option<usize>,
     ) -> Result<EntityListModel, AppError> {
         let tz = parse_timezone(tz_id);
         let utc_start = tz_date_to_utc_range(start, &tz).0;
@@ -281,6 +282,27 @@ impl EntityService {
                 .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
         });
 
+        // Top N 与「其他」归并放在服务端：排序规则只有一处，客户端不需要再切一次
+        if let Some(take) = take {
+            if take > 0 && rows.len() > take {
+                let keep = take - 1;
+                let rest = rows.split_off(keep);
+                rows.push(EntityModel {
+                    key: "aggregate:0".to_string(),
+                    kind: "aggregate".to_string(),
+                    name: "其他".to_string(),
+                    icon: None,
+                    seconds: rest.iter().map(|row| row.seconds).sum(),
+                    category_id: 0,
+                    category_kind: "app".to_string(),
+                    category_name: None,
+                    category_color: None,
+                    is_browser: false,
+                    members: Vec::new(),
+                });
+            }
+        }
+
         // 两种视图的总额都等于「应用总时长 + 未对齐的站点时长」：
         // 差额行有名字，所以关掉合并时总额也不会少
         let total_seconds = app_seconds + unmatched_seconds;
@@ -427,6 +449,368 @@ impl EntityService {
         result.sort_by(|a, b| b.seconds.cmp(&a.seconds).then_with(|| a.reference.cmp(&b.reference)));
         Ok(result)
     }
+}
+
+impl EntityService {
+    /// 实体 × 时段矩阵（`/api/entity/hours`）。
+    ///
+    /// 桶由服务端按本地时区切好：单日 = 24 小时、区间 = 每天、整年 = 12 个月。
+    /// 互斥归属在这里同样是必需的：站点日志按浏览器会话求交后从浏览器里扣掉，
+    /// 否则「分类 × 时段」柱图会把同一分钟画两次。
+    pub async fn hours(
+        pool: &SqlitePool,
+        config_service: &ConfigService,
+        start: NaiveDate,
+        end: NaiveDate,
+        tz_id: &str,
+        buckets: &str,
+        browser_merged: bool,
+    ) -> Result<EntityHoursModel, AppError> {
+        let tz = parse_timezone(tz_id);
+        let windows = bucket_windows(start, end, &tz, buckets);
+        let bucket_count = windows.len();
+        if bucket_count == 0 {
+            return Ok(EntityHoursModel {
+                labels: Vec::new(),
+                rows: Vec::new(),
+                browser_merged,
+                bucket_count: 0,
+            });
+        }
+        let utc_start = DateTime::from_timestamp(windows[0].0, 0)
+            .ok_or_else(|| AppError::Business("无效的时间范围".to_string()))?;
+        let utc_end = DateTime::from_timestamp(windows[bucket_count - 1].1, 0)
+            .ok_or_else(|| AppError::Business("无效的时间范围".to_string()))?;
+
+        let config = config_service.get_or_load().await?;
+        let configured_browser = config.general.default_browser.trim().to_lowercase();
+        let excluded = config_service.get_excluded_app_id_set(pool).await;
+
+        let all_apps = load_app_aggregates_all(pool).await?;
+        let no_excluded: HashSet<i64> = HashSet::new();
+        let browser_apps = resolve_browser_apps(&all_apps, &no_excluded);
+        let browser_app_ids: HashSet<i64> = browser_apps.values().copied().collect();
+        let default_browser = if configured_browser.is_empty() {
+            recommend_default_browser(pool, &browser_apps).await?
+        } else {
+            configured_browser.clone()
+        };
+
+        // 1. 应用 × 桶（UTC 小时桶直接落到对应桶里）
+        #[derive(sqlx::FromRow)]
+        struct HourRow {
+            #[sqlx(rename = "AppModelID")]
+            app_id: i64,
+            #[sqlx(rename = "Hour")]
+            hour: DateTime<Utc>,
+            #[sqlx(rename = "total")]
+            total: i64,
+        }
+
+        let hour_rows: Vec<HourRow> = sqlx::query_as(
+            r#"
+            SELECT AppModelID, DataTime AS Hour, SUM(Time) AS total
+            FROM HoursLogModels
+            WHERE DataTime >= ? AND DataTime < ?
+            GROUP BY AppModelID, DataTime
+            "#,
+        )
+        .bind(utc_start)
+        .bind(utc_end)
+        .fetch_all(pool)
+        .await?;
+
+        let mut app_matrix: HashMap<i64, Vec<i64>> = HashMap::new();
+        for row in hour_rows {
+            if excluded.contains(&row.app_id) {
+                continue;
+            }
+            if let Some(index) = bucket_index(&windows, row.hour.timestamp()) {
+                let entry = app_matrix
+                    .entry(row.app_id)
+                    .or_insert_with(|| vec![0_i64; bucket_count]);
+                entry[index] += row.total;
+            }
+        }
+
+        // 2. 站点 × 桶：只记与浏览器会话重叠的部分
+        let sessions = load_session_intervals(pool, utc_start, utc_end).await?;
+        let logs = load_browse_logs(pool, utc_start, utc_end).await?;
+        let mut site_matrix: HashMap<i64, Vec<i64>> = HashMap::new();
+        let mut browser_site_matrix: HashMap<i64, Vec<i64>> = HashMap::new();
+        let mut attributed_sites: HashSet<i64> = HashSet::new();
+
+        for log in logs {
+            let Some(index) = bucket_index(&windows, log.start.timestamp()) else {
+                continue;
+            };
+            let (window_start, window_end) = windows[index];
+            let clip_start = log.start.timestamp().max(window_start);
+            let clip_end = log.end.timestamp().min(window_end);
+            let clipped = clip_end - clip_start;
+            if clipped <= 0 {
+                continue;
+            }
+
+            let reference = if log.browser.trim().is_empty() {
+                default_browser.clone()
+            } else {
+                log.browser.trim().to_lowercase()
+            };
+            let browser_app = browser_apps.get(&reference).copied();
+
+            let credited = match browser_app {
+                Some(app_id) => match sessions.get(&app_id) {
+                    Some(intervals) if !intervals.is_empty() => {
+                        overlap_seconds(intervals, clip_start, clip_end).min(clipped)
+                    }
+                    _ => clipped,
+                },
+                None => clipped,
+            };
+            if credited <= 0 {
+                continue;
+            }
+
+            let site = site_matrix
+                .entry(log.site_id)
+                .or_insert_with(|| vec![0_i64; bucket_count]);
+            site[index] += credited;
+
+            if let Some(app_id) = browser_app {
+                attributed_sites.insert(log.site_id);
+                let entry = browser_site_matrix
+                    .entry(app_id)
+                    .or_insert_with(|| vec![0_i64; bucket_count]);
+                entry[index] += credited;
+            }
+        }
+
+        // 3. 站点静态信息 + 合并组
+        let mut site_aggs: HashMap<i64, SiteAgg> = site_matrix
+            .keys()
+            .map(|site_id| (*site_id, SiteAgg::default()))
+            .collect();
+        fill_site_details(pool, &mut site_aggs).await?;
+
+        let app_meta: HashMap<i64, &AppAgg> = all_apps
+            .iter()
+            .filter_map(|agg| agg.app.app_id.map(|id| (id, agg)))
+            .collect();
+        let window_apps: Vec<AppAgg> = app_matrix
+            .iter()
+            .filter_map(|(app_id, values)| {
+                app_meta.get(app_id).map(|agg| {
+                    let mut app = (*agg).clone();
+                    app.seconds = values.iter().sum();
+                    app
+                })
+            })
+            .collect();
+        sync_auto_groups(pool).await?;
+        let merged_apps = apply_merge_groups(pool, &window_apps, &excluded).await?;
+        let name_to_id: HashMap<String, i64> = all_apps
+            .iter()
+            .filter_map(|agg| agg.app.app_name.clone().map(|name| (name, agg.app.app_id.unwrap_or(0))))
+            .collect();
+
+        // 4. 组装行
+        let mut rows: Vec<EntityHoursRow> = Vec::new();
+        for (primary, group) in merged_apps {
+            let app_id = primary.app.app_id.unwrap_or(0);
+            let is_browser = browser_app_ids.contains(&app_id);
+            let kept_name = primary.app.app_name.clone().unwrap_or_default();
+
+            let mut values = if let Some(group) = &group {
+                let mut summed = vec![0_i64; bucket_count];
+                for member in &group.members {
+                    if let Some(member_id) = name_to_id.get(member) {
+                        if let Some(member_values) = app_matrix.get(member_id) {
+                            for (index, value) in member_values.iter().enumerate() {
+                                summed[index] += *value;
+                            }
+                        }
+                    }
+                }
+                summed
+            } else {
+                app_matrix.get(&app_id).cloned().unwrap_or_else(|| vec![0_i64; bucket_count])
+            };
+
+            if is_browser && !browser_merged {
+                if let Some(credited) = browser_site_matrix.get(&app_id) {
+                    for (index, value) in credited.iter().enumerate() {
+                        values[index] = (values[index] - *value).max(0);
+                    }
+                }
+                // 浏览器行在这个口径下只剩「其他页面」：全为 0 就不占一行
+                if values.iter().all(|value| *value <= 0) {
+                    continue;
+                }
+            }
+            if values.iter().all(|value| *value <= 0) && group.is_none() {
+                continue;
+            }
+
+            let name = group
+                .as_ref()
+                .map(|group| group.name.clone())
+                .unwrap_or_else(|| display_name(&primary.app));
+            let name = if is_browser && !browser_merged {
+                other_row_name(&primary.app, browser_apps.len())
+            } else {
+                name
+            };
+
+            let mut members: Vec<EntityMemberModel> = Vec::new();
+            if let Some(group) = &group {
+                for member in group.members.iter().filter(|member| member.as_str() != kept_name) {
+                    if let Some(agg) = window_apps
+                        .iter()
+                        .find(|candidate| candidate.app.app_name.as_deref() == Some(member.as_str()))
+                    {
+                        members.push(EntityMemberModel {
+                            key: format!("app:{}", agg.app.app_id.unwrap_or(0)),
+                            name: display_name(&agg.app),
+                            seconds: agg.seconds,
+                            icon: agg.app.app_icon_file.clone(),
+                        });
+                    }
+                }
+            }
+
+            rows.push(EntityHoursRow {
+                key: if is_browser && !browser_merged {
+                    format!("other:{}", app_id)
+                } else {
+                    format!("app:{}", app_id)
+                },
+                kind: if is_browser && !browser_merged { "other" } else { "app" }.to_string(),
+                name,
+                icon: primary.app.app_icon_file.clone(),
+                category_id: if is_browser && !browser_merged { 0 } else { primary.app.app_category_id.unwrap_or(0) },
+                category_kind: "app".to_string(),
+                category_name: if is_browser && !browser_merged { None } else { primary.app.cat_name.clone() },
+                category_color: if is_browser && !browser_merged { None } else { primary.app.cat_color.clone() },
+                is_browser,
+                values,
+                members,
+            });
+        }
+
+        // 站点行：关闭合并时全部出现；打开合并时只留「归属不到浏览器」的那些
+        for (site_id, values) in &site_matrix {
+            if values.iter().all(|value| *value <= 0) {
+                continue;
+            }
+            if browser_merged && attributed_sites.contains(site_id) {
+                continue;
+            }
+            let agg = site_aggs.get(site_id);
+            rows.push(EntityHoursRow {
+                key: format!("site:{}", site_id),
+                kind: "site".to_string(),
+                name: agg.map(site_display_name).unwrap_or_default(),
+                icon: agg.and_then(|agg| agg.icon_file.clone()),
+                category_id: agg.map(|agg| agg.category_id).unwrap_or(0),
+                category_kind: "site".to_string(),
+                category_name: agg.and_then(|agg| agg.category_name.clone()),
+                category_color: agg.and_then(|agg| agg.category_color.clone()),
+                is_browser: false,
+                values: values.clone(),
+                members: Vec::new(),
+            });
+        }
+
+        rows.sort_by(|a, b| {
+            let sum_a: i64 = a.values.iter().sum();
+            let sum_b: i64 = b.values.iter().sum();
+            sum_b
+                .cmp(&sum_a)
+                .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+        });
+
+        let labels = windows
+            .iter()
+            .filter_map(|(from, _)| {
+                DateTime::from_timestamp(*from, 0).map(|dt| dt.with_timezone(&tz).to_rfc3339())
+            })
+            .collect();
+
+        Ok(EntityHoursModel {
+            labels,
+            rows,
+            browser_merged,
+            bucket_count: bucket_count as i32,
+        })
+    }
+}
+
+/// 把本地时间轴切成桶：单日=24 小时 / 区间=每天 / 整年=12 个月
+fn bucket_windows(
+    start: NaiveDate,
+    end: NaiveDate,
+    tz: &chrono_tz::Tz,
+    buckets: &str,
+) -> Vec<(i64, i64)> {
+    let mut result: Vec<(i64, i64)> = Vec::new();
+    match buckets {
+        "hour" => {
+            for hour in 0..24u32 {
+                let from_local = start
+                    .and_hms_opt(hour, 0, 0)
+                    .unwrap();
+                let to_local = if hour == 23 {
+                    start.succ_opt().unwrap().and_hms_opt(0, 0, 0).unwrap()
+                } else {
+                    start.and_hms_opt(hour + 1, 0, 0).unwrap()
+                };
+                result.push((
+                    tz_naive_to_utc(from_local, tz).timestamp(),
+                    tz_naive_to_utc(to_local, tz).timestamp(),
+                ));
+            }
+        }
+        "month" => {
+            for month in 1..=12u32 {
+                let from_local = NaiveDate::from_ymd_opt(start.year(), month, 1)
+                    .unwrap()
+                    .and_hms_opt(0, 0, 0)
+                    .unwrap();
+                let next = if month == 12 {
+                    NaiveDate::from_ymd_opt(start.year() + 1, 1, 1)
+                } else {
+                    NaiveDate::from_ymd_opt(start.year(), month + 1, 1)
+                };
+                result.push((
+                    tz_naive_to_utc(from_local, tz).timestamp(),
+                    tz_naive_to_utc(next.unwrap().and_hms_opt(0, 0, 0).unwrap(), tz).timestamp(),
+                ));
+            }
+        }
+        _ => {
+            let mut day = start;
+            while day <= end {
+                let from_local = day.and_hms_opt(0, 0, 0).unwrap();
+                let to_local = day.succ_opt().unwrap().and_hms_opt(0, 0, 0).unwrap();
+                result.push((
+                    tz_naive_to_utc(from_local, tz).timestamp(),
+                    tz_naive_to_utc(to_local, tz).timestamp(),
+                ));
+                match day.succ_opt() {
+                    Some(next) => day = next,
+                    None => break,
+                }
+            }
+        }
+    }
+    result
+}
+
+fn bucket_index(windows: &[(i64, i64)], timestamp: i64) -> Option<usize> {
+    windows
+        .iter()
+        .position(|(from, to)| timestamp >= *from && timestamp < *to)
 }
 
 // ---------------------------------------------------------------- 数据装载
@@ -1119,6 +1503,7 @@ mod tests {
             chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap(),
             "Asia/Shanghai",
             false,
+            None,
         )
         .await
         .expect("entity list");
@@ -1139,6 +1524,63 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn hours_matrix_subtracts_sites_from_browser() {
+        let pool = test_pool().await;
+        let (_app_id, _site_id) = seed(&pool).await;
+        let config = ConfigService::new(&test_config_dir("hours"));
+        let day = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+
+        let model = EntityService::hours(&pool, &config, day, day, "Asia/Shanghai", "hour", false)
+            .await
+            .expect("entity hours");
+
+        assert_eq!(model.bucket_count, 24);
+        assert_eq!(model.labels.len(), 24);
+        // 04:00 UTC = 12:00 本地，站点半小时、浏览器余额半小时
+        let site = model.rows.iter().find(|row| row.kind == "site").expect("site row");
+        assert_eq!(site.values[12], 1800);
+        let other = model.rows.iter().find(|row| row.kind == "other").expect("balance row");
+        assert_eq!(other.values[12], 1800);
+        assert_eq!(
+            model.rows.iter().flat_map(|row| row.values.iter()).sum::<i64>(),
+            3600
+        );
+    }
+
+    #[tokio::test]
+    async fn hours_can_fold_sites_into_browser() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+        let config = ConfigService::new(&test_config_dir("hours-merged"));
+        let day = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+
+        let model = EntityService::hours(&pool, &config, day, day, "Asia/Shanghai", "hour", true)
+            .await
+            .expect("entity hours");
+
+        assert!(!model.rows.iter().any(|row| row.kind == "site"));
+        let browser = model.rows.iter().find(|row| row.is_browser).expect("browser row");
+        assert_eq!(browser.values[12], 3600);
+    }
+
+    #[tokio::test]
+    async fn list_take_folds_rest_into_aggregate_row() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+        let config = ConfigService::new(&test_config_dir("take"));
+        let day = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+
+        let list = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", false, Some(1))
+            .await
+            .expect("entity list");
+
+        assert_eq!(list.rows.len(), 1);
+        let row = &list.rows[0];
+        assert_eq!(row.kind, "aggregate");
+        assert_eq!(row.seconds, 3600);
+    }
+
+    #[tokio::test]
     async fn list_merges_sites_into_browser() {
         let pool = test_pool().await;
         let (_app_id, _site_id) = seed(&pool).await;
@@ -1151,6 +1593,7 @@ mod tests {
             chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap(),
             "Asia/Shanghai",
             true,
+            None,
         )
         .await
         .expect("entity list");
@@ -1211,7 +1654,7 @@ mod tests {
         }
 
         let day = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
-        let list = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", false)
+        let list = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", false, None)
             .await
             .expect("entity list");
         let group_row = list
@@ -1234,7 +1677,7 @@ mod tests {
             .await
             .expect("dissolve");
 
-        let list = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", false)
+        let list = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", false, None)
             .await
             .expect("entity list after dissolve");
         assert!(!list.rows.iter().any(|row| row.name == "PiDeck" && !row.members.is_empty()));

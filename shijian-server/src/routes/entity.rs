@@ -8,7 +8,9 @@ use serde::Deserialize;
 use sqlx::SqlitePool;
 use std::sync::Arc;
 
-use crate::models::entity::{BrowserOptionModel, EntityListModel, MergeGroupListModel};
+use crate::models::entity::{
+    BrowserOptionModel, EntityHoursModel, EntityListModel, MergeGroupListModel,
+};
 use crate::response::ApiResponse;
 use crate::services::config::ConfigService;
 use crate::services::entity::EntityService;
@@ -21,6 +23,25 @@ struct EntityListQuery {
     #[serde(default)]
     browser_merged: bool,
     timezone: String,
+    /// 只要前 N 行，其余归并成「其他」；缺省返回全量
+    take: Option<usize>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EntityHoursQuery {
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+    /// hour（单日 24 桶）/ day（区间每天）/ month（整年 12 桶）
+    #[serde(default = "default_buckets")]
+    buckets: String,
+    #[serde(default)]
+    browser_merged: bool,
+    timezone: String,
+}
+
+fn default_buckets() -> String {
+    "day".to_string()
 }
 
 #[derive(Debug, Deserialize)]
@@ -39,6 +60,7 @@ struct RenameGroupRequest {
 pub fn router() -> Router<SqlitePool> {
     Router::new()
         .route("/api/entity/list", get(get_entity_list))
+        .route("/api/entity/hours", get(get_entity_hours))
         .route("/api/entity/browsers", get(get_browsers))
         .route("/api/entity/merge-groups", get(get_merge_groups))
         .route("/api/entity/merge-groups/dissolve", post(dissolve_group))
@@ -57,6 +79,32 @@ async fn get_entity_list(
         q.start.date(),
         q.end.date(),
         &q.timezone,
+        q.browser_merged,
+        q.take,
+    )
+    .await
+    {
+        Ok(data) => Json(ApiResponse::ok(data)),
+        Err(e) => Json(ApiResponse {
+            code: 500,
+            message: e.to_string(),
+            data: None,
+        }),
+    }
+}
+
+async fn get_entity_hours(
+    State(pool): State<SqlitePool>,
+    Extension(config_service): Extension<Arc<ConfigService>>,
+    Query(q): Query<EntityHoursQuery>,
+) -> Json<ApiResponse<EntityHoursModel>> {
+    match EntityService::hours(
+        &pool,
+        &config_service,
+        q.start.date(),
+        q.end.date(),
+        &q.timezone,
+        &q.buckets,
         q.browser_merged,
     )
     .await
