@@ -76,7 +76,7 @@ impl EntityService {
         let utc_start = tz_date_to_utc_range(start, &tz).0;
         let utc_end = tz_date_to_utc_range(end, &tz).1;
         let config = config_service.get_or_load().await?;
-        let default_browser = config.general.default_browser.trim().to_lowercase();
+        let configured_browser = config.general.default_browser.trim().to_lowercase();
         let excluded = config_service.get_excluded_app_id_set(pool).await;
 
         // 1. 应用时长（UTC 小时桶，与既有页面同口径）
@@ -93,6 +93,14 @@ impl EntityService {
             browser_apps.insert(reference, app_id);
         }
         let browser_app_ids: HashSet<i64> = browser_apps.values().copied().collect();
+
+        // 没配默认浏览器时：先取浏览日志里出现最多的标识；一条都没有、又只识别到一个浏览器，
+        // 就归给它（老版本扩展上报的记录全是 NULL，这一步能让历史数据立刻有归属）
+        let default_browser = if configured_browser.is_empty() {
+            recommend_default_browser(pool, &browser_apps).await?
+        } else {
+            configured_browser.clone()
+        };
 
         // 2. 浏览器会话区间（用于互斥扣减）
         let sessions = load_session_intervals(pool, utc_start, utc_end).await?;
@@ -155,20 +163,14 @@ impl EntityService {
         // 补全站点静态信息（只查有归属的站点）
         fill_site_details(pool, &mut sites).await?;
 
-        // 4. 合并组：自动判定 + 持久化的覆盖
-        let merged_apps = apply_merge_groups(
-            pool,
-            &apps,
-            &excluded,
-            &browser_app_ids,
-        )
-        .await?;
+        // 4. 合并组：先把自动组落库（按全量应用判定，避免「今天没跑的成员看不到组」），
+        //    再把本窗口的行按组折叠
+        sync_auto_groups(pool).await?;
+        let merged_apps = apply_merge_groups(pool, &apps, &excluded).await?;
 
         // 5. 组装行
         let mut rows: Vec<EntityModel> = Vec::new();
         let mut balance_seconds: i64 = 0;
-        let mut site_seconds: i64 = 0;
-
         for (primary, group) in merged_apps {
             let app_id = primary.app.app_id.unwrap_or(0);
             let is_browser = browser_app_ids.contains(&app_id);
@@ -244,13 +246,18 @@ impl EntityService {
             });
         }
 
-        // 6. 站点行（只在关闭合并时出现）
-        if !browser_merged {
+        // 网站侧总时长（含并入浏览器的部分）
+        let site_seconds: i64 = sites.values().map(|agg| agg.credited).sum();
+
+        // 6. 站点行：关闭合并时全部独立成行；打开合并时只有「找不到归属浏览器」的站点还需要留行
+        if !browser_merged || sites.values().any(|agg| agg.by_browser.is_empty()) {
             for (site_id, agg) in &sites {
                 if agg.credited <= 0 {
                     continue;
                 }
-                site_seconds += agg.credited;
+                if browser_merged && !agg.by_browser.is_empty() {
+                    continue;
+                }
                 rows.push(EntityModel {
                     key: format!("site:{}", site_id),
                     kind: "site".to_string(),
@@ -265,8 +272,6 @@ impl EntityService {
                     members: Vec::new(),
                 });
             }
-        } else {
-            site_seconds = credited_by_browser.values().sum();
         }
 
         // 关闭合并时，被站点吃掉的那部分已经从浏览器行里扣掉了，站点秒数也计入展示总量
@@ -294,6 +299,8 @@ impl EntityService {
     }
 
     pub async fn merge_groups(pool: &SqlitePool) -> Result<MergeGroupListModel, AppError> {
+        // 设置页可能先于概览页被打开：这里也跑一次自动判定，组才不会等到进概览页才出现
+        sync_auto_groups(pool).await?;
         let groups = load_groups(pool).await?;
         let suppressed = load_suppressions(pool).await?;
         Ok(MergeGroupListModel {
@@ -696,21 +703,18 @@ async fn load_suppressions(pool: &SqlitePool) -> Result<HashSet<String>, AppErro
     Ok(rows.into_iter().map(|(r,)| r).collect())
 }
 
-/// 自动组落库（幂等）+ 应用持久化组，返回「要保留的行 + 它所属的组」
-async fn apply_merge_groups(
-    pool: &SqlitePool,
-    apps: &[AppAgg],
-    excluded: &HashSet<i64>,
-    browser_app_ids: &HashSet<i64>,
-) -> Result<Vec<(AppAgg, Option<MergeGroupModel>)>, AppError> {
-    let suppressed = load_suppressions(pool).await?;
+/// 自动组落库（幂等）。判定用全量应用表：只看本窗口会让「今天没跑的成员」整组消失。
+async fn sync_auto_groups(pool: &SqlitePool) -> Result<(), AppError> {
+    let all = load_app_aggregates_all(pool).await?;
+    let no_excluded: HashSet<i64> = HashSet::new();
+    let browser_ids: HashSet<i64> = resolve_browser_apps(&all, &no_excluded)
+        .values()
+        .copied()
+        .collect();
 
-    let candidates: Vec<MergeCandidate> = apps
+    let candidates: Vec<MergeCandidate> = all
         .iter()
-        .filter(|agg| {
-            let id = agg.app.app_id.unwrap_or(0);
-            !excluded.contains(&id) && !browser_app_ids.contains(&id)
-        })
+        .filter(|agg| !browser_ids.contains(&agg.app.app_id.unwrap_or(0)))
         .map(|agg| MergeCandidate {
             name: agg.app.app_name.clone().unwrap_or_default(),
             file: agg.app.app_file.clone(),
@@ -719,8 +723,12 @@ async fn apply_merge_groups(
         })
         .collect();
 
-    // 自动组落库：只在缺这个键时插入，用户改名 / 解散过的组不会被覆盖
+    let suppressed = load_suppressions(pool).await?;
     let auto_groups = app_merge::build_groups(&candidates, &suppressed);
+    if auto_groups.is_empty() {
+        return Ok(());
+    }
+
     let existing_keys: HashSet<String> = {
         let rows: Vec<(String,)> =
             sqlx::query_as("SELECT AutoKey FROM EntityMergeGroups WHERE AutoKey IS NOT NULL")
@@ -758,7 +766,25 @@ async fn apply_merge_groups(
         }
     }
 
+    Ok(())
+}
+
+/// 把本窗口的应用行按持久化的组合并：组里保留一行（母成员，或母成员不在时的最长可见成员），
+/// 组时长 = 本窗口可见成员之和。
+async fn apply_merge_groups(
+    pool: &SqlitePool,
+    apps: &[AppAgg],
+    excluded: &HashSet<i64>,
+) -> Result<Vec<(AppAgg, Option<MergeGroupModel>)>, AppError> {
     let groups = load_groups(pool).await?;
+    if groups.is_empty() {
+        return Ok(apps
+            .iter()
+            .filter(|agg| !excluded.contains(&agg.app.app_id.unwrap_or(0)))
+            .map(|agg| (agg.clone(), None))
+            .collect());
+    }
+
     let visible: HashSet<String> = apps
         .iter()
         .map(|agg| agg.app.app_name.clone().unwrap_or_default())
@@ -770,8 +796,6 @@ async fn apply_merge_groups(
             .unwrap_or(0)
     };
 
-    // 每个组在本窗口里保留哪一行：母成员可见就用母成员，
-    // 否则退回时长最长的可见成员（否则「今天只有子进程跑过」时整组会消失、时长被吞）
     let mut member_to_group: HashMap<String, i64> = HashMap::new();
     let mut keep: HashMap<i64, String> = HashMap::new();
     for group in groups.iter().filter(|group| group.kind == "app") {
@@ -785,7 +809,7 @@ async fn apply_merge_groups(
                 .members
                 .iter()
                 .filter(|member| visible.contains(*member))
-                .max_by_key(|member| seconds_of(member))
+                .max_by_key(|member| seconds_of(member.as_str()))
                 .cloned()
         };
         if let Some(chosen) = chosen {
@@ -803,10 +827,7 @@ async fn apply_merge_groups(
         match member_to_group.get(&name) {
             Some(group_id) => {
                 if keep.get(group_id) == Some(&name) {
-                    let group = groups
-                        .iter()
-                        .find(|group| group.id == *group_id)
-                        .cloned();
+                    let group = groups.iter().find(|group| group.id == *group_id).cloned();
                     result.push((agg.clone(), group));
                 }
             }
@@ -814,7 +835,7 @@ async fn apply_merge_groups(
         }
     }
 
-    // 组的时长 = 本窗口内所有可见成员之和（母成员没跑的日子，子成员的时长也不能丢）
+    // 组时长 = 本窗口内所有可见成员之和（母成员没跑的日子，子成员的时长也不能丢）
     for (agg, group) in result.iter_mut() {
         let Some(group) = group else { continue };
         let total: i64 = group
@@ -830,6 +851,36 @@ async fn apply_merge_groups(
     }
 
     Ok(result)
+}
+
+/// 默认浏览器的自动推荐：浏览日志里出现最多的标识 → 只有一条就归它 → 都没就只有唯一识别到的浏览器
+async fn recommend_default_browser(
+    pool: &SqlitePool,
+    browser_apps: &HashMap<String, i64>,
+) -> Result<String, AppError> {
+    let row: Option<(String,)> = sqlx::query_as(
+        r#"
+        SELECT BrowserRef FROM WebBrowseLogModels
+        WHERE BrowserRef IS NOT NULL AND BrowserRef <> ''
+        GROUP BY BrowserRef
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+        "#,
+    )
+    .fetch_optional(pool)
+    .await?;
+
+    if let Some((reference,)) = row {
+        return Ok(reference.trim().to_lowercase());
+    }
+
+    if browser_apps.len() == 1 {
+        if let Some((reference, _)) = browser_apps.iter().next() {
+            return Ok(reference.clone());
+        }
+    }
+
+    Ok(String::new())
 }
 
 // ---------------------------------------------------------------- 纯函数
