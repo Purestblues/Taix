@@ -16,6 +16,7 @@ using ShiJian.Client.Logging;
 using ShiJian.Client.Models;
 using ShiJian.Client.Models.Category;
 using ShiJian.Client.Servicers.Interfaces;
+using ShiJian.Client.Shared.Models.Entity;
 using ShiJian.Client.Shared.Models.Web;
 using ShiJian.Client.Shared.Servicers.Interfaces;
 using ShiJian.Client.Views;
@@ -29,6 +30,7 @@ public class CategoryPageViewModel : CategoryPageModel
     private readonly IWebData _webDataService;
     private readonly IAppData _appDataService;
     private readonly IData _dataService;
+    private readonly IEntityData _entityDataService;
     private readonly ICategorys _categoryService;
     private readonly IToastService _toastService;
     private readonly INavigationService _navigationService;
@@ -42,6 +44,7 @@ public class CategoryPageViewModel : CategoryPageModel
         INavigationService navigationService,
         IAppData appData,
         IData data,
+        IEntityData entityData,
         IWebData webData,
         IDialogService dialogService,
         IToastService toastService,
@@ -51,6 +54,7 @@ public class CategoryPageViewModel : CategoryPageModel
         _navigationService = navigationService;
         _appDataService = appData;
         _dataService = data;
+        _entityDataService = entityData;
         _webDataService = webData;
         _dialogService = dialogService;
         _toastService = toastService;
@@ -899,19 +903,22 @@ public class CategoryPageViewModel : CategoryPageModel
     private async Task LoadAppCategoryCardsAsync(CancellationToken cancellationToken)
     {
         Data.Clear();
+        var today = DateTime.Now.Date;
 
         var categories = await _categoryService.GetCategoriesAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
         // 数量仍是「每个分类一次」，但改成并发，不再串行排队
         var countTasks = categories.Select(m => _appDataService.GetAppCountByCategoryIDAsync(m.ID)).ToArray();
-        var columnTask = _dataService.GetCategoryHoursDataAsync(DateTime.Now.Date, cancellationToken);
+        // 时长走统一实体表：浏览器内被统计的网站时长已经从浏览器里扣掉了，
+        // 否则分类页的「应用时长」会把同一分钟算两遍
+        var entityTask = _entityDataService.GetEntityListAsync(today, today, false, cancellationToken);
 
         var counts = await Task.WhenAll(countTasks);
-        var columns = await columnTask ?? [];
+        var entity = await entityTask;
         cancellationToken.ThrowIfCancellationRequested();
 
-        var durationByCategory = CategoryCardStats.SumByCategory(columns);
+        var durationByCategory = SumEntityByCategory(entity, "app");
 
         var cards = new List<CategoryModel>(categories.Count);
         for (var i = 0; i < categories.Count; i++)
@@ -940,13 +947,14 @@ public class CategoryPageViewModel : CategoryPageModel
         cancellationToken.ThrowIfCancellationRequested();
 
         var countTasks = webCategories.Select(m => _webDataService.GetWebSitesCountAsync(m.ID)).ToArray();
-        var columnTask = _webDataService.GetBrowseDataByCategoryStatisticsAsync(today, today, cancellationToken);
+        // 网站分类页固定用「站点独立成行」的口径：打开「网页并入浏览器」也不该让网站分类集体归零
+        var entityTask = _entityDataService.GetEntityListAsync(today, today, false, cancellationToken);
 
         var counts = await Task.WhenAll(countTasks);
-        var columns = await columnTask ?? [];
+        var entity = await entityTask;
         cancellationToken.ThrowIfCancellationRequested();
 
-        var durationByCategory = CategoryCardStats.SumByCategory(columns);
+        var durationByCategory = SumEntityByCategory(entity, "site");
 
         var cards = new List<WebCategoryModel>(webCategories.Count);
         for (var i = 0; i < webCategories.Count; i++)
@@ -961,6 +969,28 @@ public class CategoryPageViewModel : CategoryPageModel
         CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
 
         foreach (var card in CategoryCardStats.Sort(cards, CurrentSortMode, m => m.Data?.Name)) WebCategoryData.Add(card);
+    }
+
+    /// <summary>
+    /// 实体行按分类求和。`side` 取 `app`（应用分类）或 `site`（网站分类）：
+    /// 两套分类命名空间各自自增，ID 相同也不代表同一个分类。
+    /// </summary>
+    private static Dictionary<int, double> SumEntityByCategory(EntityListModel? entity, string side)
+    {
+        var result = new Dictionary<int, double>();
+        if (entity == null) return result;
+
+        foreach (var row in entity.Rows)
+        {
+            if (side == "site" ? row.Kind != "site" : row.Kind == "site") continue;
+            if (row.CategoryId <= 0 || row.Seconds <= 0) continue;
+
+            result[row.CategoryId] = result.TryGetValue(row.CategoryId, out var current)
+                ? current + row.Seconds
+                : row.Seconds;
+        }
+
+        return result;
     }
 
     public override void Dispose()

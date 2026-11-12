@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -282,12 +284,30 @@ public partial class IndexPageViewModel : IndexPageModel
             ? _dataService.GetCategoryHoursDataAsync(prevStart, cancellationToken)
             : _dataService.GetCategoryRangeDataAsync(prevStart, prevEnd, cancellationToken);
 
-        await Task.WhenAll(entityTask, prevEntityTask, pageCountTask, prevPageCountTask,
+        HasEntityError = false;
+        EntityErrorText = string.Empty;
+
+        await Task.WhenAll(pageCountTask, prevPageCountTask,
             columnTask, categoriesTask, webColumnTask, webCategoriesTask, compareColumnTask);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var entity = await entityTask;
-        var prevEntity = await prevEntityTask;
+        EntityListModel? entity;
+        EntityListModel? prevEntity;
+        try
+        {
+            entity = await entityTask;
+            prevEntity = await prevEntityTask;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+        {
+            // 实体接口是新东西：服务端没升级时这里是 404，不能表现成「今天没用电脑」
+            HasEntityError = true;
+            EntityErrorText = ex is HttpRequestException { StatusCode: HttpStatusCode.NotFound }
+                ? ResourceStrings.ServerOutdated
+                : ResourceStrings.EntityLoadFailed;
+            Logger.Warn($"实体表加载失败：{ex.Message}");
+            return;
+        }
 
         var rows = entity?.Rows ?? [];
         var appRows = rows.Where(row => row.Kind != "site").ToList();

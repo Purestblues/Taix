@@ -43,6 +43,8 @@ public static class ResourceStrings
     public static string DefaultBrowser => GetStringValue("DefaultBrowser");
     public static string DefaultBrowserDesc => GetStringValue("DefaultBrowserDesc");
     public static string BrowserAuto => GetStringValue("BrowserAuto");
+    public static string ServerOutdated => GetStringValue("ServerOutdated");
+    public static string EntityLoadFailed => GetStringValue("EntityLoadFailed");
     public static string ViewCard => GetStringValue("ViewCard");
     public static string SortByDuration => GetStringValue("SortByDuration");
     public static string SortByName => GetStringValue("SortByName");

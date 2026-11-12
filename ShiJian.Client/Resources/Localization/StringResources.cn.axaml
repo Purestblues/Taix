@@ -482,4 +482,6 @@
     <system:String x:Key="DefaultBrowser">默认浏览器</system:String>
     <system:String x:Key="DefaultBrowserDesc">没有浏览器标识的历史站点记录归给它；留空表示按浏览日志里出现最多的那个自动推荐</system:String>
     <system:String x:Key="BrowserAuto">自动推荐</system:String>
+    <system:String x:Key="ServerOutdated">概览页需要新版服务端（当前返回 404）。安装新版安装包或替换目录里的 shijian-server 后再试。</system:String>
+    <system:String x:Key="EntityLoadFailed">实体数据加载失败，已保留上一次的结果。稍后再试或检查服务端日志。</system:String>
 </ResourceDictionary>

@@ -32,6 +32,8 @@ public partial class IndexPageModel : ModelBase
 
     private bool _isWebBrowserMerged;
     private SelectItemModel _webMergeOption;
+    private bool _hasEntityError;
+    private string _entityErrorText = string.Empty;
 
     /// <summary>
     /// 对比文字的周期描述（比昨日 / 比上周）
@@ -468,6 +470,29 @@ public partial class IndexPageModel : ModelBase
 
     /// <summary>关闭「并入浏览器」时右侧的网站列才有内容</summary>
     public bool IsWebListVisible => !_isWebBrowserMerged;
+
+    /// <summary>实体接口不可用（多为服务端版本过旧 / 加载失败）</summary>
+    public bool HasEntityError
+    {
+        get => _hasEntityError;
+        set
+        {
+            if (_hasEntityError == value) return;
+            _hasEntityError = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EntityErrorText
+    {
+        get => _entityErrorText;
+        set
+        {
+            if (_entityErrorText == value) return;
+            _entityErrorText = value;
+            OnPropertyChanged();
+        }
+    }
 
     /// <summary>头部「独立 / 并入浏览器」开关的选中项</summary>
     public SelectItemModel WebMergeOption

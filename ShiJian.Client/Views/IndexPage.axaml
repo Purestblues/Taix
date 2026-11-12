@@ -61,6 +61,22 @@
                 </StackPanel>
             </Grid>
 
+            <!-- 实体接口不可用：说明原因并给重试，而不是显示成「今天 0 秒」 -->
+            <Border IsVisible="{Binding HasEntityError}"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource ThemeBrush}"
+                    BorderThickness="1"
+                    CornerRadius="{StaticResource RadiusMedium}"
+                    Padding="14,10" Margin="0,0,0,12">
+                <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding EntityErrorText}" FontSize="12" TextWrapping="Wrap"
+                               Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Margin="12,0,0,0" Padding="10,0" Height="28"
+                                Content="{DynamicResource Retry}"
+                                Command="{Binding RefreshCommand}" />
+                </Grid>
+            </Border>
+
             <!-- 自定义范围：选「自定义」时展开（高度由 ExpandMotion 动画，代码在后面驱动） -->
             <Border x:Name="CustomRangeHost" IsVisible="False" ClipToBounds="False" HorizontalAlignment="Right">
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right"
