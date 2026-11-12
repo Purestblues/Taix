@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ShiJian Web Sentry",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "ShiJian 网页浏览时长统计插件",
   "browser_specific_settings": {
     "gecko": {
