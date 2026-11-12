@@ -9,7 +9,7 @@
 
 | 维度 | 状态 |
 | --- | --- |
-| 发布 | [`v1.3.4-fork.7`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.7)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
+| 发布 | [`v1.3.4-fork.9`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.9)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
 | 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）122 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
@@ -265,5 +265,6 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 | 发版 | `.\script\prepare-release.ps1 [-Apply]` 生成草稿 → `.\script\release.ps1 [-Commit] [-Watch]`（版本号可省略，自动递增） |
 | 发版前置 | 必须用 **pwsh 7** 跑脚本（Windows PowerShell 5.1 会把 UTF-8 中文按 GBK 解析而报错），并带 `HTTPS_PROXY` 让 push / gh 走代理 |
 | 跑测试 | `dotnet test ShiJian.Tests/ShiJian.Tests.csproj -c Release`（CI 打包前会先跑） |
+| 验证 Rust 改动 | `gh workflow run rust-check.yml -R Purestblues/shijian`（server `cargo test` + monitor `cargo check`，约 3 分钟）。本机没有 MSVC 链接器，`cargo` 会调到 MSYS 的 `link.exe` 直接失败 |
 | 本地能否打 Setup.exe | 不能：安装器（cargo）与客户端 AOT 都需要 MSVC 链接器（VS Build Tools），故统一走 GitHub Actions |
 | fork 上 tag 触发 Actions | 不会触发，`release.ps1` 内部改用 `gh workflow run --ref <tag>` |
