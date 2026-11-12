@@ -611,7 +611,7 @@ async fn fill_site_details(
     let sql = format!(
         r#"
         SELECT ws.ID AS site_id, ws.Title AS site_title, ws.Domain AS site_domain, ws.Alias AS site_alias,
-               ws.CategoryID AS site_category_id, ws.IconFile AS site_icon_file,
+               ws.CategoryID AS site_category_id, ws.IconFile AS site_icon_file, ws.Duration AS site_duration,
                c.ID AS cat_id, c.Name AS cat_name, c.IconFile AS cat_icon_file, c.Color AS cat_color,
                c.IsUrlMatch AS cat_is_url_match, c.UrlPatterns AS cat_url_patterns, c.IsSystem AS cat_is_system
         FROM WebSiteModels ws
@@ -946,6 +946,230 @@ mod tests {
         // 重叠会话由 load_session_intervals 合并，这里只处理已合并区间
         let merged = vec![(0, 150)];
         assert_eq!(overlap_seconds(&merged, 0, 150), 150);
+    }
+
+    /// 集成测试：在内存库上跑真实迁移 + 真实 SQL。
+    /// 纯函数测不出「列名写错 / 迁移没建表」这类错，只有真的查一次才知道。
+    async fn test_pool() -> SqlitePool {
+        let pool = sqlx::sqlite::SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect("sqlite::memory:")
+            .await
+            .expect("open in-memory sqlite");
+        crate::migrations::run(&pool, "Asia/Shanghai")
+            .await
+            .expect("run migrations");
+        pool
+    }
+
+    fn test_config_dir(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("shijian-entity-test-{}-{}", tag, std::process::id()));
+        std::fs::create_dir_all(&dir).expect("create temp dir");
+        dir
+    }
+
+    /// 造一份最小数据：chrome 一小时，其中半小时是 example.com，另半小时是「其他页面」
+    async fn seed(pool: &SqlitePool) -> (i64, i64) {
+        let category_id: Option<(i64,)> = sqlx::query_as("SELECT ID FROM CategoryModels LIMIT 1")
+            .fetch_optional(pool)
+            .await
+            .unwrap();
+        let category_id = match category_id {
+            Some((id,)) => (id,),
+            None => {
+                sqlx::query("INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsSystem) VALUES ('未分类', NULL, '#e4e3df', 0, NULL, 1)")
+                    .execute(pool)
+                    .await
+                    .unwrap();
+                sqlx::query_as("SELECT ID FROM CategoryModels LIMIT 1")
+                    .fetch_one(pool)
+                    .await
+                    .unwrap()
+            }
+        };
+        let app = sqlx::query(
+            r#"INSERT INTO AppModels (Name, Alias, CategoryID, TotalTime, File, IconFile, Description, Publisher)
+               VALUES ('chrome', NULL, ?, 3600, 'C:\Program Files\Google\Chrome\chrome.exe', NULL, 'Google Chrome', NULL)"#,
+        )
+        .bind(category_id.0)
+        .execute(pool)
+        .await
+        .unwrap();
+        let app_id = app.last_insert_rowid();
+
+        sqlx::query(
+            "INSERT INTO HoursLogModels (DataTime, AppModelID, Time) VALUES ('2026-11-12T04:00:00+00:00', ?, 3600)",
+        )
+        .bind(app_id)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        // 会话 04:00–05:00（整点，正好覆盖浏览日志所在的小时桶）
+        sqlx::query(
+            "INSERT INTO AppSessions (AppModelID, StartTime, EndTime, Duration) VALUES (?, '2026-11-12T04:00:00+00:00', '2026-11-12T05:00:00+00:00', 3600)",
+        )
+        .bind(app_id)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        let site = sqlx::query(
+            "INSERT INTO WebSiteModels (Title, Domain, Alias, CategoryID, IconFile, Duration) VALUES ('Example', 'example.com', NULL, 0, NULL, 1800)",
+        )
+        .execute(pool)
+        .await
+        .unwrap();
+        let site_id = site.last_insert_rowid();
+
+        let url = sqlx::query("INSERT INTO WebUrlModels (Title, Url, IconFile) VALUES ('Example', 'https://example.com/', NULL)")
+            .execute(pool)
+            .await
+            .unwrap();
+        let url_id = url.last_insert_rowid();
+
+        sqlx::query(
+            "INSERT INTO WebBrowseLogModels (UrlId, LogTime, Duration, SiteId, BrowserRef) VALUES (?, '2026-11-12T04:00:00+00:00', 1800, ?, 'chrome')",
+        )
+        .bind(url_id)
+        .bind(site_id)
+        .execute(pool)
+        .await
+        .unwrap();
+
+        (app_id, site_id)
+    }
+
+    #[tokio::test]
+    async fn list_splits_browser_into_balance_and_sites() {
+        let pool = test_pool().await;
+        let (_app_id, _site_id) = seed(&pool).await;
+        let config = ConfigService::new(&test_config_dir("off"));
+
+        let list = EntityService::list(
+            &pool,
+            &config,
+            chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap(),
+            "Asia/Shanghai",
+            false,
+        )
+        .await
+        .expect("entity list");
+
+        assert_eq!(list.app_seconds, 3600);
+        assert_eq!(list.site_seconds, 1800);
+        assert_eq!(list.balance_seconds, 1800);
+        assert_eq!(list.total_seconds, 3600);
+        assert_eq!(list.overflow_seconds, 0);
+
+        let other = list.rows.iter().find(|row| row.kind == "other").expect("balance row");
+        assert_eq!(other.seconds, 1800);
+        let site = list.rows.iter().find(|row| row.kind == "site").expect("site row");
+        assert_eq!(site.seconds, 1800);
+        // 关闭合并时浏览器本身不占行，它的时间全在站点行与差额行里
+        assert!(!list.rows.iter().any(|row| row.kind == "app"));
+        assert_eq!(list.rows.iter().map(|row| row.seconds).sum::<i64>(), 3600);
+    }
+
+    #[tokio::test]
+    async fn list_merges_sites_into_browser() {
+        let pool = test_pool().await;
+        let (_app_id, _site_id) = seed(&pool).await;
+        let config = ConfigService::new(&test_config_dir("on"));
+
+        let list = EntityService::list(
+            &pool,
+            &config,
+            chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap(),
+            chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap(),
+            "Asia/Shanghai",
+            true,
+        )
+        .await
+        .expect("entity list");
+
+        assert_eq!(list.total_seconds, 3600);
+        assert!(!list.rows.iter().any(|row| row.kind == "site"));
+
+        let browser = list
+            .rows
+            .iter()
+            .find(|row| row.is_browser)
+            .expect("browser row");
+        assert_eq!(browser.seconds, 3600);
+        assert_eq!(browser.members.len(), 1);
+        assert_eq!(browser.members[0].seconds, 1800);
+    }
+
+    #[tokio::test]
+    async fn auto_groups_are_persisted_and_dissolving_sticks() {
+        let pool = test_pool().await;
+        let (app_id, _site_id) = seed(&pool).await;
+        let config = ConfigService::new(&test_config_dir("group"));
+
+        // 再插一个同目录、同品牌（PiDeck）的变体，凑成一个自动组
+        let setup = sqlx::query(
+            r#"INSERT INTO AppModels (Name, Alias, CategoryID, TotalTime, File, IconFile, Description, Publisher)
+               VALUES ('PiDeck-0.9.5-setup', NULL, 0, 600, 'C:\Program Files\PiDeck\PiDeck-0.9.5-setup.exe', NULL, 'PiDeck', NULL)"#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap()
+        .last_insert_rowid();
+        let main = sqlx::query(
+            r#"INSERT INTO AppModels (Name, Alias, CategoryID, TotalTime, File, IconFile, Description, Publisher)
+               VALUES ('PiDeck', NULL, 0, 900, 'C:\Program Files\PiDeck\PiDeck.exe', NULL, 'PiDeck', NULL)"#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap()
+        .last_insert_rowid();
+
+        for (id, seconds) in [(main, 900_i64), (setup, 600_i64)] {
+            sqlx::query(
+                "INSERT INTO HoursLogModels (DataTime, AppModelID, Time) VALUES ('2026-11-12T04:00:00+00:00', ?, ?)",
+            )
+            .bind(id)
+            .bind(seconds)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+
+        let day = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+        let list = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", false)
+            .await
+            .expect("entity list");
+        let group_row = list
+            .rows
+            .iter()
+            .find(|row| row.name == "PiDeck")
+            .expect("merged group row");
+        assert_eq!(group_row.seconds, 1500);
+        assert_eq!(group_row.members.len(), 1);
+
+        let groups = EntityService::merge_groups(&pool).await.expect("groups");
+        let group = groups
+            .groups
+            .iter()
+            .find(|group| group.name == "PiDeck")
+            .expect("persisted group");
+        assert!(group.is_auto);
+
+        EntityService::dissolve_group(&pool, group.id)
+            .await
+            .expect("dissolve");
+
+        let list = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", false)
+            .await
+            .expect("entity list after dissolve");
+        assert!(!list.rows.iter().any(|row| row.name == "PiDeck" && !row.members.is_empty()));
+
+        let groups = EntityService::merge_groups(&pool).await.expect("groups");
+        assert!(groups.groups.is_empty());
+        assert_eq!(groups.suppressed.len(), 1);
+        let _ = app_id;
     }
 
     #[test]
