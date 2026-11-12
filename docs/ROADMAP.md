@@ -11,9 +11,9 @@
 | --- | --- |
 | 发布 | [`v1.3.4-fork.7`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.7)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）82 个用例；CI 里先跑测试再打包 |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）90 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
-| 代码规模 | 客户端 307 个 `.cs`、67 个 `.axaml`，0 处 TODO/FIXME |
+| 代码规模 | 客户端 307 个 `.cs`、68 个 `.axaml`，0 处 TODO/FIXME |
 
 ## 已知问题
 
@@ -174,11 +174,14 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       剩余：图表按分类取色阶（随 N7 或之后单独做）、`RadiusMedium=RadiusLarge=16` 的语义重复
 - [ ] **N6** 子母程序合并：自动判定 + 设置页「子母程序合并」管理页（子进程继承母进程分类，保留原标签）
 - [ ] **N2** 应用/网站统一实体表 + 「网站并入浏览器」开关（浏览器用真实活跃时长）
-- [ ] **N7** 分类页（发现页）信息密度：卡片瘦身 + 紧凑视图 + 排序（方案见 `PLAN-2026-11.md` 三·五，`fork.8.5`）
-      **下一步就做这个**。已核过数据源：应用侧 `api/data/category-range` + `category-hours`、网站侧
-      `api/webdata/browse-category-statistics`，都是「分类 × 时段」矩阵，本地按列求和即得每分类时长/占比，
-      不需要改服务端。周期口径已拍板：**只做「今天」，本轮不加周期选择器**。
-      当前 `Views/CategoryPage.axaml` 仍是 150×150 固定方块（图标 + 名称 + ×应用数），一屏只放得下 6 个。
+- [ ] **N7** 分类页（发现页）信息密度（方案见 `PLAN-2026-11.md` 三·五，`fork.8.5`）
+      - [x] **N7-a 卡片瘦身**（已实现，未发版）：150×150 方块 → 200×92 扁卡片，一屏 6 列；
+            卡上新增「今日时长 + 占比条 + 占比百分比」，应用数降为次要信息；目录/URL 匹配从药丸改成图标右上角小圆点。
+            数据：应用侧 `api/data/category-hours`、网站侧 `api/webdata/browse-category-statistics`，
+            一次请求拿全，本地按分类求和；每分类的应用数请求从串行改成并发。
+            排序：有数据的按时长降序，0 时长收在后面按名称排。算术抽到 `Librarys/CategoryCardStats`，8 个单测覆盖。
+      - [ ] **N7-b** 紧凑 / 卡片视图切换（复用 `TabSwitch`）
+      - [ ] **N7-c** 排序菜单（时长 / 名称 / 应用数）——「0 时长收尾」已随 N7-a 完成
 - [ ] **N5** 分类页「分类 / 应用」视图切换 + 应用视图快速打标签（依赖 N6 / N2）
 - [x] **G11** 自绘图表 Tab 焦点——核验结论：控件层面已可达（`ColumnChart` / `DonutChart` /
       `StackedBarChart` / `ClockRing` 均有 `Focusable` + `IsTabStop` + 焦点重绘），

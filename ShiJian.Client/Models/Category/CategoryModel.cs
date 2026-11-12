@@ -2,9 +2,8 @@ using ShiJian.Client.Librarys;
 
 namespace ShiJian.Client.Models.Category;
 
-public class CategoryModel
+public class CategoryModel : CategoryCardModel
 {
-    public int Count { get; set; }
     public Shared.Models.CategoryModel Data { get; set; }
 
     /// <summary>

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -14,6 +14,7 @@ using ShiJian.Client.Foundation.Rx;
 using ShiJian.Client.Librarys;
 using ShiJian.Client.Logging;
 using ShiJian.Client.Models;
+using ShiJian.Client.Models.Category;
 using ShiJian.Client.Servicers.Interfaces;
 using ShiJian.Client.Shared.Models.Web;
 using ShiJian.Client.Shared.Servicers.Interfaces;
@@ -27,6 +28,7 @@ public class CategoryPageViewModel : CategoryPageModel
     private readonly IDialogService _dialogService;
     private readonly IWebData _webDataService;
     private readonly IAppData _appDataService;
+    private readonly IData _dataService;
     private readonly ICategorys _categoryService;
     private readonly IToastService _toastService;
     private readonly INavigationService _navigationService;
@@ -39,6 +41,7 @@ public class CategoryPageViewModel : CategoryPageModel
         ICategorys categorys,
         INavigationService navigationService,
         IAppData appData,
+        IData data,
         IWebData webData,
         IDialogService dialogService,
         IToastService toastService,
@@ -47,6 +50,7 @@ public class CategoryPageViewModel : CategoryPageModel
         _categoryService = categorys;
         _navigationService = navigationService;
         _appDataService = appData;
+        _dataService = data;
         _webDataService = webData;
         _dialogService = dialogService;
         _toastService = toastService;
@@ -170,6 +174,8 @@ public class CategoryPageViewModel : CategoryPageModel
             Data[editItemIndex] = new CategoryModel
             {
                 Count = originalCount,
+                Duration = selected.Duration,
+                Ratio = selected.Ratio,
                 Data = restored
             };
         }
@@ -245,7 +251,10 @@ public class CategoryPageViewModel : CategoryPageModel
                         WebCategoryData[index] = new WebCategoryModel
                         {
                             Data = sysCategory.Data,
-                            Count = sysCategory.Count + SelectedWebCategoryItem.Count
+                            Count = sysCategory.Count + SelectedWebCategoryItem.Count,
+                            // 并入的站点时长跟着走，否则卡片上的时长会凭空少一块
+                            Duration = sysCategory.Duration + SelectedWebCategoryItem.Duration,
+                            Ratio = sysCategory.Ratio + SelectedWebCategoryItem.Ratio
                         };
                     }
                 }
@@ -505,6 +514,8 @@ public class CategoryPageViewModel : CategoryPageModel
                         Data[editItemIndex] = new CategoryModel
                         {
                             Count = item.Count,
+                            Duration = item.Duration,
+                            Ratio = item.Ratio,
                             Data = new Shared.Models.CategoryModel
                             {
                                 ID = item.Data.ID,
@@ -589,7 +600,10 @@ public class CategoryPageViewModel : CategoryPageModel
                         Data[index] = new CategoryModel
                         {
                             Data = sysCategory.Data,
-                            Count = sysCategory.Count + SelectedAppCategoryItem.Count
+                            Count = sysCategory.Count + SelectedAppCategoryItem.Count,
+                            // 并入的应用时长跟着走，否则卡片上的时长会凭空少一块
+                            Duration = sysCategory.Duration + SelectedAppCategoryItem.Duration,
+                            Ratio = sysCategory.Ratio + SelectedAppCategoryItem.Ratio
                         };
                     }
                 }
@@ -684,6 +698,8 @@ public class CategoryPageViewModel : CategoryPageModel
                         WebCategoryData[index] = new WebCategoryModel
                         {
                             Count = item.Count,
+                            Duration = item.Duration,
+                            Ratio = item.Ratio,
                             Data = category
                         };
                     }
@@ -836,39 +852,68 @@ public class CategoryPageViewModel : CategoryPageModel
     private async Task LoadDataCoreAsync(CancellationToken cancellationToken)
     {
         if (ShowType.Id == 0)
-        {
-            Data.Clear();
-            var categories = await _categoryService.GetCategoriesAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            foreach (var item in categories)
-            {
-                var appCount = await _appDataService.GetAppCountByCategoryIDAsync(item.ID);
-                cancellationToken.ThrowIfCancellationRequested();
-                Data.Add(new CategoryModel
-                {
-                    Count = appCount,
-                    Data = item
-                });
-            }
-            ComputeHasDirectoryMatchCategory();
-        }
+            await LoadAppCategoryCardsAsync(cancellationToken);
         else
-        {
-            HasDirectoryMatchCategory = false;
-            WebCategoryData.Clear();
-            var webCategories = await _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            foreach (var item in webCategories)
-            {
-                var siteCount = await _webDataService.GetWebSitesCountAsync(item.ID);
-                cancellationToken.ThrowIfCancellationRequested();
-                WebCategoryData.Add(new WebCategoryModel
-                {
-                    Data = item,
-                    Count = siteCount
-                });
-            }
-        }
+            await LoadWebCategoryCardsAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// 应用分类卡片：数量走按分类的应用列表，时长走「分类 × 小时」矩阵（一次请求拿全今天的），
+    /// 本地按行求和即可，不需要为每个分类单独问一次服务端。
+    /// </summary>
+    private async Task LoadAppCategoryCardsAsync(CancellationToken cancellationToken)
+    {
+        Data.Clear();
+
+        var categories = await _categoryService.GetCategoriesAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        // 数量仍是「每个分类一次」，但改成并发，不再串行排队
+        var countTasks = categories.Select(m => _appDataService.GetAppCountByCategoryIDAsync(m.ID)).ToArray();
+        var columnTask = _dataService.GetCategoryHoursDataAsync(DateTime.Now.Date, cancellationToken);
+
+        var counts = await Task.WhenAll(countTasks);
+        var columns = await columnTask ?? [];
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var durationByCategory = CategoryCardStats.SumByCategory(columns);
+
+        var cards = new List<CategoryModel>(categories.Count);
+        for (var i = 0; i < categories.Count; i++)
+            cards.Add(new CategoryModel { Data = categories[i], Count = counts[i] });
+
+        CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
+
+        foreach (var card in CategoryCardStats.Order(cards, m => m.Data.Name)) Data.Add(card);
+
+        ComputeHasDirectoryMatchCategory();
+    }
+
+    private async Task LoadWebCategoryCardsAsync(CancellationToken cancellationToken)
+    {
+        HasDirectoryMatchCategory = false;
+        WebCategoryData.Clear();
+
+        var today = DateTime.Now.Date;
+        var webCategories = await _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var countTasks = webCategories.Select(m => _webDataService.GetWebSitesCountAsync(m.ID)).ToArray();
+        var columnTask = _webDataService.GetBrowseDataByCategoryStatisticsAsync(today, today, cancellationToken);
+
+        var counts = await Task.WhenAll(countTasks);
+        var columns = await columnTask ?? [];
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var durationByCategory = CategoryCardStats.SumByCategory(columns);
+
+        var cards = new List<WebCategoryModel>(webCategories.Count);
+        for (var i = 0; i < webCategories.Count; i++)
+            cards.Add(new WebCategoryModel { Data = webCategories[i], Count = counts[i] });
+
+        CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
+
+        foreach (var card in CategoryCardStats.Order(cards, m => m.Data?.Name)) WebCategoryData.Add(card);
     }
 
     public override void Dispose()
