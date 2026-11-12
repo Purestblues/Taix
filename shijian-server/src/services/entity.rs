@@ -1108,19 +1108,26 @@ mod tests {
         let (app_id, _site_id) = seed(&pool).await;
         let config = ConfigService::new(&test_config_dir("group"));
 
-        // 再插一个同目录、同品牌（PiDeck）的变体，凑成一个自动组
+        // 再插一个同目录、同品牌（PiDeck）的变体，凑成一个自动组。
+        // CategoryID 必须真实存在：AppModels 的外键在迁移里是开的
+        let category: (i64,) = sqlx::query_as("SELECT ID FROM CategoryModels LIMIT 1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
         let setup = sqlx::query(
             r#"INSERT INTO AppModels (Name, Alias, CategoryID, TotalTime, File, IconFile, Description, Publisher)
-               VALUES ('PiDeck-0.9.5-setup', NULL, 0, 600, 'C:\Program Files\PiDeck\PiDeck-0.9.5-setup.exe', NULL, 'PiDeck', NULL)"#,
+               VALUES ('PiDeck-0.9.5-setup', NULL, ?, 600, 'C:\Program Files\PiDeck\PiDeck-0.9.5-setup.exe', NULL, 'PiDeck', NULL)"#,
         )
+        .bind(category.0)
         .execute(&pool)
         .await
         .unwrap()
         .last_insert_rowid();
         let main = sqlx::query(
             r#"INSERT INTO AppModels (Name, Alias, CategoryID, TotalTime, File, IconFile, Description, Publisher)
-               VALUES ('PiDeck', NULL, 0, 900, 'C:\Program Files\PiDeck\PiDeck.exe', NULL, 'PiDeck', NULL)"#,
+               VALUES ('PiDeck', NULL, ?, 900, 'C:\Program Files\PiDeck\PiDeck.exe', NULL, 'PiDeck', NULL)"#,
         )
+        .bind(category.0)
         .execute(&pool)
         .await
         .unwrap()
