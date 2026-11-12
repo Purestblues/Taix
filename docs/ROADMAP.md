@@ -197,8 +197,10 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
         总额两种视图都等于「应用总时长 + 未对齐的站点时长」。
       - 概览页头部「独立显示 / 并入浏览器」开关（`General.WebBrowserMerged`，配置 v6）；
         设置 → 常规新增「默认浏览器」（`General.DefaultBrowser`，候选来自 `/api/entity/browsers`）。
-      - 未做（`fork.10.5`）：`/api/entity/hours`、`/api/entity/summary`，统计 / 详细 / 分类三页切源，
-        手动绑定 `Kind=mixed`，分类页/搜索/Web UI 的合并接入，服务端 Top N 与「其他」归并。
+      - `fork.10.5`（已发布）：`/api/entity/hours`（实体 × 时段，hour/day/month 桶）+ `take` Top N +
+        分类页切实体数据源 + 实体接口失败提示条 + 差额行继承浏览器分类。
+      - 未做（`fork.10.6`）：`/api/entity/summary`，统计 / 详细两页切源，
+        手动绑定 `Kind=mixed`，搜索/Web UI 的合并接入。
 - [ ] **N7** 分类页（发现页）信息密度（方案见 `PLAN-2026-11.md` 三·五，`fork.8.5`）
       - [x] **N7-a 卡片瘦身**（已实现，未发版）：150×150 方块 → 200×92 扁卡片，一屏 6 列；
             卡上新增「今日时长 + 占比条 + 占比百分比」，应用数降为次要信息；目录/URL 匹配从药丸改成图标右上角小圆点。
