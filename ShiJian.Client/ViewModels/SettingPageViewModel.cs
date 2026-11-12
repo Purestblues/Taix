@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -28,6 +29,7 @@ public class SettingPageViewModel : SettingPageModel
     private readonly IAppConfig _appConfig;
     private readonly IData _dataService;
     private readonly IProcessService _processService;
+    private readonly IAppMergeService _appMergeService;
     private readonly IToastService _toastService;
     private readonly ConfigModel _config;
 
@@ -38,7 +40,8 @@ public class SettingPageViewModel : SettingPageModel
         IWebData webData,
         IDialogService dialogService,
         IProcessService processService,
-        UpdateCheckerService updateCheckerService)
+        UpdateCheckerService updateCheckerService,
+        IAppMergeService appMergeService)
     {
         _appConfig = appConfig;
         _toastService = toastService;
@@ -47,16 +50,85 @@ public class SettingPageViewModel : SettingPageModel
         _dialogService = dialogService;
         _processService = processService;
         _updateCheckerService = updateCheckerService;
+        _appMergeService = appMergeService;
         _config = appConfig.GetConfig();
 
         OpenURL = AsyncRelayCommand.Create<object>(OnOpenURL).DisposeWith(Disposables);
         DelDataCommand = AsyncRelayCommand.CreateFromTask<object>(OnDelDataAsync).DisposeWith(Disposables);
         ExportDataCommand = AsyncRelayCommand.CreateFromTask<object>(OnExportDataAsync).DisposeWith(Disposables);
         CheckUpdate = AsyncRelayCommand.CreateFromTask(OnCheckUpdateAsync).DisposeWith(Disposables);
+        DissolveMergeGroupCommand = AsyncRelayCommand.CreateFromTask<object>(OnDissolveMergeGroupAsync).DisposeWith(Disposables);
+        ResetMergeGroupsCommand = AsyncRelayCommand.CreateFromTask<object>(OnResetMergeGroupsAsync).DisposeWith(Disposables);
 
         appConfig.ConfigChanged += OnConfigChanged;
 
         Initialize();
+    }
+
+    public ICommand DissolveMergeGroupCommand { get; }
+    public ICommand ResetMergeGroupsCommand { get; }
+
+    /// <summary>进设置页时刷新一次（应用表可能在别的页面里改过）</summary>
+    public override async Task OnNavigatedToAsync()
+    {
+        await LoadMergeGroupsAsync();
+        await base.OnNavigatedToAsync();
+    }
+
+    private async Task LoadMergeGroupsAsync()
+    {
+        try
+        {
+            var groups = await _appMergeService.GetGroupsAsync(force: true);
+            MergeGroups.Clear();
+            foreach (var group in groups)
+                MergeGroups.Add(new AppMergeGroupRow
+                {
+                    Key = group.Key,
+                    Name = group.Name,
+                    Count = group.MemberNames.Count,
+                    MembersText = string.Join(" · ", group.MemberNames),
+                    IsRenamed = group.Name != group.MemberNames.FirstOrDefault()
+                });
+
+            HasMergeGroups = MergeGroups.Count > 0;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"加载子母程序合并组失败：{ex.Message}", ex);
+        }
+    }
+
+    private async Task OnDissolveMergeGroupAsync(object obj)
+    {
+        if (obj is not AppMergeGroupRow row) return;
+
+        try
+        {
+            await _appMergeService.DissolveAsync(row.Key);
+            _toastService.Success(ResourceStrings.MergeGroupDissolved);
+            await LoadMergeGroupsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Error(ResourceStrings.OperationFailedRetry);
+        }
+    }
+
+    private async Task OnResetMergeGroupsAsync(object obj)
+    {
+        try
+        {
+            await _appMergeService.ResetAsync();
+            _toastService.Success(ResourceStrings.MergeGroupRestored);
+            await LoadMergeGroupsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Error(ResourceStrings.OperationFailedRetry);
+        }
     }
 
     public object GeneralSettings

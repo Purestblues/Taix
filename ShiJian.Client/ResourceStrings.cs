@@ -29,6 +29,15 @@ public static class ResourceStrings
     public static string CategoryActiveDaysUnit => GetStringValue("CategoryActiveDaysUnit");
     public static string CategoryNoData => GetStringValue("CategoryNoData");
     public static string ViewCompact => GetStringValue("ViewCompact");
+    public static string MergedItems => GetStringValue("MergedItems");
+    public static string MergeGroups => GetStringValue("MergeGroups");
+    public static string MergeGroupsDesc => GetStringValue("MergeGroupsDesc");
+    public static string MergeGroupsEmpty => GetStringValue("MergeGroupsEmpty");
+    public static string MergeGroupMembers => GetStringValue("MergeGroupMembers");
+    public static string MergeGroupDissolve => GetStringValue("MergeGroupDissolve");
+    public static string MergeGroupResetAll => GetStringValue("MergeGroupResetAll");
+    public static string MergeGroupDissolved => GetStringValue("MergeGroupDissolved");
+    public static string MergeGroupRestored => GetStringValue("MergeGroupRestored");
     public static string ViewCard => GetStringValue("ViewCard");
     public static string SortByDuration => GetStringValue("SortByDuration");
     public static string SortByName => GetStringValue("SortByName");

@@ -11,7 +11,7 @@
 | --- | --- |
 | 发布 | [`v1.3.4-fork.7`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.7)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）99 个用例；CI 里先跑测试再打包 |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）122 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
 | 代码规模 | 客户端 308 个 `.cs`、69 个 `.axaml`，0 处 TODO/FIXME |
 
@@ -172,7 +172,18 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       25 处组件级硬编码色收进 token（`SelectRingBrush` / `WebBadgeBg/FgBrush` / `ScrimBrush` 等），
       `AccentColor`/`AccentBrush` 这对**没人引用**的废弃 token 删除。
       剩余：图表按分类取色阶（随 N7 或之后单独做）、`RadiusMedium=RadiusLarge=16` 的语义重复
-- [ ] **N6** 子母程序合并：自动判定 + 设置页「子母程序合并」管理页（子进程继承母进程分类，保留原标签）
+- [~] **N6** 子母程序合并（`fork.9`：**第一段已实现，视图期自动合并 + 管理页**）
+      - 判定在客户端 `<c>Librarys/AppMergePlanner</c>`：`安装目录锚点 + 品牌名` 推出稳定键，
+        `PiDeck-0.9.5-setup` / `PiDeck-0.11.3-setup` 这种同版本变体合成一行（组名取品牌 `PiDeck`）；
+        浏览器、系统目录、`setup`/`uninstall` 这类无辨识度品牌一律不参与。
+      - 折叠是**纯视图期映射**：先把 `DailyLogModel` 行按「应用 + 日期」并进母成员再算总数与榜单，
+        原始数据一行不改；合并后行上有「合并 N 项」徽章，悬停列出成员。
+      - 管理页：设置页「常规」底部新增 `子母程序合并` 卡片，逐组「解散」（写本地覆盖表 `app.merge.json`）
+        与「恢复全部」。选择存在本地文件（Windows 在程序目录、macOS 在 `~/Library/Application Support/ShiJian`）。
+      - 已接入：概览榜单/更多卡片（含对比周期）、统计页 Top 榜。**未接入**：分类页应用列表、搜索、Web UI。
+      - 推迟到 `fork.10`（与 N2 一起）：`Publisher` 采集（monitor + 服务端列）、服务端 `EntityMergeGroups/Members`、
+        手动绑定与跨源（应用↔网站）合并。理由：本机没有 MSVC 链接器，Rust 改动无法本地编译验证；
+        而合并是展示层映射，服务端不参与也能先把效果落地。
 - [ ] **N2** 应用/网站统一实体表 + 「网站并入浏览器」开关（浏览器用真实活跃时长）
 - [ ] **N7** 分类页（发现页）信息密度（方案见 `PLAN-2026-11.md` 三·五，`fork.8.5`）
       - [x] **N7-a 卡片瘦身**（已实现，未发版）：150×150 方块 → 200×92 扁卡片，一屏 6 列；

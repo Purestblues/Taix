@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using ShiJian.Client.Servicers.Updater;
 using ShiJian.Client.Shared.Models.Config;
 using ShiJian.Client.Shared.Models.Data;
+using ShiJian.Client.Servicers.Instances;
 
 namespace ShiJian.Client;
 
@@ -25,4 +26,5 @@ namespace ShiJian.Client;
 [JsonSerializable(typeof(WebLogExportRow))]
 [JsonSerializable(typeof(List<WebLogExportRow>))]
 [JsonSerializable(typeof(WindowStateModel))]
+[JsonSerializable(typeof(AppMergeState))]
 public partial class ClientJsonContext : JsonSerializerContext { }

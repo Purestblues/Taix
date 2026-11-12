@@ -34,6 +34,7 @@ public partial class ChartPageViewModel : ChartPageModel
     private readonly INavigationService _navigationService;
     private readonly IStateService _stateService;
     private readonly IAppEventService _appEventService;
+    private readonly IAppMergeService _appMergeService;
     private int _appCount;
     private double _totalTime;
 
@@ -44,7 +45,8 @@ public partial class ChartPageViewModel : ChartPageModel
         IWebData webData,
         IAppConfig appConfig,
         IStateService stateService,
-        IAppEventService appEventService)
+        IAppEventService appEventService,
+        IAppMergeService appMergeService)
     {
         _dataService = data;
         _categoryService = categories;
@@ -53,6 +55,7 @@ public partial class ChartPageViewModel : ChartPageModel
         _stateService = stateService;
         _config = appConfig.GetConfig();
         _appEventService = appEventService;
+        _appMergeService = appMergeService;
 
         ToDetailCommand = AsyncRelayCommand.Create<object>(OnToDetail).DisposeWith(Disposables);
         RefreshCommand = AsyncRelayCommand.CreateFromTask<object>(OnRefreshAsync).DisposeWith(Disposables);
@@ -392,7 +395,10 @@ public partial class ChartPageViewModel : ChartPageModel
 
         var list = await _dataService.GetDateRangelogListAsync(dateStart, dateEnd, 5, -1, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
-        TopData = ChartDataMapper.MapFromDailyLogs(list);
+        // N6：榜单按合并组折叠子成员（视图期映射，不改原始数据）
+        var mergeGroups = await _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken);
+        TopData = ChartDataMapper.MapFromDailyLogs(mergeGroups.Count > 0 ? _appMergeService.Apply(list ?? []) : list ?? []);
+        _appMergeService.Decorate(TopData);
         TopHours = TopData.Count > 0 ? Time.ToHoursString(TopData[0].Value) : "0";
 
         _appCount = await _dataService.GetDateRangeAppCountAsync(dateStart, dateEnd, cancellationToken);

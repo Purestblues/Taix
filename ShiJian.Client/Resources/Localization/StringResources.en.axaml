@@ -452,4 +452,15 @@
     <system:String x:Key="SortByCount">Count</system:String>
     <system:String x:Key="SortOrder">Sort</system:String>
     <system:String x:Key="ViewMode">View</system:String>
+
+    <!-- App merge (N6) -->
+    <system:String x:Key="MergedItems">Merged {0}</system:String>
+    <system:String x:Key="MergeGroups">Merged apps</system:String>
+    <system:String x:Key="MergeGroupsDesc">Versions and helper processes of the same program are shown as one row. Records are untouched</system:String>
+    <system:String x:Key="MergeGroupsEmpty">Nothing to merge right now</system:String>
+    <system:String x:Key="MergeGroupMembers">{0} apps</system:String>
+    <system:String x:Key="MergeGroupDissolve">Split</system:String>
+    <system:String x:Key="MergeGroupResetAll">Restore all</system:String>
+    <system:String x:Key="MergeGroupDissolved">Dissolved - this group stays split</system:String>
+    <system:String x:Key="MergeGroupRestored">Automatic merging restored</system:String>
 </ResourceDictionary>

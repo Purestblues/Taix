@@ -31,6 +31,7 @@ namespace ShiJian.Client;
 [Singleton(typeof(IProcessService), typeof(ProcessService))]
 [Singleton(typeof(IContextMenuServicer), typeof(ContextMenuServicer))]
 [Singleton(typeof(IAppEventService), typeof(AppEventService))]
+[Singleton(typeof(IAppMergeService), typeof(AppMergeService))]
 [Singleton(typeof(IAppUpdateService), typeof(AppUpdateService))]
 [Singleton(typeof(IThemeServicer), typeof(ThemeServicer))]
 [Singleton(typeof(IMotionServicer), typeof(MotionServicer))]

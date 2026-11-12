@@ -466,4 +466,15 @@
     <system:String x:Key="SortByCount">数量</system:String>
     <system:String x:Key="SortOrder">排序</system:String>
     <system:String x:Key="ViewMode">视图</system:String>
+
+    <!-- 子母程序合并（N6） -->
+    <system:String x:Key="MergedItems">合并 {0} 项</system:String>
+    <system:String x:Key="MergeGroups">子母程序合并</system:String>
+    <system:String x:Key="MergeGroupsDesc">同一个程序的不同版本 / 子进程只在列表里合成一行，原始记录一条不动</system:String>
+    <system:String x:Key="MergeGroupsEmpty">暂时没有可合并的应用</system:String>
+    <system:String x:Key="MergeGroupMembers">含 {0} 项</system:String>
+    <system:String x:Key="MergeGroupDissolve">解散</system:String>
+    <system:String x:Key="MergeGroupResetAll">恢复全部</system:String>
+    <system:String x:Key="MergeGroupDissolved">已解散，这个组不再自动合并</system:String>
+    <system:String x:Key="MergeGroupRestored">已恢复自动合并</system:String>
 </ResourceDictionary>

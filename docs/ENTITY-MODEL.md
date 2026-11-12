@@ -206,6 +206,16 @@ GET /api/entity/merge-groups                  → 组列表（含自动候选）
 | 批次 | 步骤 | 依赖 |
 | --- | --- | --- |
 | `fork.9`（N6） | ① 上报加 `Publisher`（monitor win/mac + pipe + request）<br>② `AppModels.Publisher` 列 + 迁移<br>③ `EntityMergeGroups/Members` + 自动判定服务<br>④ 设置页「子母程序合并」管理页<br>⑤ 客户端实体适配层（只做合并，不改页面结构） | 无 |
+
+> **`fork.9` 实际执行（2026-11-12）**：④⑤ 已完成，①②③ 推迟。
+> - 判定与折叠全在客户端（`Librarys/AppMergePlanner` + `Servicers/Instances/AppMergeService`）：
+>   判定用「安装目录锚点 + 进程名品牌」（`PiDeck-0.9.5-setup` → 品牌 `PiDeck`），
+>   因为 `Publisher` 还没采集，先用路径 + 名字也能覆盖「同一程序的多个版本」这个最痛的点；
+>   用户覆盖（解散 / 改名）落在本地 `app.merge.json`，不进服务端。
+> - 推迟原因：本机没有 MSVC 链接器，`shijian-server` / `shijian-monitor-windows` 无法本地编译，
+>   改了只能靠 CI 打包时才发现编译错误；而合并本身是视图期映射，服务端不参与也能先落地。
+> - 待办（随 `fork.10` 一起）：`Publisher` 采集与列、`EntityMergeGroups/Members`、手动绑定与 `Kind=mixed`、
+>   分类页/搜索/Web UI 的合并接入、`AppModels.CategoryID` 的「子继承母」展示口径。
 | `fork.10`（N2） | ⑥ 扩展上报浏览器标识（构建期注入 + `BrowserRef` 列，只到浏览器不区分 profile）<br>⑦ `/api/entity/*` 聚合（互斥归属 + 差额行 + 小时桶 + 服务端排序 / 「其他」归并）<br>⑧ 概览 / 统计 / 详细 / 分类四页切数据源<br>⑨ 「网站并入浏览器」开关 + 差额行 UI + 设置项「默认浏览器」 | ⑥⑦ 必须先于 ⑧ |
 | `fork.11`（N5） | ⑩ 分类页「分类 / 应用」视图切换 + 快速打标签 | ⑧ |
 

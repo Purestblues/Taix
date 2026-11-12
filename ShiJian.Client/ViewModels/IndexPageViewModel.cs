@@ -34,6 +34,7 @@ public partial class IndexPageViewModel : IndexPageModel
     private readonly IAppConfig _appConfig;
     private readonly IStateService _stateService;
     private readonly IAppEventService _appEventService;
+    private readonly IAppMergeService _appMergeService;
 
     // 图表原始数据缓存（切应用/网站时本地重建，不重复请求）
     private IReadOnlyList<ColumnDataModel> _appColumns = [];
@@ -49,7 +50,8 @@ public partial class IndexPageViewModel : IndexPageModel
         INavigationService navigationService,
         IAppConfig appConfig,
         IStateService stateService,
-        IAppEventService appEventService)
+        IAppEventService appEventService,
+        IAppMergeService appMergeService)
     {
         _dataService = data;
         _webDataService = webData;
@@ -58,6 +60,7 @@ public partial class IndexPageViewModel : IndexPageModel
         _appConfig = appConfig;
         _stateService = stateService;
         _appEventService = appEventService;
+        _appMergeService = appMergeService;
 
         ToDetailCommand = AsyncRelayCommand.Create<object>(OnToDetail).DisposeWith(Disposables);
         CategoryClickCommand = AsyncRelayCommand.Create<object>(OnCategoryClick).DisposeWith(Disposables);
@@ -246,11 +249,21 @@ public partial class IndexPageViewModel : IndexPageModel
         var prevAppLogs = (await prevAppListTask)?.ToList() ?? [];
         var prevWebSites = (await prevWebListTask)?.ToList() ?? [];
 
+        // N6：合并组是视图期映射，先把子成员并进母成员再算总数 / 榜单，两处口径才不会打架。
+        // 对比周期也一起合并，否则「比上期」是在拿合并前、合并后两个口径相减。
+        var mergeGroups = await _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken);
+        if (mergeGroups.Count > 0)
+        {
+            appLogs = _appMergeService.Apply(appLogs);
+            prevAppLogs = _appMergeService.Apply(prevAppLogs);
+        }
+
         // 榜单
         CompareCaption = compareCaption;
         HourLabels = labels;
 
         var appChartData = ChartDataMapper.MapFromDailyLogs(appLogs, includeBadges: true);
+        _appMergeService.Decorate(appChartData);
         WeekData = appChartData;
         AppFrequentUseData = appChartData.Take(FrequentUseNum).ToList();
         AppMoreData = appChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();

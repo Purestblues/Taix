@@ -12,6 +12,8 @@ public class SettingPageModel : ModelBase
     private DateTime _exportDataEndMonthDate;
     private DateTime _exportDataStartMonthDate;
     private ObservableCollection<string> _tabbarData = [];
+    private ObservableCollection<AppMergeGroupRow> _mergeGroups = [];
+    private bool _hasMergeGroups;
     private int _tabbarSelectedIndex;
     private string _version = string.Empty;
 
@@ -41,6 +43,27 @@ public class SettingPageModel : ModelBase
         set
         {
             _tabbarSelectedIndex = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>子母程序合并的自动组（N6）</summary>
+    public ObservableCollection<AppMergeGroupRow> MergeGroups
+    {
+        get => _mergeGroups;
+        set
+        {
+            _mergeGroups = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool HasMergeGroups
+    {
+        get => _hasMergeGroups;
+        set
+        {
+            _hasMergeGroups = value;
             OnPropertyChanged();
         }
     }
