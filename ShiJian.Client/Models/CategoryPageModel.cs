@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ShiJian.Client.Controls.Select;
 using ShiJian.Client.Models.Category;
@@ -32,6 +33,40 @@ public partial class CategoryPageModel : ModelBase
         get => base.ShowType;
         set => base.ShowType = value;
     }
+
+    private SelectItemModel _viewMode;
+
+    /// <summary>
+    /// 紧凑 / 卡片视图（N7-b）。纯展示层开关：不重拉数据，也不重建列表项，
+    /// 所以切换时滚动位置与选中态都不会丢。
+    /// </summary>
+    [PageState(LookupFrom = nameof(ViewModeOptions))]
+    public SelectItemModel ViewMode
+    {
+        get => _viewMode;
+        set
+        {
+            _viewMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsCardView));
+        }
+    }
+
+    public List<SelectItemModel> ViewModeOptions { get; } =
+    [
+        new()
+        {
+            Id = 0,
+            Name = ResourceStrings.ViewCompact
+        },
+        new()
+        {
+            Id = 1,
+            Name = ResourceStrings.ViewCard
+        }
+    ];
+
+    public bool IsCardView => ViewMode?.Id == 1;
 
     public ObservableCollection<CategoryModel> Data
     {
@@ -215,9 +250,12 @@ public partial class CategoryPageModel : ModelBase
     {
         public WebSiteCategoryModel? Data { get; set; }
 
-        /// <summary>
-        /// 列表里展示的颜色：和图表同一套对比度规则
-        /// </summary>
-        public string DisplayColor => ShiJian.Client.Librarys.ChartColorHelper.Resolve(Data?.Color, Data?.IsSystem ?? false);
+        public override string? Name => Data?.Name;
+
+        public override string? IconFile => Data?.IconFile;
+
+        protected override string? RawColor => Data?.Color;
+
+        protected override bool IsSystemCategory => Data?.IsSystem ?? false;
     }
 }

@@ -1,4 +1,4 @@
-<ResourceDictionary xmlns="https://github.com/avaloniaui"
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:system="clr-namespace:System;assembly=netstandard"
                     x:Class="ShiJian.Client.Resources.Localization.StringResourcesEn"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
@@ -441,4 +441,8 @@
     <system:String x:Key="MaxSoundDuration">Sound Duration</system:String>
     <system:String x:Key="MaxSoundDurationDesc">Max time to stay active while sound is playing, then sleep, restart monitor process to apply</system:String>
     <system:String x:Key="Minutes">minutes</system:String>
+
+    <!-- 分类页视图切换（N7-b） -->
+    <system:String x:Key="ViewCompact">Compact</system:String>
+    <system:String x:Key="ViewCard">Cards</system:String>
 </ResourceDictionary>

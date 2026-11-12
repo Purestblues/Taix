@@ -1,4 +1,4 @@
-# 路线图
+﻿# 路线图
 
 > 本仓库是 [NLick47/Taix](https://github.com/NLick47/Taix)（现名**时见 / ShiJian**）的个人 fork。
 > 2026-11 已全量改名为 `ShiJian` / `shijian-*`，并**不再同步上游**。
@@ -11,9 +11,9 @@
 | --- | --- |
 | 发布 | [`v1.3.4-fork.7`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.7)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）90 个用例；CI 里先跑测试再打包 |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）93 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
-| 代码规模 | 客户端 307 个 `.cs`、68 个 `.axaml`，0 处 TODO/FIXME |
+| 代码规模 | 客户端 308 个 `.cs`、69 个 `.axaml`，0 处 TODO/FIXME |
 
 ## 已知问题
 
@@ -180,7 +180,11 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
             数据：应用侧 `api/data/category-hours`、网站侧 `api/webdata/browse-category-statistics`，
             一次请求拿全，本地按分类求和；每分类的应用数请求从串行改成并发。
             排序：有数据的按时长降序，0 时长收在后面按名称排。算术抽到 `Librarys/CategoryCardStats`，8 个单测覆盖。
-      - [ ] **N7-b** 紧凑 / 卡片视图切换（复用 `TabSwitch`）
+      - [x] **N7-b 紧凑 / 卡片视图切换**（已实现，未发版）：标题栏右侧加「紧凑 / 卡片」`TabSwitch`；
+            卡片抽成 `Controls/Category/CategoryCard`（应用与网站共用一份模板），形态由 `IsCard` 换模板——
+            换模板不改 DataTemplate，列表项容器不重建，所以**滚动位置与选中态都不会丢**。
+            紧凑 200×92、卡片 168×148（图标 40、时长 20px）。选择走 `[PageState]`，返回导航时保持
+            （注意 `TryRestoreState` 只在**返回导航**时生效，从侧边栏切页会回到默认值，这是既有设计）。
       - [ ] **N7-c** 排序菜单（时长 / 名称 / 应用数）——「0 时长收尾」已随 N7-a 完成
 - [ ] **N5** 分类页「分类 / 应用」视图切换 + 应用视图快速打标签（依赖 N6 / N2）
 - [x] **G11** 自绘图表 Tab 焦点——核验结论：控件层面已可达（`ColumnChart` / `DonutChart` /

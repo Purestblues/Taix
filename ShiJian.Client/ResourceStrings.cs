@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls;
 
 namespace ShiJian.Client;
@@ -28,6 +28,8 @@ public static class ResourceStrings
     public static string CategoryAverageDaily => GetStringValue("CategoryAverageDaily");
     public static string CategoryActiveDaysUnit => GetStringValue("CategoryActiveDaysUnit");
     public static string CategoryNoData => GetStringValue("CategoryNoData");
+    public static string ViewCompact => GetStringValue("ViewCompact");
+    public static string ViewCard => GetStringValue("ViewCard");
     public static string CategoryVsYesterday => GetStringValue("CategoryVsYesterday");
     public static string CategoryVsLastWeek => GetStringValue("CategoryVsLastWeek");
     public static string CategoryVsLastMonth => GetStringValue("CategoryVsLastMonth");
@@ -165,6 +167,7 @@ public static class ResourceStrings
     public static string EnterCategoryName => GetStringValue("PleaseEnterCategoryName");
     public static string CategoryNameMaxLength => GetStringValue("AliasMaxLengthTip");
     public static string CategoryCreated => GetStringValue("CreationCompleted");
+    public static string DirectoryMatch => GetStringValue("DirectoryMatch");
     public static string ApplyDirectoryMatchSuccess => GetStringValue("ApplyDirectoryMatchSuccess");
 
     // URL 匹配相关

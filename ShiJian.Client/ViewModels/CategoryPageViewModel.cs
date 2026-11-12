@@ -880,7 +880,13 @@ public class CategoryPageViewModel : CategoryPageModel
 
         var cards = new List<CategoryModel>(categories.Count);
         for (var i = 0; i < categories.Count; i++)
-            cards.Add(new CategoryModel { Data = categories[i], Count = counts[i] });
+            cards.Add(new CategoryModel
+            {
+                Data = categories[i],
+                Count = counts[i],
+                IsMatchFlag = categories[i].IsDirectoryMatch,
+                MatchTip = ResourceStrings.DirectoryMatch
+            });
 
         CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
 
@@ -909,7 +915,13 @@ public class CategoryPageViewModel : CategoryPageModel
 
         var cards = new List<WebCategoryModel>(webCategories.Count);
         for (var i = 0; i < webCategories.Count; i++)
-            cards.Add(new WebCategoryModel { Data = webCategories[i], Count = counts[i] });
+            cards.Add(new WebCategoryModel
+            {
+                Data = webCategories[i],
+                Count = counts[i],
+                IsMatchFlag = webCategories[i].IsUrlMatch,
+                MatchTip = ResourceStrings.UrlMatch
+            });
 
         CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
 

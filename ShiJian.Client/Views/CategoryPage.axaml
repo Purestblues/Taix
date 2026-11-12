@@ -9,6 +9,7 @@
          xmlns:input="using:ShiJian.Client.Controls.Input"
          xmlns:select="using:ShiJian.Client.Controls.Select"
          xmlns:base="using:ShiJian.Client.Controls.Base"
+             xmlns:cat="using:ShiJian.Client.Controls.Category"
          xmlns:toggle="using:ShiJian.Client.Controls.Toggle"
          xmlns:vm="using:ShiJian.Client.ViewModels"
          xmlns:c="using:ShiJian.Client.Controls"
@@ -178,6 +179,9 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <select:TabSwitch Margin="0,0,10,0" VerticalAlignment="Center"
+                                   IsShowIcon="False" SelectedItem="{Binding ViewMode,Mode=TwoWay}"
+                                   Options="{Binding ViewModeOptions}" />
                     <Button:Button Icon="CalculatorAddition"
                                Content="{DynamicResource NewCategory}"
                                Width="150"
@@ -212,6 +216,7 @@
                         </base:View>
 
                         <ListBox Margin="10,20,10,0" ItemsSource="{Binding Data}"
+                                 Classes="categoryList" Classes.card="{Binding IsCardView}"
                                  SelectedItem="{Binding SelectedAppCategoryItem,Mode=TwoWay}"
                                  PointerPressed="OnAppCategoryListBoxPointerPressed"
                                  behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
@@ -260,14 +265,6 @@
                                     </Setter>
                                 </Style>
 
-                                <!-- 悬停/选中都落在卡片自己的描边上（卡片语汇：8px 圆角 + 发丝边 + 零阴影） -->
-                                <Style Selector="ListBoxItem:pointerover Border#CategoryCard">
-                                    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
-                                </Style>
-                                <Style Selector="ListBoxItem:selected Border#CategoryCard">
-                                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
-                                </Style>
-
                                 <Style Selector="ListBox">
                                     <Setter Property="Template">
                                         <ControlTemplate>
@@ -289,60 +286,7 @@
 
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Name="CategoryCard"
-                                            Width="200" Height="92" Margin="4"
-                                            Padding="12,10"
-                                            Background="{DynamicResource CardBgBrush}"
-                                            BorderBrush="{DynamicResource CardBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="8">
-                                        <Grid RowDefinitions="Auto,*,Auto">
-                                            <!-- 图标 + 名称 + 数量 + 时长 -->
-                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <Grid Width="28" Height="28" VerticalAlignment="Top">
-                                                    <Border CornerRadius="6" Background="{DynamicResource NavHoverGlassBrush}">
-                                                        <base:Img Radius="6" Width="22" Height="22" DecodeWidth="22"
-                                                                  URL="{Binding Data.IconFile}"
-                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Border>
-                                                    <!-- 右上角小圆点代替原来的「目录匹配」药丸，96 高的卡片放不下药丸 -->
-                                                    <base:View Value="{Binding Data.IsDirectoryMatch}">
-                                                        <Ellipse Width="7" Height="7" Fill="{DynamicResource ThemeBrush}"
-                                                                 HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                                 Margin="0,-2,-2,0"
-                                                                 ToolTip.Tip="{DynamicResource DirectoryMatch}" />
-                                                    </base:View>
-                                                </Grid>
-
-                                                <StackPanel Grid.Column="1" Margin="8,0,8,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Data.Name}" FontSize="13" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource StandardTextBrush}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Text="{Binding CountText}" FontSize="11" Margin="0,2,0,0"
-                                                               Foreground="{DynamicResource SubTextBrush}" />
-                                                </StackPanel>
-
-                                                <TextBlock Grid.Column="2" Text="{Binding DurationText}"
-                                                           FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource StandardTextBrush}"
-                                                           VerticalAlignment="Center" />
-                                            </Grid>
-
-                                            <!-- 占比条：宽度由布局决定，绘制时按 Bounds 现算（别再手算像素） -->
-                                            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" VerticalAlignment="Bottom"
-                      IsVisible="{Binding HasDuration}">
-                                                <Border Height="3" CornerRadius="1.5"
-                                                        Background="{DynamicResource DividerBrush}"
-                                                        VerticalAlignment="Center">
-                                                    <base:RatioBar Height="3" CornerRadius="1.5" MinWidth="3"
-                                                                   Ratio="{Binding Ratio}"
-                                                                   BarBrush="{Binding DisplayColor,Converter={StaticResource HextoColorConverter}}" />
-                                                </Border>
-                                                <TextBlock Grid.Column="1" Text="{Binding RatioText}" FontSize="11" Margin="6,0,0,0"
-                                                           Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
-                                            </Grid>
-                                        </Grid>
-                                    </Border>
+                                    <cat:CategoryCard />
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
@@ -357,6 +301,7 @@
                         </base:View>
 
                         <ListBox Margin="10,20,10,0"
+                                 Classes="categoryList" Classes.card="{Binding IsCardView}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                  SelectedItem="{Binding SelectedWebCategoryItem,Mode=TwoWay}"
                                  PointerPressed="OnWebCategoryListBoxPointerPressed"
@@ -398,14 +343,6 @@
                                     </Setter>
                                 </Style>
 
-                                <!-- 悬停/选中都落在卡片自己的描边上（卡片语汇：8px 圆角 + 发丝边 + 零阴影） -->
-                                <Style Selector="ListBoxItem:pointerover Border#CategoryCard">
-                                    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
-                                </Style>
-                                <Style Selector="ListBoxItem:selected Border#CategoryCard">
-                                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
-                                </Style>
-
                                 <Style Selector="ListBox">
                                     <Setter Property="Template">
                                         <ControlTemplate>
@@ -427,60 +364,7 @@
 
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Name="CategoryCard"
-                                            Width="200" Height="92" Margin="4"
-                                            Padding="12,10"
-                                            Background="{DynamicResource CardBgBrush}"
-                                            BorderBrush="{DynamicResource CardBorderBrush}"
-                                            BorderThickness="1"
-                                            CornerRadius="8">
-                                        <Grid RowDefinitions="Auto,*,Auto">
-                                            <!-- 图标 + 名称 + 数量 + 时长 -->
-                                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                                <Grid Width="28" Height="28" VerticalAlignment="Top">
-                                                    <Border CornerRadius="6" Background="{DynamicResource NavHoverGlassBrush}">
-                                                        <base:Img Radius="6" Width="22" Height="22" DecodeWidth="22"
-                                                                  URL="{Binding Data.IconFile}"
-                                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                                    </Border>
-                                                    <!-- 右上角小圆点代替原来的「目录匹配」药丸，96 高的卡片放不下药丸 -->
-                                                    <base:View Value="{Binding Data.IsUrlMatch}">
-                                                        <Ellipse Width="7" Height="7" Fill="{DynamicResource ThemeBrush}"
-                                                                 HorizontalAlignment="Right" VerticalAlignment="Top"
-                                                                 Margin="0,-2,-2,0"
-                                                                 ToolTip.Tip="{DynamicResource UrlMatch}" />
-                                                    </base:View>
-                                                </Grid>
-
-                                                <StackPanel Grid.Column="1" Margin="8,0,8,0" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding Data.Name}" FontSize="13" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource StandardTextBrush}"
-                                                               TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Text="{Binding CountText}" FontSize="11" Margin="0,2,0,0"
-                                                               Foreground="{DynamicResource SubTextBrush}" />
-                                                </StackPanel>
-
-                                                <TextBlock Grid.Column="2" Text="{Binding DurationText}"
-                                                           FontSize="14" FontWeight="SemiBold"
-                                                           Foreground="{DynamicResource StandardTextBrush}"
-                                                           VerticalAlignment="Center" />
-                                            </Grid>
-
-                                            <!-- 占比条：宽度由布局决定，绘制时按 Bounds 现算（别再手算像素） -->
-                                            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" VerticalAlignment="Bottom"
-                      IsVisible="{Binding HasDuration}">
-                                                <Border Height="3" CornerRadius="1.5"
-                                                        Background="{DynamicResource DividerBrush}"
-                                                        VerticalAlignment="Center">
-                                                    <base:RatioBar Height="3" CornerRadius="1.5" MinWidth="3"
-                                                                   Ratio="{Binding Ratio}"
-                                                                   BarBrush="{Binding DisplayColor,Converter={StaticResource HextoColorConverter}}" />
-                                                </Border>
-                                                <TextBlock Grid.Column="1" Text="{Binding RatioText}" FontSize="11" Margin="6,0,0,0"
-                                                           Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
-                                            </Grid>
-                                        </Grid>
-                                    </Border>
+                                    <cat:CategoryCard />
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>

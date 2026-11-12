@@ -1,0 +1,142 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:base="using:ShiJian.Client.Controls.Base"
+                    xmlns:controls="using:ShiJian.Client.Controls.Category"
+                    xmlns:models="using:ShiJian.Client.Models.Category">
+
+    <!--
+      分类卡片（应用分类 / 网站分类共用，N7）。
+      DataContext 是 Models.Category.CategoryCardModel：Data / Count / Duration / Ratio 等。
+      两种形态：
+        · 紧凑（默认）：200×92 扁卡，图标 28，名称与时长同行
+        · 卡片（IsCard=True）：168×148，图标 40，时长放大、名称独占一行
+      形态由页面在 ListBox 上挂 .card 类名切换（见下方 Style），不换 DataTemplate，
+      所以列表容器不会重建，滚动位置与选中态都不丢。
+    -->
+    <ControlTheme x:Key="{x:Type controls:CategoryCard}" TargetType="controls:CategoryCard">
+        <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Margin" Value="4" />
+        <Setter Property="Padding" Value="12,10" />
+        <Setter Property="Width" Value="200" />
+        <Setter Property="Height" Value="92" />
+
+        <Setter Property="Template">
+            <ControlTemplate>
+                <Border x:DataType="models:CategoryCardModel"
+                        Background="{TemplateBinding Background}"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
+                        Padding="{TemplateBinding Padding}">
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <Grid Width="28" Height="28" VerticalAlignment="Top">
+                                <Border CornerRadius="6" Background="{DynamicResource NavHoverGlassBrush}">
+                                    <base:Img Radius="6" Width="22" Height="22" DecodeWidth="22"
+                                              URL="{Binding IconFile}"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <base:View Value="{Binding IsMatchFlag}">
+                                    <Ellipse Width="7" Height="7" Fill="{DynamicResource ThemeBrush}"
+                                             HorizontalAlignment="Right" VerticalAlignment="Top"
+                                             Margin="0,-2,-2,0"
+                                             ToolTip.Tip="{Binding MatchTip}" />
+                                </base:View>
+                            </Grid>
+
+                            <StackPanel Grid.Column="1" Margin="8,0,8,0" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource StandardTextBrush}"
+                                           TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding CountText}" FontSize="11" Margin="0,2,0,0"
+                                           Foreground="{DynamicResource SubTextBrush}" />
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" Text="{Binding DurationText}"
+                                       FontSize="14" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource StandardTextBrush}"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+
+                        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" VerticalAlignment="Bottom"
+                              IsVisible="{Binding HasDuration}">
+                            <Border Height="3" CornerRadius="1.5"
+                                    Background="{DynamicResource DividerBrush}"
+                                    VerticalAlignment="Center">
+                                <base:RatioBar Height="3" CornerRadius="1.5" MinWidth="3"
+                                               Ratio="{Binding Ratio}"
+                                               BarBrush="{Binding DisplayColor,Converter={StaticResource HextoColorConverter}}" />
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="{Binding RatioText}" FontSize="11" Margin="6,0,0,0"
+                                       Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                        </Grid>
+                    </Grid>
+                </Border>
+            </ControlTemplate>
+        </Setter>
+
+        <Style Selector="^[IsCard=True]">
+            <Setter Property="Width" Value="168" />
+            <Setter Property="Height" Value="148" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:DataType="models:CategoryCardModel"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <Grid RowDefinitions="Auto,Auto,*,Auto">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Grid Width="40" Height="40" HorizontalAlignment="Left">
+                                    <Border CornerRadius="8" Background="{DynamicResource NavHoverGlassBrush}">
+                                        <base:Img Radius="8" Width="32" Height="32" DecodeWidth="32"
+                                                  URL="{Binding IconFile}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <base:View Value="{Binding IsMatchFlag}">
+                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource ThemeBrush}"
+                                                 HorizontalAlignment="Right" VerticalAlignment="Top"
+                                                 Margin="0,-2,-2,0"
+                                                 ToolTip.Tip="{Binding MatchTip}" />
+                                    </base:View>
+                                </Grid>
+
+                                <TextBlock Grid.Column="1" Text="{Binding CountText}" FontSize="11"
+                                           Foreground="{DynamicResource SubTextBrush}"
+                                           VerticalAlignment="Bottom" HorizontalAlignment="Right" />
+                            </Grid>
+
+                            <TextBlock Grid.Row="1" Text="{Binding Name}" FontSize="14" FontWeight="SemiBold"
+                                       Margin="0,12,0,0"
+                                       Foreground="{DynamicResource StandardTextBrush}"
+                                       TextTrimming="CharacterEllipsis" />
+
+                            <TextBlock Grid.Row="2" Text="{Binding DurationText}"
+                                       FontSize="20" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource StandardTextBrush}"
+                                       VerticalAlignment="Center" />
+
+                            <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,6,0,0"
+                                  IsVisible="{Binding HasDuration}">
+                                <Border Height="4" CornerRadius="2"
+                                        Background="{DynamicResource DividerBrush}"
+                                        VerticalAlignment="Center">
+                                    <base:RatioBar Height="4" CornerRadius="2" MinWidth="3"
+                                                   Ratio="{Binding Ratio}"
+                                                   BarBrush="{Binding DisplayColor,Converter={StaticResource HextoColorConverter}}" />
+                                </Border>
+                                <TextBlock Grid.Column="1" Text="{Binding RatioText}" FontSize="11" Margin="6,0,0,0"
+                                           Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+    </ControlTheme>
+</ResourceDictionary>

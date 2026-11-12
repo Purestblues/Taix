@@ -1,5 +1,6 @@
-<Styles xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+﻿<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cat="using:ShiJian.Client.Controls.Category">
 
     <!--
       全局视觉语汇（对齐 Super Productivity，见 docs/DESIGN-SP-ALIGN.md）
@@ -92,6 +93,22 @@
     <Style Selector="TextBlock.statValue">
         <Setter Property="FontSize" Value="{DynamicResource FontSizeXxl}" />
         <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+
+    <!-- ═══ 分类卡片（N7）═══ -->
+    <!-- 页面在列表上挂 .card 类名，整列就切到大卡片形态；改属性而不是换模板，
+         列表项容器不会重建，所以切换视图时滚动位置与选中态都不丢 -->
+    <Style Selector="ListBox.categoryList.card cat|CategoryCard">
+        <Setter Property="IsCard" Value="True" />
+    </Style>
+
+    <!-- 悬停 / 选中落在卡片描边上 -->
+    <Style Selector="ListBoxItem:pointerover cat|CategoryCard">
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
+    </Style>
+    <Style Selector="ListBoxItem:selected cat|CategoryCard">
+        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
     </Style>
 
 </Styles>

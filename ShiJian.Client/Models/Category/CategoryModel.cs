@@ -1,13 +1,14 @@
-using ShiJian.Client.Librarys;
-
-namespace ShiJian.Client.Models.Category;
+﻿namespace ShiJian.Client.Models.Category;
 
 public class CategoryModel : CategoryCardModel
 {
     public Shared.Models.CategoryModel Data { get; set; }
 
-    /// <summary>
-    /// 列表里展示的颜色：和图表同一套对比度规则，换主题后重建列表即可生效
-    /// </summary>
-    public string DisplayColor => ChartColorHelper.Resolve(Data?.Color, Data?.IsSystem ?? false);
+    public override string? Name => Data?.Name;
+
+    public override string? IconFile => Data?.IconFile;
+
+    protected override string? RawColor => Data?.Color;
+
+    protected override bool IsSystemCategory => Data?.IsSystem ?? false;
 }
