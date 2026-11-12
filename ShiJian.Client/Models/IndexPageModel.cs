@@ -30,6 +30,9 @@ public partial class IndexPageModel : ModelBase
 
     private string _compareCaption = string.Empty;
 
+    private bool _isWebBrowserMerged;
+    private SelectItemModel _webMergeOption;
+
     /// <summary>
     /// 对比文字的周期描述（比昨日 / 比上周）
     /// </summary>
@@ -445,6 +448,40 @@ public partial class IndexPageModel : ModelBase
     /// 当前周期是否为「自定义」
     /// </summary>
     public bool IsCustomRange => _tabbarSelectedIndex == 2;
+
+    /// <summary>
+    /// 网站是否并入浏览器（N2 视图开关）。
+    /// 打开后站点行消失、浏览器行拿回完整活跃时长；关闭时站点独立成行、浏览器只剩「其他页面」。
+    /// 只改变视图口径，不动任何原始数据。
+    /// </summary>
+    public bool IsWebBrowserMerged
+    {
+        get => _isWebBrowserMerged;
+        set
+        {
+            if (_isWebBrowserMerged == value) return;
+            _isWebBrowserMerged = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsWebListVisible));
+        }
+    }
+
+    /// <summary>关闭「并入浏览器」时右侧的网站列才有内容</summary>
+    public bool IsWebListVisible => !_isWebBrowserMerged;
+
+    /// <summary>头部「独立 / 并入浏览器」开关的选中项</summary>
+    public SelectItemModel WebMergeOption
+    {
+        get => _webMergeOption;
+        set
+        {
+            if (ReferenceEquals(_webMergeOption, value)) return;
+            _webMergeOption = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public List<SelectItemModel> WebMergeOptions { get; set; } = [];
 
     /// <summary>
     /// week data

@@ -463,4 +463,9 @@
     <system:String x:Key="MergeGroupResetAll">Restore all</system:String>
     <system:String x:Key="MergeGroupDissolved">Dissolved - this group stays split</system:String>
     <system:String x:Key="MergeGroupRestored">Automatic merging restored</system:String>
+    <system:String x:Key="WebListSeparate">Separate</system:String>
+    <system:String x:Key="WebListMerged">Into Browser</system:String>
+    <system:String x:Key="DefaultBrowser">Default Browser</system:String>
+    <system:String x:Key="DefaultBrowserDesc">Site records reported without a browser identifier are attributed to it. Leave empty to use the most frequent browser in the browsing log.</system:String>
+    <system:String x:Key="BrowserAuto">Auto</system:String>
 </ResourceDictionary>

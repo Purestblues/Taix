@@ -88,4 +88,16 @@ public class GeneralModel
     public int WindowGradientScheme { get; set; } = 3;
 
     public string SyncUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 网站是否并入浏览器（N2 视图开关）：开启后站点行消失，浏览器行拿回完整活跃时长。
+    /// 只影响概览页的实体列表，不改任何原始数据。
+    /// </summary>
+    public bool WebBrowserMerged { get; set; }
+
+    /// <summary>
+    /// 默认浏览器（chrome / firefox / safari / …）。
+    /// 早期扩展上报的站点记录没有浏览器标识，统一归给它；空串表示未设置。
+    /// </summary>
+    public string DefaultBrowser { get; set; } = string.Empty;
 }

@@ -30,6 +30,11 @@ public class SettingPageViewModel : SettingPageModel
     private readonly IData _dataService;
     private readonly IProcessService _processService;
     private readonly IAppMergeService _appMergeService;
+    private readonly IEntityData _entityData;
+
+    /// <summary>与 <c>BrowserOptions</c> 一一对应的浏览器标识（第一项是空串 = 自动推荐）</summary>
+    private readonly List<string> _browserReferences = [];
+    private bool _isLoadingBrowsers;
     private readonly IToastService _toastService;
     private readonly ConfigModel _config;
 
@@ -41,7 +46,8 @@ public class SettingPageViewModel : SettingPageModel
         IDialogService dialogService,
         IProcessService processService,
         UpdateCheckerService updateCheckerService,
-        IAppMergeService appMergeService)
+        IAppMergeService appMergeService,
+        IEntityData entityData)
     {
         _appConfig = appConfig;
         _toastService = toastService;
@@ -51,6 +57,7 @@ public class SettingPageViewModel : SettingPageModel
         _processService = processService;
         _updateCheckerService = updateCheckerService;
         _appMergeService = appMergeService;
+        _entityData = entityData;
         _config = appConfig.GetConfig();
 
         OpenURL = AsyncRelayCommand.Create<object>(OnOpenURL).DisposeWith(Disposables);
@@ -63,6 +70,9 @@ public class SettingPageViewModel : SettingPageModel
         appConfig.ConfigChanged += OnConfigChanged;
 
         Initialize();
+
+        // 默认浏览器下拉框换项即保存（没有「保存」按钮，和其他设置项一致）
+        WhenPropertyChanged(this, x => x.SelectedBrowser, _ => OnSelectedBrowserChangedAsync());
     }
 
     public ICommand DissolveMergeGroupCommand { get; }
@@ -71,8 +81,78 @@ public class SettingPageViewModel : SettingPageModel
     /// <summary>进设置页时刷新一次（应用表可能在别的页面里改过）</summary>
     public override async Task OnNavigatedToAsync()
     {
+        await LoadBrowsersAsync();
         await LoadMergeGroupsAsync();
         await base.OnNavigatedToAsync();
+    }
+
+    /// <summary>
+    /// 默认浏览器：扩展早期版本上报的站点记录没有浏览器标识（`BrowserRef` 为 NULL），
+    /// 这些历史记录统一归给这里选的浏览器。第一项「自动推荐」= 不指定，由服务端取出现最多的标识。
+    /// </summary>
+    private async Task LoadBrowsersAsync()
+    {
+        _isLoadingBrowsers = true;
+        try
+        {
+            var browsers = await _entityData.GetBrowsersAsync();
+
+            _browserReferences.Clear();
+            var options = new List<SelectItemModel>
+            {
+                new() { Id = 0, Name = ResourceStrings.BrowserAuto }
+            };
+            _browserReferences.Add(string.Empty);
+
+            foreach (var browser in browsers)
+            {
+                var label = string.IsNullOrWhiteSpace(browser.AppName)
+                    ? browser.Reference
+                    : $"{browser.AppName} ({browser.Reference})";
+                options.Add(new SelectItemModel { Id = options.Count, Name = label });
+                _browserReferences.Add(browser.Reference);
+            }
+
+            BrowserOptions = options;
+
+            var current = _config.General.DefaultBrowser ?? string.Empty;
+            var index = _browserReferences.FindIndex(reference =>
+                string.Equals(reference, current, StringComparison.OrdinalIgnoreCase));
+            SelectedBrowser = options[index < 0 ? 0 : index];
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"加载默认浏览器候选失败：{ex.Message}");
+        }
+        finally
+        {
+            _isLoadingBrowsers = false;
+        }
+    }
+
+    /// <summary>下拉框换项即落配置（没有「保存」按钮，与其他设置项一致）</summary>
+    public async Task OnSelectedBrowserChangedAsync()
+    {
+        if (_isLoadingBrowsers) return;
+
+        var option = SelectedBrowser;
+        if (option == null) return;
+
+        var reference = option.Id >= 0 && option.Id < _browserReferences.Count
+            ? _browserReferences[option.Id]
+            : string.Empty;
+
+        if (string.Equals(_config.General.DefaultBrowser, reference, StringComparison.Ordinal)) return;
+
+        _config.General.DefaultBrowser = reference;
+        try
+        {
+            await _appConfig.SaveAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"保存默认浏览器失败：{ex.Message}", ex);
+        }
     }
 
     private async Task LoadMergeGroupsAsync()

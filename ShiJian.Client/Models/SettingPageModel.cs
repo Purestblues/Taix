@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using ShiJian.Client.Controls.Select;
 
 namespace ShiJian.Client.Models;
 
@@ -14,6 +16,8 @@ public class SettingPageModel : ModelBase
     private ObservableCollection<string> _tabbarData = [];
     private ObservableCollection<AppMergeGroupRow> _mergeGroups = [];
     private bool _hasMergeGroups;
+    private List<SelectItemModel> _browserOptions = [];
+    private SelectItemModel? _selectedBrowser;
     private int _tabbarSelectedIndex;
     private string _version = string.Empty;
 
@@ -64,6 +68,28 @@ public class SettingPageModel : ModelBase
         set
         {
             _hasMergeGroups = value;
+            OnPropertyChanged();
+        }
+    }
+
+    /// <summary>默认浏览器候选项（第一项是「自动推荐」）</summary>
+    public List<SelectItemModel> BrowserOptions
+    {
+        get => _browserOptions;
+        set
+        {
+            _browserOptions = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public SelectItemModel? SelectedBrowser
+    {
+        get => _selectedBrowser;
+        set
+        {
+            if (ReferenceEquals(_selectedBrowser, value)) return;
+            _selectedBrowser = value;
             OnPropertyChanged();
         }
     }

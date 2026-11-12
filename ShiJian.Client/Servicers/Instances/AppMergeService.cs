@@ -1,32 +1,42 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using ShiJian.Client.Librarys;
 using ShiJian.Client.Logging;
-using ShiJian.Client.Shared.Models;
-using ShiJian.Client.Shared.Servicers.Interfaces;
 using ShiJian.Client.Servicers.Interfaces;
+using ShiJian.Client.Shared.Models;
+using ShiJian.Client.Shared.Models.Entity;
+using ShiJian.Client.Shared.Servicers.Interfaces;
 
 namespace ShiJian.Client.Servicers.Instances;
 
+/// <summary>
+/// 子母程序合并组（N6 / N2）。
+///
+/// `fork.10` 起判定与组表都在服务端（`AppModels.File + Publisher` 推出稳定锚点，
+/// 组存在 `EntityMergeGroups`），客户端只做两件事：
+/// 1. 把服务端的组翻成界面用的 <see cref="AppMergeGroup"/>（顺便解析成应用 ID）；
+/// 2. 统计页仍是「按应用列表」的旧数据源，继续用同一套规则做视图期折叠。
+///
+/// 为什么不在客户端自己判定：页面（概览）已经直接消费服务端的实体行，
+/// 客户端再判定一次就是同一份规则两处实现，改一处漏一处。
+/// </summary>
 public class AppMergeService : IAppMergeService
 {
-    /// <summary>应用表变化不频繁，缓存一会儿够用；设置页改完覆盖会强制刷新</summary>
+    /// <summary>组变化不频繁，缓存一会儿够用；设置页改完会强制刷新</summary>
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(60);
 
+    private readonly IEntityData _entityData;
     private readonly IAppData _appData;
     private readonly object _gate = new();
-    private readonly Dictionary<string, AppMergeOverride> _overrides = new(StringComparer.Ordinal);
     private IReadOnlyList<AppMergeGroup> _groups = [];
     private DateTime _loadedAt = DateTime.MinValue;
-    private bool _overridesLoaded;
 
-    public AppMergeService(IAppData appData)
+    public AppMergeService(IEntityData entityData, IAppData appData)
     {
+        _entityData = entityData;
         _appData = appData;
     }
 
@@ -38,15 +48,11 @@ public class AppMergeService : IAppMergeService
         }
     }
 
-    public IReadOnlyDictionary<string, AppMergeOverride> Overrides
-    {
-        get
-        {
-            lock (_gate) return new Dictionary<string, AppMergeOverride>(_overrides, StringComparer.Ordinal);
-        }
-    }
+    public IReadOnlyDictionary<string, AppMergeOverride> Overrides { get; } =
+        new Dictionary<string, AppMergeOverride>(StringComparer.Ordinal);
 
-    public async Task<IReadOnlyList<AppMergeGroup>> GetGroupsAsync(bool force = false, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AppMergeGroup>> GetGroupsAsync(bool force = false,
+        CancellationToken cancellationToken = default)
     {
         lock (_gate)
         {
@@ -55,13 +61,9 @@ public class AppMergeService : IAppMergeService
 
         try
         {
-            EnsureOverridesLoaded();
+            var remote = await _entityData.GetMergeGroupsAsync(cancellationToken).ConfigureAwait(false);
+            var groups = await ToGroupsAsync(remote, cancellationToken).ConfigureAwait(false);
 
-            var apps = await _appData.GetAllAppsAsync(cancellationToken).ConfigureAwait(false);
-            Dictionary<string, AppMergeOverride> snapshot;
-            lock (_gate) snapshot = new Dictionary<string, AppMergeOverride>(_overrides, StringComparer.Ordinal);
-
-            var groups = AppMergePlanner.Build(apps, snapshot);
             lock (_gate)
             {
                 _groups = groups;
@@ -94,77 +96,60 @@ public class AppMergeService : IAppMergeService
         AppMergePlanner.Decorate(rows, groups);
     }
 
+    /// <param name="groupKey">组标识（服务端组 ID 的字符串形式）</param>
     public async Task DissolveAsync(string groupKey)
     {
-        if (string.IsNullOrWhiteSpace(groupKey)) return;
+        if (!int.TryParse(groupKey, out var groupId) || groupId <= 0) return;
 
-        lock (_gate) _overrides[groupKey] = new AppMergeOverride { IsSuppressed = true };
-
-        await SaveOverridesAsync().ConfigureAwait(false);
+        await _entityData.DissolveGroupAsync(groupId).ConfigureAwait(false);
         await GetGroupsAsync(force: true).ConfigureAwait(false);
     }
 
     public async Task ResetAsync()
     {
-        lock (_gate)
-        {
-            _overrides.Clear();
-        }
-
-        await SaveOverridesAsync().ConfigureAwait(false);
+        await _entityData.RestoreGroupsAsync().ConfigureAwait(false);
+        await GetGroupsAsync(force: true).ConfigureAwait(false);
     }
 
-    private void EnsureOverridesLoaded()
+    private async Task<IReadOnlyList<AppMergeGroup>> ToGroupsAsync(
+        IReadOnlyList<MergeGroupModel> remote, CancellationToken cancellationToken)
     {
-        lock (_gate)
-        {
-            if (_overridesLoaded) return;
-            _overridesLoaded = true;
-            _overrides.Clear();
+        if (remote.Count == 0) return [];
 
-            try
+        var apps = await _appData.GetAllAppsAsync(cancellationToken).ConfigureAwait(false);
+        var byName = apps
+            .Where(app => !string.IsNullOrEmpty(app.Name))
+            .GroupBy(app => app.Name, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+
+        var result = new List<AppMergeGroup>(remote.Count);
+        foreach (var model in remote)
+        {
+            if (model.Kind != "app") continue;
+
+            var memberIds = new List<int>();
+            var memberNames = new List<string>();
+            foreach (var member in model.Members)
             {
-                if (!File.Exists(OverridesFilePath)) return;
-                var json = File.ReadAllText(OverridesFilePath);
-                var state = JsonSerializer.Deserialize(json, ClientJsonContext.Default.AppMergeState);
-                if (state?.Overrides == null) return;
-                foreach (var (key, value) in state.Overrides)
-                    if (!string.IsNullOrWhiteSpace(key) && value != null)
-                        _overrides[key] = value;
+                if (!byName.TryGetValue(member, out var app)) continue;
+                memberIds.Add(app.ID);
+                memberNames.Add(app.Name);
             }
-            catch (Exception ex)
+
+            if (memberIds.Count < 2) continue;
+
+            var primaryId = byName.TryGetValue(model.PrimaryRef, out var primary) ? primary.ID : memberIds[0];
+            result.Add(new AppMergeGroup
             {
-                Logger.Warn($"AppMergeService: 读取合并覆盖失败，按无覆盖处理：{ex.Message}");
-            }
+                Key = model.Id.ToString(),
+                Name = model.Name,
+                PrimaryAppId = primaryId,
+                MemberAppIds = memberIds,
+                MemberNames = memberNames,
+                TotalTime = 0
+            });
         }
+
+        return result;
     }
-
-    private async Task SaveOverridesAsync()
-    {
-        try
-        {
-            AppMergeState state;
-            lock (_gate) state = new AppMergeState { Overrides = new Dictionary<string, AppMergeOverride>(_overrides, StringComparer.Ordinal) };
-
-            var directory = Path.GetDirectoryName(OverridesFilePath);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory)) Directory.CreateDirectory(directory);
-
-            var json = JsonSerializer.Serialize(state, ClientJsonContext.Default.AppMergeState);
-            await File.WriteAllTextAsync(OverridesFilePath, json).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            Logger.Warn($"AppMergeService: 保存合并覆盖失败：{ex.Message}");
-        }
-    }
-
-    private static string OverridesFilePath => OperatingSystem.IsMacOS()
-        ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ShiJian", "app.merge.json")
-        : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.merge.json");
-}
-
-/// <summary>本地覆盖表的 JSON 形态（`app.merge.json`）</summary>
-public sealed class AppMergeState
-{
-    public Dictionary<string, AppMergeOverride> Overrides { get; set; } = new(StringComparer.Ordinal);
 }

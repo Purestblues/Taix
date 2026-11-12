@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Category;
 using ShiJian.Client.Shared.Models.Data;
+using ShiJian.Client.Shared.Models.Entity;
 using ShiJian.Client.Shared.Models.Web;
 
 namespace ShiJian.Client.Librarys.Api;
@@ -84,4 +85,12 @@ public interface IShiJianApiClient
     Task<List<WebSiteModel>> GetWebSiteLogListAsync(DateTime start, DateTime end, CancellationToken cancellationToken = default);
     Task<WebExportDataResult> GetWebExportDataAsync(DateTime start, DateTime end);
     Task<int> ApplyUrlMatchAsync(string[]? patterns = null);
+
+    // Entity（N2 统一实体表）
+    Task<EntityListModel> GetEntityListAsync(DateTime start, DateTime end, bool browserMerged, CancellationToken cancellationToken = default);
+    Task<List<BrowserOptionModel>> GetEntityBrowsersAsync(CancellationToken cancellationToken = default);
+    Task<MergeGroupListModel> GetEntityMergeGroupsAsync(CancellationToken cancellationToken = default);
+    Task DissolveEntityMergeGroupAsync(int groupId);
+    Task RenameEntityMergeGroupAsync(int groupId, string name);
+    Task RestoreEntityMergeGroupsAsync();
 }

@@ -22,6 +22,7 @@ namespace ShiJian.Client;
 [Singleton(typeof(IWebSiteData), typeof(ApiWebSiteData))]
 [Singleton(typeof(ICategorys), typeof(ApiCategorys))]
 [Singleton(typeof(ICategorySummaryData), typeof(ApiCategorySummaryData))]
+[Singleton(typeof(IEntityData), typeof(ApiEntityData))]
 [Singleton(typeof(IAppConfig), typeof(ApiAppConfig))]
 [Singleton(typeof(IWindowStateService), typeof(WindowStateService))]
 [Singleton(typeof(WindowStateTracker))]

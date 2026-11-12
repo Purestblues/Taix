@@ -222,11 +222,15 @@ pub fn build_groups(candidates: &[MergeCandidate], suppressed: &HashSet<String>)
 
         let brand = brand_of(Some(stem.as_str())).or_else(|| brand_of(Some(candidate.name.as_str())));
         let publisher = normalized_publisher(candidate.publisher.as_deref());
+        // setup.exe / uninstall.exe 这类没有辨识度的名字，即使同发布者也不参与合并
+        let stem_is_generic = contains_ci(&GENERIC_BRANDS, &stem);
 
         let key = match (&brand, &publisher) {
             (Some(brand), _) => format!("{}|{}", anchor, brand.to_lowercase()),
-            (None, Some(publisher)) => format!("{}|publisher:{}", anchor, publisher),
-            (None, None) => continue,
+            (None, Some(publisher)) if !stem_is_generic => {
+                format!("{}|publisher:{}", anchor, publisher)
+            }
+            _ => continue,
         };
         if suppressed.contains(&key) {
             continue;
@@ -314,8 +318,12 @@ mod tests {
     #[test]
     fn anchor_strips_packaging_levels_and_versions() {
         assert_eq!(
-            anchor_of(Some(r"C:\Users\me\AppData\Local\Programs\PiDeck-0.9.5\PiDeck.exe")),
-            Some("c:/users/me/appdata/local/programs".to_string())
+            anchor_of(Some(r"C:\Users\me\AppData\Local\Programs\PiDeck\PiDeck-0.9.5-setup.exe")),
+            Some("c:/users/me/appdata/local/programs/pideck".to_string())
+        );
+        assert_eq!(
+            anchor_of(Some(r"C:\Program Files\Foo\1.2.3\foo.exe")),
+            Some("c:/program files/foo".to_string())
         );
         assert_eq!(
             anchor_of(Some(r"C:\Program Files\Foo\bin\x64\foo.exe")),

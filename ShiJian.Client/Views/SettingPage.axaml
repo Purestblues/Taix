@@ -38,6 +38,24 @@
                 <StackPanel x:Name="Section0">
                     <SettingPanel:SettingPanel Data="{Binding GeneralSettings,Mode=TwoWay}" />
 
+                    <!-- 默认浏览器（N2）：历史站点记录没有浏览器标识时归给它 -->
+                    <Border Background="{DynamicResource CardBgBrush}"
+                            CornerRadius="{StaticResource RadiusMedium}"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
+                            BorderThickness="1"
+                            Margin="0,16,0,0">
+                        <StackPanel Margin="15,14,15,14" Spacing="3">
+                            <TextBlock Text="{DynamicResource DefaultBrowser}" FontSize="14" />
+                            <TextBlock Text="{DynamicResource DefaultBrowserDesc}" FontSize="12"
+                                       Foreground="{DynamicResource SubTextBrush}" TextWrapping="Wrap" />
+                            <select:Select Margin="0,10,0,0"
+                                           HorizontalAlignment="Left"
+                                           SelectedItem="{Binding SelectedBrowser,Mode=TwoWay}"
+                                           Options="{Binding BrowserOptions}"
+                                           Padding="10,0" Height="30" />
+                        </StackPanel>
+                    </Border>
+
                     <!-- 子母程序合并（N6）：同一个程序的不同版本 / 子进程在列表里合成一行 -->
                     <Border Background="{DynamicResource CardBgBrush}"
                             CornerRadius="{StaticResource RadiusMedium}"

@@ -12,6 +12,7 @@ using ShiJian.Client.Events;
 using ShiJian.Client.Foundation;
 using ShiJian.Client.Foundation.Rx;
 using ShiJian.Client.Librarys;
+using ShiJian.Client.Logging;
 using ShiJian.Client.Models;
 using ShiJian.Client.Models.Navigation;
 using ShiJian.Client.Servicers;
@@ -19,6 +20,7 @@ using ShiJian.Client.Servicers.Interfaces;
 using ShiJian.Client.Shared.Librarys;
 using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Data;
+using ShiJian.Client.Shared.Models.Entity;
 using ShiJian.Client.Shared.Models.Web;
 using ShiJian.Client.Shared.Servicers.Interfaces;
 using ShiJian.Client.Views;
@@ -35,6 +37,8 @@ public partial class IndexPageViewModel : IndexPageModel
     private readonly IStateService _stateService;
     private readonly IAppEventService _appEventService;
     private readonly IAppMergeService _appMergeService;
+    private readonly IEntityData _entityData;
+    private readonly IAppData _appDataService;
 
     // 图表原始数据缓存（切应用/网站时本地重建，不重复请求）
     private IReadOnlyList<ColumnDataModel> _appColumns = [];
@@ -51,7 +55,9 @@ public partial class IndexPageViewModel : IndexPageModel
         IAppConfig appConfig,
         IStateService stateService,
         IAppEventService appEventService,
-        IAppMergeService appMergeService)
+        IAppMergeService appMergeService,
+        IEntityData entityData,
+        IAppData appData)
     {
         _dataService = data;
         _webDataService = webData;
@@ -61,8 +67,10 @@ public partial class IndexPageViewModel : IndexPageModel
         _stateService = stateService;
         _appEventService = appEventService;
         _appMergeService = appMergeService;
+        _entityData = entityData;
+        _appDataService = appData;
 
-        ToDetailCommand = AsyncRelayCommand.Create<object>(OnToDetail).DisposeWith(Disposables);
+        ToDetailCommand = AsyncRelayCommand.CreateFromTask<object>(OnToDetailAsync).DisposeWith(Disposables);
         CategoryClickCommand = AsyncRelayCommand.Create<object>(OnCategoryClick).DisposeWith(Disposables);
         RefreshCommand = AsyncRelayCommand.CreateFromTask<object>(OnRefreshAsync).DisposeWith(Disposables);
 
@@ -107,7 +115,22 @@ public partial class IndexPageViewModel : IndexPageModel
         ];
         SelectedPeriod = PeriodOptions[0];
 
+        IsWebBrowserMerged = config.General.WebBrowserMerged;
+
+        WebMergeOptions =
+        [
+            new SelectItemModel { Id = 0, Name = ResourceStrings.WebListSeparate },
+            new SelectItemModel { Id = 1, Name = ResourceStrings.WebListMerged }
+        ];
+        WebMergeOption = WebMergeOptions[IsWebBrowserMerged ? 1 : 0];
+        WhenPropertyChanged(this, x => x.WebMergeOption, option =>
+        {
+            IsWebBrowserMerged = option.Id == 1;
+            return Task.CompletedTask;
+        });
+
         WhenPropertyChanged(this, x => x.TabbarSelectedIndex, _ => LoadDataAsync());
+        WhenPropertyChanged(this, x => x.IsWebBrowserMerged, OnWebBrowserMergedChangedAsync);
         WhenPropertyChanged(this, x => x.CustomStart, _ => OnCustomRangeChangedAsync());
         WhenPropertyChanged(this, x => x.CustomEnd, _ => OnCustomRangeChangedAsync());
 
@@ -167,6 +190,29 @@ public partial class IndexPageViewModel : IndexPageModel
 
     public override Task RefreshAsync() => LoadDataAsync();
 
+    /// <summary>
+    /// 切换「网站并入浏览器」：先落配置（下次启动保持），再重拉实体表。
+    /// 实体表由服务端算差额行，客户端不需要本地重算。
+    /// </summary>
+    private async Task OnWebBrowserMergedChangedAsync(bool merged)
+    {
+        var config = _appConfig.GetConfig();
+        if (config.General.WebBrowserMerged != merged)
+        {
+            config.General.WebBrowserMerged = merged;
+            try
+            {
+                await _appConfig.SaveAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("保存「网站并入浏览器」开关失败", ex);
+            }
+        }
+
+        await LoadDataAsync();
+    }
+
     /// <summary>换日期只在意「自定义」模式下重新拉数据，其他周期不受影响</summary>
     private Task OnCustomRangeChangedAsync() =>
         TabbarSelectedIndex == 2 ? LoadDataAsync() : Task.CompletedTask;
@@ -218,10 +264,10 @@ public partial class IndexPageViewModel : IndexPageModel
         DateTime prevStart, DateTime prevEnd, bool isHourly, string compareCaption, string[] labels,
         CancellationToken cancellationToken)
     {
-        var appListTask = _dataService.GetDateRangelogListAsync(start, end, cancellationToken: cancellationToken);
-        var webListTask = _webDataService.GetDateRangeWebSiteListAsync(start, end, cancellationToken: cancellationToken);
-        var prevAppListTask = _dataService.GetDateRangelogListAsync(prevStart, prevEnd, cancellationToken: cancellationToken);
-        var prevWebListTask = _webDataService.GetDateRangeWebSiteListAsync(prevStart, prevEnd, cancellationToken: cancellationToken);
+        // N2：榜单与总额走统一实体表（服务端已算好互斥归属、差额行与合并组），
+        // 图表仍然用「分类 × 时段」矩阵（它按分类聚合，不受应用/网站重叠影响）。
+        var entityTask = _entityData.GetEntityListAsync(start, end, IsWebBrowserMerged, cancellationToken);
+        var prevEntityTask = _entityData.GetEntityListAsync(prevStart, prevEnd, IsWebBrowserMerged, cancellationToken);
 
         var pageCountTask = _webDataService.GetBrowsePagesTotalAsync(start, end, cancellationToken);
         var prevPageCountTask = _webDataService.GetBrowsePagesTotalAsync(prevStart, prevEnd, cancellationToken);
@@ -239,58 +285,45 @@ public partial class IndexPageViewModel : IndexPageModel
             ? _dataService.GetCategoryHoursDataAsync(prevStart, cancellationToken)
             : _dataService.GetCategoryRangeDataAsync(prevStart, prevEnd, cancellationToken);
 
-        await Task.WhenAll(appListTask, webListTask, prevAppListTask, prevWebListTask,
-            pageCountTask, prevPageCountTask, columnTask, categoriesTask, webColumnTask, webCategoriesTask,
-            compareColumnTask);
+        await Task.WhenAll(entityTask, prevEntityTask, pageCountTask, prevPageCountTask,
+            columnTask, categoriesTask, webColumnTask, webCategoriesTask, compareColumnTask);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var appLogs = (await appListTask)?.ToList() ?? [];
-        var webSites = (await webListTask)?.ToList() ?? [];
-        var prevAppLogs = (await prevAppListTask)?.ToList() ?? [];
-        var prevWebSites = (await prevWebListTask)?.ToList() ?? [];
+        var entity = await entityTask;
+        var prevEntity = await prevEntityTask;
 
-        // N6：合并组是视图期映射，先把子成员并进母成员再算总数 / 榜单，两处口径才不会打架。
-        // 对比周期也一起合并，否则「比上期」是在拿合并前、合并后两个口径相减。
-        var mergeGroups = await _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken);
-        if (mergeGroups.Count > 0)
-        {
-            appLogs = _appMergeService.Apply(appLogs);
-            prevAppLogs = _appMergeService.Apply(prevAppLogs);
-        }
+        var rows = entity?.Rows ?? [];
+        var appRows = rows.Where(row => row.Kind != "site").ToList();
+        var siteRows = rows.Where(row => row.Kind == "site").ToList();
 
         // 榜单
         CompareCaption = compareCaption;
         HourLabels = labels;
 
-        var appChartData = ChartDataMapper.MapFromDailyLogs(appLogs, includeBadges: true);
-        _appMergeService.Decorate(appChartData);
+        var appChartData = appRows.Select(ToChartRow).ToList();
         WeekData = appChartData;
         AppFrequentUseData = appChartData.Take(FrequentUseNum).ToList();
         AppMoreData = appChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();
 
-        var webChartData = ChartDataMapper.MapFromWebSites(webSites, includeBadges: true);
+        var webChartData = siteRows.Select(ToChartRow).ToList();
         WebFrequentUseData = webChartData.Take(FrequentUseNum).ToList();
         WebMoreData = webChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();
 
-        // 概览卡片（总数 = 榜单各行之和，与图表口径一致）
-        var appTotal = appLogs.Sum(m => (double)m.Time);
-        var prevAppTotal = prevAppLogs.Sum(m => (double)m.Time);
-        var webTime = webSites.Sum(m => (double)m.Duration);
-        var prevWebTime = prevWebSites.Sum(m => (double)m.Duration);
-
-        TotalTime = appTotal + webTime;
-        LastTotalTime = prevAppTotal + prevWebTime;
+        // 概览卡片：总额取实体表的总额（两种视图都是「应用总时长」）
+        TotalTime = entity?.TotalSeconds ?? 0;
+        LastTotalTime = prevEntity?.TotalSeconds ?? 0;
         TotalTimeText = Time.ToString((int)TotalTime);
 
-        AppCount = appLogs.Count;
-        LastAppCount = prevAppLogs.Count;
+        AppCount = appRows.Count;
+        LastAppCount = prevEntity?.Rows.Count(row => row.Kind != "site") ?? 0;
 
+        var webTime = siteRows.Sum(row => (double)row.Seconds);
         WebTime = webTime;
-        LastWebTime = prevWebTime;
+        LastWebTime = (prevEntity?.Rows ?? []).Where(row => row.Kind == "site").Sum(row => (double)row.Seconds);
         WebTimeText = Time.ToString((int)webTime);
 
-        WebSiteCount = webSites.Count;
-        LastWebSiteCount = prevWebSites.Count;
+        WebSiteCount = siteRows.Count;
+        LastWebSiteCount = (prevEntity?.Rows ?? []).Count(row => row.Kind == "site");
         WebPageCount = await pageCountTask;
         LastWebPageCount = await prevPageCountTask;
 
@@ -306,10 +339,51 @@ public partial class IndexPageViewModel : IndexPageModel
         ApplyChartSeries();
     }
 
-    /// <summary>
-    /// 把缓存的服务端"分类×时段矩阵"拆成时段堆叠序列与分类占比序列。
-    /// 切应用/网站、或数据刷新后都走这里。
-    /// </summary>
+    /// <summary>实体行 → 榜单/卡片模型；分类徽章与合并成员说明都挂在这里</summary>
+    private static ChartsDataModel ToChartRow(EntityModel entity)
+    {
+        var categoryColor = entity.CategoryColor == null
+            ? null
+            : ChartColorHelper.Resolve(entity.CategoryColor, false);
+
+        var model = new ChartsDataModel
+        {
+            Data = entity,
+            Name = entity.Name,
+            Value = entity.Seconds,
+            Tag = Time.ToString(entity.Seconds),
+            Icon = entity.Icon ?? string.Empty,
+            FallbackText = entity.Name,
+            CategoryName = entity.CategoryName,
+            CategoryColor = categoryColor,
+            Color = categoryColor ?? string.Empty
+        };
+
+        if (entity.Members.Count > 0)
+        {
+            var memberText = string.Join(" / ", entity.Members.Select(member => member.Name));
+            model.PopupText = entity.Kind == "other"
+                ? string.Empty
+                : string.Format(ResourceStrings.MergedItems, entity.Members.Count) + "：" + memberText;
+        }
+
+        model.BadgeList = [];
+        if (!string.IsNullOrWhiteSpace(entity.CategoryName) && entity.CategoryId > 0)
+        {
+            model.BadgeList.Add(new ChartBadgeModel
+            {
+                Name = entity.CategoryName!,
+                Color = ChartColorHelper.WithAlpha(categoryColor, 0x2E),
+                TextColor = categoryColor!,
+                CategoryId = entity.CategoryId,
+                IsWebCategory = entity.CategoryKind == "site",
+                Type = ChartBadgeType.Category
+            });
+        }
+
+        return model;
+    }
+
     private void ApplyChartSeries()
     {
         var useWeb = ChartType?.Id == 1;
@@ -455,15 +529,42 @@ public partial class IndexPageViewModel : IndexPageModel
             CategorySummaryNavigationContext.Create(kind, badge.CategoryId, badge.Name));
     }
 
-    private void OnToDetail(object obj)
+    private async Task OnToDetailAsync(object obj)
     {
         if (obj is not ChartsDataModel chartData) return;
+
         var date = DateTime.Now.Date;
 
-        if (chartData.Data is DailyLogModel { AppModel: not null } dailyModel)
-            _navigationService.NavigateTo(nameof(DetailPage), DetailNavigationContext.Create(dailyModel.AppModel, TabbarSelectedIndex, date));
-        else if (chartData.Data is WebSiteModel webSiteModel)
-            _navigationService.NavigateTo(nameof(WebSiteDetailPage), WebSiteDetailNavigationContext.Create(webSiteModel, TabbarSelectedIndex, date));
+        // 实体行只带业务标识，详情页仍然要原始模型：按 Kind 取一次
+        try
+        {
+            if (chartData.Data is EntityModel entity)
+            {
+                if (entity.Kind == "site")
+                {
+                    var site = await _webDataService.GetWebSiteAsync(entity.EntityId);
+                    if (site != null)
+                        _navigationService.NavigateTo(nameof(WebSiteDetailPage),
+                            WebSiteDetailNavigationContext.Create(site, TabbarSelectedIndex, date));
+                    return;
+                }
+
+                var app = await _appDataService.GetAppAsync(entity.EntityId);
+                if (app != null)
+                    _navigationService.NavigateTo(nameof(DetailPage),
+                        DetailNavigationContext.Create(app, TabbarSelectedIndex, date));
+                return;
+            }
+
+            if (chartData.Data is DailyLogModel { AppModel: not null } dailyModel)
+                _navigationService.NavigateTo(nameof(DetailPage), DetailNavigationContext.Create(dailyModel.AppModel, TabbarSelectedIndex, date));
+            else if (chartData.Data is WebSiteModel webSiteModel)
+                _navigationService.NavigateTo(nameof(WebSiteDetailPage), WebSiteDetailNavigationContext.Create(webSiteModel, TabbarSelectedIndex, date));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开详情页失败", ex);
+        }
     }
 
     public override void Dispose()

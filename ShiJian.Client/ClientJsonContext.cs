@@ -26,5 +26,4 @@ namespace ShiJian.Client;
 [JsonSerializable(typeof(WebLogExportRow))]
 [JsonSerializable(typeof(List<WebLogExportRow>))]
 [JsonSerializable(typeof(WindowStateModel))]
-[JsonSerializable(typeof(AppMergeState))]
 public partial class ClientJsonContext : JsonSerializerContext { }

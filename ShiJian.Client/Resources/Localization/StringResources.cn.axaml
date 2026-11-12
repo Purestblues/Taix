@@ -477,4 +477,9 @@
     <system:String x:Key="MergeGroupResetAll">恢复全部</system:String>
     <system:String x:Key="MergeGroupDissolved">已解散，这个组不再自动合并</system:String>
     <system:String x:Key="MergeGroupRestored">已恢复自动合并</system:String>
+    <system:String x:Key="WebListSeparate">独立显示</system:String>
+    <system:String x:Key="WebListMerged">并入浏览器</system:String>
+    <system:String x:Key="DefaultBrowser">默认浏览器</system:String>
+    <system:String x:Key="DefaultBrowserDesc">没有浏览器标识的历史站点记录归给它；留空表示按浏览日志里出现最多的那个自动推荐</system:String>
+    <system:String x:Key="BrowserAuto">自动推荐</system:String>
 </ResourceDictionary>

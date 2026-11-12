@@ -4,6 +4,7 @@ using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Category;
 using ShiJian.Client.Shared.Models.Config;
 using ShiJian.Client.Shared.Models.Data;
+using ShiJian.Client.Shared.Models.Entity;
 using ShiJian.Client.Shared.Models.Web;
 
 namespace ShiJian.Client.Librarys.Api;
@@ -79,4 +80,21 @@ namespace ShiJian.Client.Librarys.Api;
 [JsonSerializable(typeof(ShortcutModel))]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(ApplyMatchRequest))]
+[JsonSerializable(typeof(ApiResponse<EntityListModel>))]
+[JsonSerializable(typeof(EntityListModel))]
+[JsonSerializable(typeof(EntityModel))]
+[JsonSerializable(typeof(List<EntityModel>))]
+[JsonSerializable(typeof(EntityMemberModel))]
+[JsonSerializable(typeof(List<EntityMemberModel>))]
+[JsonSerializable(typeof(ApiResponse<List<BrowserOptionModel>>))]
+[JsonSerializable(typeof(BrowserOptionModel))]
+[JsonSerializable(typeof(List<BrowserOptionModel>))]
+[JsonSerializable(typeof(ApiResponse<MergeGroupListModel>))]
+[JsonSerializable(typeof(MergeGroupListModel))]
+[JsonSerializable(typeof(MergeGroupModel))]
+[JsonSerializable(typeof(List<MergeGroupModel>))]
+[JsonSerializable(typeof(EntityGroupRequest))]
+[JsonSerializable(typeof(EntityRenameRequest))]
+[JsonSerializable(typeof(EntityRestoreRequest))]
+[JsonSerializable(typeof(ApiResponse<bool>))]
 internal partial class ShiJianApiJsonContext : JsonSerializerContext { }

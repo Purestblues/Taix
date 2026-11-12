@@ -38,6 +38,11 @@ public static class ResourceStrings
     public static string MergeGroupResetAll => GetStringValue("MergeGroupResetAll");
     public static string MergeGroupDissolved => GetStringValue("MergeGroupDissolved");
     public static string MergeGroupRestored => GetStringValue("MergeGroupRestored");
+    public static string WebListSeparate => GetStringValue("WebListSeparate");
+    public static string WebListMerged => GetStringValue("WebListMerged");
+    public static string DefaultBrowser => GetStringValue("DefaultBrowser");
+    public static string DefaultBrowserDesc => GetStringValue("DefaultBrowserDesc");
+    public static string BrowserAuto => GetStringValue("BrowserAuto");
     public static string ViewCard => GetStringValue("ViewCard");
     public static string SortByDuration => GetStringValue("SortByDuration");
     public static string SortByName => GetStringValue("SortByName");

@@ -11,6 +11,7 @@ using ShiJian.Client.Shared.Librarys;
 using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Category;
 using ShiJian.Client.Shared.Models.Data;
+using ShiJian.Client.Shared.Models.Entity;
 using ShiJian.Client.Shared.Models.Web;
 
 namespace ShiJian.Client.Librarys.Api;
@@ -405,5 +406,30 @@ public class ShiJianApiClient : IShiJianApiClient
     {
         return PostAsync<int, ApplyMatchRequest>("api/webdata/apply-url-match", new ApplyMatchRequest { Patterns = patterns });
     }
+
+    // ---------------------------------------------------------------- Entity（N2）
+
+    public Task<EntityListModel> GetEntityListAsync(DateTime start, DateTime end, bool browserMerged, CancellationToken cancellationToken = default) =>
+        GetAsync<EntityListModel>(
+            TzQuery($"api/entity/list?start={Uri.EscapeDataString(start.ToString("yyyy-MM-ddTHH:mm:ss"))}" +
+                    $"&end={Uri.EscapeDataString(end.ToString("yyyy-MM-ddTHH:mm:ss"))}" +
+                    $"&browserMerged={(browserMerged ? "true" : "false")}"),
+            cancellationToken);
+
+    public Task<List<BrowserOptionModel>> GetEntityBrowsersAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<List<BrowserOptionModel>>("api/entity/browsers", cancellationToken);
+
+    public Task<MergeGroupListModel> GetEntityMergeGroupsAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<MergeGroupListModel>("api/entity/merge-groups", cancellationToken);
+
+    public Task DissolveEntityMergeGroupAsync(int groupId) =>
+        PostAsync<EntityGroupRequest>("api/entity/merge-groups/dissolve", new EntityGroupRequest { GroupId = groupId });
+
+    public Task RenameEntityMergeGroupAsync(int groupId, string name) =>
+        PostAsync<EntityRenameRequest>("api/entity/merge-groups/rename",
+            new EntityRenameRequest { GroupId = groupId, Name = name });
+
+    public Task RestoreEntityMergeGroupsAsync() =>
+        PostAsync<EntityRestoreRequest>("api/entity/merge-groups/restore", new EntityRestoreRequest());
 
 }

@@ -332,6 +332,10 @@ public class ApiAppConfig : IAppConfig
             changes.Add("General.DataRetentionDays");
         if (old.General.MotionMode != next.General.MotionMode)
             changes.Add("General.MotionMode");
+        if (old.General.WebBrowserMerged != next.General.WebBrowserMerged)
+            changes.Add("General.WebBrowserMerged");
+        if (old.General.DefaultBrowser != next.General.DefaultBrowser)
+            changes.Add("General.DefaultBrowser");
 
         // 兼容老版本缓存：Shortcut 字段可能为 null
         var oldShortcut = old.Shortcut ?? new ShortcutModel();

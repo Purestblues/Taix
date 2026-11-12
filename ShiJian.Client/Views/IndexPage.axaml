@@ -29,6 +29,10 @@
     </UserControl.Resources>
 
     <UserControl.Styles>
+        <!--「网站并入浏览器」打开时，应用列吃掉网站列的位置-->
+        <Style Selector="Border.frequentAppColumn.fullWidth">
+            <Setter Property="Grid.ColumnSpan" Value="3" />
+        </Style>
         <!--Avalonia 的类型选择器不匹配派生类，CountUpText 需要单独声明；卡片本身走全局 UiKit-->
         <Style Selector="base|CountUpText.statValue">
             <Setter Property="FontSize" Value="{DynamicResource FontSizeXxl}" />
@@ -46,10 +50,15 @@
                            FontSize="18"
                            VerticalAlignment="Center" />
 
-                <select:TabSwitch Grid.Column="2"
-                                  IsShowIcon="False"
-                                  SelectedItem="{Binding SelectedPeriod,Mode=TwoWay}"
-                                  Options="{Binding PeriodOptions}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
+                    <select:TabSwitch IsShowIcon="False"
+                                      VerticalAlignment="Center"
+                                      SelectedItem="{Binding WebMergeOption,Mode=TwoWay}"
+                                      Options="{Binding WebMergeOptions}" />
+                    <select:TabSwitch IsShowIcon="False"
+                                      SelectedItem="{Binding SelectedPeriod,Mode=TwoWay}"
+                                      Options="{Binding PeriodOptions}" />
+                </StackPanel>
             </Grid>
 
             <!-- 自定义范围：选「自定义」时展开（高度由 ExpandMotion 动画，代码在后面驱动） -->
@@ -230,8 +239,9 @@
             <TextBlock Text="{DynamicResource MostFrequent}" Classes="eyebrow" Margin="0,24,0,12" />
 
             <Grid ColumnDefinitions="3*,12,2*">
-                <!--应用-->
-                <Border Grid.Column="0" Classes="card" Padding="8">
+                <!--应用（「网站并入浏览器」打开时占满整行）-->
+                <Border Grid.Column="0" Classes="card frequentAppColumn"
+                        Classes.fullWidth="{Binding IsWebBrowserMerged}" Padding="8">
                     <StackPanel>
                         <Border HorizontalAlignment="Left" Padding="9,4"
                                 CornerRadius="{StaticResource RadiusSmall}"
@@ -260,7 +270,7 @@
                 </Border>
 
                 <!--网页-->
-                <Border Grid.Column="2" Classes="card" Padding="8">
+                <Border Grid.Column="2" Classes="card" IsVisible="{Binding IsWebListVisible}" Padding="8">
                     <StackPanel>
                         <Border HorizontalAlignment="Left" Padding="9,4"
                                 CornerRadius="{StaticResource RadiusSmall}"

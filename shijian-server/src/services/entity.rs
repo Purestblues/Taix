@@ -937,7 +937,7 @@ mod tests {
     #[test]
     fn overlap_sums_only_intersections() {
         let intervals = vec![(0, 60), (120, 180)];
-        assert_eq!(overlap_seconds(&intervals, 30, 150), 30 + 60);
+        assert_eq!(overlap_seconds(&intervals, 30, 150), 30 + 30);
         assert_eq!(overlap_seconds(&intervals, 60, 120), 0);
         assert_eq!(overlap_seconds(&intervals, -10, 200), 120);
         assert_eq!(overlap_seconds(&[], 0, 100), 0);
