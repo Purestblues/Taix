@@ -125,8 +125,8 @@
 
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
-| A · token 层 | ✅ 暗色 + 浅色都完成 | 表面阶梯 / 文字四档 / 发丝线 / 卡片 / Elevation / 字号标尺；新增 `Themes/Base/UiKit.axaml` 全局语汇 |
-| B · 组件视觉 | 🚧 卡片 + 榜单行已改 | `.card`/`.statCard`/`.listRow` 落地；榜单行改扁平行（26px 裸图标 / 3px 进度条 / 行底发丝线）；9 个页面的其余卡片、图表卡玻璃质感、间距、光晕待铺 |
+| A · token 层 | ✅ 暗色 + 浅色都完成 | 表面阶梯 / 文字四档 / 发丝线 / 卡片 / Elevation / 字号标尺；新增 `Themes/Base/UiKit.axaml` 全局语汇；`fork.8` 新增第二强调色 `Accent2Color`(#FF4081) → `ChartCompareBrush`，并补齐 `SelectRingBrush` / `WebBadge*` / `ScrimBrush` 三套字典 |
+| B · 组件视觉 | 🚧 卡片 + 榜单行已改 | `.card`/`.statCard`/`.listRow` 落地；榜单行改扁平行（26px 裸图标 / 3px 进度条 / 行底发丝线）；`fork.8` 清掉 25 处组件硬编码色（删除按钮/状态点/Toast/徽章/遮罩/阴影改成 token），图表卡经排查已是 8px + 发丝边 + 零阴影，无需再改 |
 | C · 动效 v2 | ✅ 完成 | `MotionTokens`（4 档时长 + 3 条曲线）、`PageMotion`（180ms 淡入 + 45ms 延迟 + 8px 上移）、`SlideMotion`（逐帧插值）、`ExpandMotion`（高度展开/收起）、`Expander` 收起动画、XAML 里 12 个文件的过渡时长归一到 token |
-| 遗留（`fork.8`） | — | 列表行进出 stagger、408 处硬编码色清洗、N7 分类页信息密度（见 PLAN 三·五）、设置页折叠头不可点（G13） |
+| 遗留（下一批） | — | 列表行进出 stagger、N7 分类页信息密度（见 PLAN 三·五）、`RadiusMedium=RadiusLarge=16` 语义重复、图表按分类取色阶 |
 阶段 C 里「8px 位移」需自写插值（`Motion/SlideAnimator`），其余（淡入/height/展开）可直接用 Avalonia 原生动画。

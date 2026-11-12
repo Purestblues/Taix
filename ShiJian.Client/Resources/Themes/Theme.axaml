@@ -14,7 +14,7 @@
             <!--【主题颜色】-->
             <Color x:Key="ThemeColor">#FFC08AC9</Color>
             <!--第二强调色：只给「瞬时交互/差额项」用，不参与归属语义-->
-            <Color x:Key="AccentColor">#FFFF4081</Color>
+            <Color x:Key="Accent2Color">#FFFF4081</Color>
 
             <!-- 表面阶梯：对齐 Super Productivity 的中性暗色（不再偏蓝） -->
             <Color x:Key="Surface0">#0A0A0B</Color>
@@ -37,7 +37,16 @@
             <Color x:Key="HoverBackgroundColor">#2A2A2C</Color>
 
             <!--【设计 token：卡片 / 分隔线 / 层级】-->
-            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+            <SolidColorBrush x:Key="Accent2Brush" Color="{StaticResource Accent2Color}" />
+            <!-- 图表「上一周期」对比柱：同一强调色的低透明版本（差额项） -->
+            <SolidColorBrush x:Key="ChartCompareBrush" Color="{StaticResource Accent2Color}" Opacity="0.18" />
+            <!-- 色板 / 图标选择器的选中环 -->
+            <SolidColorBrush x:Key="SelectRingBrush" Color="#F7F8FA" />
+            <!-- 网站徽章：与应用的 ThemeBadge 区分（蓝） -->
+            <SolidColorBrush x:Key="WebBadgeBgBrush" Color="#332E6FE0" />
+            <SolidColorBrush x:Key="WebBadgeFgBrush" Color="#7AA8FF" />
+            <!-- 遮罩：弹窗 / 浮层后面的压暗层 -->
+            <SolidColorBrush x:Key="ScrimBrush" Color="#000000" Opacity="0.5" />
             <!-- 发丝线：卡片描边与列表行分隔都用它 -->
             <SolidColorBrush x:Key="DividerBrush" Color="#FFFFFF" Opacity="0.10" />
             <SolidColorBrush x:Key="CardBgBrush" Color="{StaticResource Surface2}" />
@@ -377,7 +386,7 @@
             <!--【主题颜色】-->
             <Color x:Key="ThemeColor">#2b20d9</Color>
             <!--第二强调色：只给「瞬时交互/差额项」用-->
-            <Color x:Key="AccentColor">#FFFF4081</Color>
+            <Color x:Key="Accent2Color">#FFFF4081</Color>
 
             <!-- 表面阶梯：亮色刻意不用明度分层（叠靠发丝线），2/3/4 都是白 -->
             <Color x:Key="Surface0">#EBEBEB</Color>
@@ -396,7 +405,13 @@
             <Color x:Key="TextDisabled">#B4B4B4</Color>
 
             <!-- 设计 token：卡片 / 分隔线 / 层级（与暗色字典同名，差在取值） -->
-            <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+            <SolidColorBrush x:Key="Accent2Brush" Color="{StaticResource Accent2Color}" />
+            <SolidColorBrush x:Key="ChartCompareBrush" Color="{StaticResource Accent2Color}" Opacity="0.18" />
+            <SolidColorBrush x:Key="SelectRingBrush" Color="#FFFFFF" />
+            <!-- 亮色下徽章蓝需要加深才够对比度 -->
+            <SolidColorBrush x:Key="WebBadgeBgBrush" Color="#1F2E6FE0" />
+            <SolidColorBrush x:Key="WebBadgeFgBrush" Color="#1F5FCC" />
+            <SolidColorBrush x:Key="ScrimBrush" Color="#000000" Opacity="0.35" />
             <SolidColorBrush x:Key="DividerBrush" Color="#000000" Opacity="0.10" />
             <SolidColorBrush x:Key="CardBgBrush" Color="{StaticResource Surface2}" />
             <SolidColorBrush x:Key="CardBorderBrush" Color="#000000" Opacity="0.10" />

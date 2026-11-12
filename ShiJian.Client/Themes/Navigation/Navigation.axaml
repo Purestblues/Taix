@@ -27,7 +27,7 @@
                 <Grid Margin="8,6">
                     <!-- 弥散阴影层 -->
                     <Border CornerRadius="20"
-                            BoxShadow="0 8 32 0 #20000000"
+                            BoxShadow="{DynamicResource Elevation3}"
                             IsHitTestVisible="False" />
 
                     <!-- 玻璃主体 -->

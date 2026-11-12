@@ -16,7 +16,7 @@
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}"
-                        BorderBrush="#f7f8fa" CornerRadius="5"
+                        BorderBrush="{DynamicResource SelectRingBrush}" CornerRadius="5"
                         BorderThickness="2" Width="38" Height="38">
                     <Interaction.Behaviors>
                         <EventTriggerBehavior EventName="PointerPressed">

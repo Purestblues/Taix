@@ -1,6 +1,5 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:btn="using:ShiJian.Client.Controls.Button"
                     xmlns:base="using:ShiJian.Client.Controls.Base"
                     xmlns:controls="using:ShiJian.Client.Controls.Expander">
 
@@ -22,12 +21,15 @@
 
                         <Canvas x:Name="ContentHeight" IsVisible="False" Height="0" />
 
+                        <!-- 整条头部都是点击热区（G13）：箭头只是指示器，不再单独绑命令，
+                             否则点标题没反应、只有点箭头才生效 -->
                         <Border x:Name="HeaderBorder"
                                 Grid.Row="0"
                                 Padding="{TemplateBinding Padding}"
                                 Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="{TemplateBinding CornerRadius}" ZIndex="2">
+                                CornerRadius="{TemplateBinding CornerRadius}" ZIndex="2"
+                                Cursor="Hand">
 
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -39,15 +41,13 @@
                                 <ContentPresenter
                                     Margin="4"
                                     RecognizesAccessKey="True" TextElement.FontSize="14" VerticalAlignment="Center" />
-                                <btn:IconButton x:Name="ExpBtn" Grid.Column="1"
-                                                Command="{Binding ExpanderCommand,RelativeSource={RelativeSource TemplatedParent} }">
-                                    <base:Icon x:Name="Icon" IconType="ChevronDownMed" FontSize="12"
-                                               RenderTransformOrigin=".5,.5">
-                                        <base:Icon.RenderTransform>
-                                            <RotateTransform Angle="0" />
-                                        </base:Icon.RenderTransform>
-                                    </base:Icon>
-                                </btn:IconButton>
+                                <base:Icon x:Name="Icon" Grid.Column="1" IconType="ChevronDownMed" FontSize="12"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           RenderTransformOrigin=".5,.5">
+                                    <base:Icon.RenderTransform>
+                                        <RotateTransform Angle="0" />
+                                    </base:Icon.RenderTransform>
+                                </base:Icon>
 
                                 <Border x:Name="Content"
                                         Grid.Row="1"

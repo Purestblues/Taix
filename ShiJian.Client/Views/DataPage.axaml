@@ -522,6 +522,7 @@
                                                     Series="{Binding CurrentInsight.HourSeries}"
                                                     Labels="{Binding CurrentInsight.HourLabels}"
                                                     CompareValues="{Binding CurrentInsight.CompareValues}"
+                                                CompareBrush="{DynamicResource ChartCompareBrush}"
                                                     EmptyText="{DynamicResource NoData}"
                                                     TextBrush="{DynamicResource SubTextBrush}"
                                                     MutedTextBrush="{DynamicResource SubTextBrush}"

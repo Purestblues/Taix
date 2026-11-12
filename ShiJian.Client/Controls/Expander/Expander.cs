@@ -1,11 +1,12 @@
 using System;
 using System.Threading.Tasks;
-using System.Windows.Input;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Interactivity;
-using ShiJian.Client.Controls.Button;
+using Avalonia.Media;
+using ShiJian.Client.Controls.Base;
 using ShiJian.Client.Librarys;
 
 namespace ShiJian.Client.Controls.Expander;
@@ -18,9 +19,8 @@ public class Expander : Avalonia.Controls.Expander
     //  内容容器高度隐藏容器,用于辅助显示隐藏动画
     private Canvas ContentHeightCanvas_;
     private StackPanel ContentStackPanel_;
-    private IconButton ExpBtn_;
     private Border HeaderBorder_;
-    public ICommand ExpanderCommand { get; set; }
+    private Icon Chevron_;
 
 
     protected override void OnLoaded(RoutedEventArgs e)
@@ -36,15 +36,30 @@ public class Expander : Avalonia.Controls.Expander
         if (IsExpanded && ContentHeightCanvas_ != null) ContentHeightCanvas_.Height = MeasureContentHeight();
     }
 
-    private void OnExpanderCommand(object obj)
+    /// <summary>
+    /// 整条头部都是点击热区（G13：原来只有右侧箭头绑了命令，点标题没反应）
+    /// </summary>
+    private void OnHeaderPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (!e.GetCurrentPoint(HeaderBorder_).Properties.IsLeftButtonPressed) return;
         IsExpanded = !IsExpanded;
+        e.Handled = true;
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == IsExpandedProperty) ApplyExpanded(IsExpanded);
+        if (change.Property == IsExpandedProperty)
+        {
+            ApplyExpanded(IsExpanded);
+            ApplyChevron(IsExpanded);
+        }
+    }
+
+    /// <summary>箭头指示方向：展开朝下、收起朝右。Avalonia 12 无法对 RenderTransform 做动画，直接落值</summary>
+    private void ApplyChevron(bool expanded)
+    {
+        if (Chevron_?.RenderTransform is RotateTransform rotate) rotate.Angle = expanded ? 0 : -90;
     }
 
     /// <summary>
@@ -99,9 +114,12 @@ public class Expander : Avalonia.Controls.Expander
     {
         base.OnApplyTemplate(e);
         HeaderBorder_ = e.NameScope.Find<Border>("HeaderBorder");
-        ExpBtn_ = e.NameScope.Find<IconButton>("ExpBtn");
+        Chevron_ = e.NameScope.Find<Icon>("Icon");
         ContentHeightCanvas_ = e.NameScope.Find<Canvas>("ContentHeight");
         ContentBorder_ = e.NameScope.Find<Border>("Content");
         ContentStackPanel_ = e.NameScope.Find<StackPanel>("ContentStackPanel");
+
+        if (HeaderBorder_ != null) HeaderBorder_.PointerPressed += OnHeaderPointerPressed;
+        ApplyChevron(IsExpanded);
     }
 }

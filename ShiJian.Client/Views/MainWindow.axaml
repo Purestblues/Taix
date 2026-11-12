@@ -177,10 +177,10 @@
             <Setter Property="Foreground" Value="{DynamicResource ThemeBadgeFgBrush}" />
         </Style>
         <Style Selector="Border.badge-web">
-            <Setter Property="Background" Value="#332E6FE0" />
+            <Setter Property="Background" Value="{DynamicResource WebBadgeBgBrush}" />
         </Style>
         <Style Selector="Border.badge-web TextBlock">
-            <Setter Property="Foreground" Value="#7AA8FF" />
+            <Setter Property="Foreground" Value="{DynamicResource WebBadgeFgBrush}" />
         </Style>
         <Style Selector="Border.badge-cat-app, Border.badge-cat-web">
             <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
@@ -315,7 +315,7 @@
               ZIndex="500"
               Margin="0,40,0,0"
               IsVisible="{Binding IsSearchOpen}">
-            <Border Background="#80000000"
+            <Border Background="{DynamicResource ScrimBrush}"
                     PointerReleased="OnSearchMaskPointerReleased" />
 
             <!-- 搜索面板 -->

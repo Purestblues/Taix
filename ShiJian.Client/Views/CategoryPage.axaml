@@ -56,7 +56,7 @@
                                 <Run Text="{DynamicResource SideSort}" />
                             </TextBlock>
                         </StackPanel>
-                        <Button:IconButton Foreground="#ccc"
+                        <Button:IconButton Foreground="{DynamicResource SubTextBrush}"
                                            Icon="ChromeClose"
                                            HorizontalAlignment="Right"
                                            FontSize="12" Margin="0,0,10,0"
@@ -292,7 +292,7 @@
                                                         BorderThickness="{Binding ElementName=Border,Path=BorderThickness}"
                                                         Margin="{Binding ElementName=Border,Path=Margin}"
                                                         CornerRadius="{Binding ElementName=Border,Path=CornerRadius}"
-                                                        BoxShadow="0 4 16 0 #15000000" />
+                                                        BoxShadow="{DynamicResource Elevation2}" />
                                                 <Border BorderBrush="Transparent"
                                                         BorderThickness="1.5" x:Name="Border"
                                                         Background="{DynamicResource CardBgBrush}"
@@ -485,7 +485,7 @@
                                                         BorderThickness="{Binding ElementName=Border,Path=BorderThickness}"
                                                         Margin="{Binding ElementName=Border,Path=Margin}"
                                                         CornerRadius="{Binding ElementName=Border,Path=CornerRadius}"
-                                                        BoxShadow="0 4 16 0 #15000000" />
+                                                        BoxShadow="{DynamicResource Elevation2}" />
                                                 <Border BorderBrush="Transparent"
                                                         BorderThickness="1.5" x:Name="Border"
                                                         Background="{DynamicResource CardBgBrush}"

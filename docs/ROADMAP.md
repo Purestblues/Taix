@@ -11,7 +11,7 @@
 | --- | --- |
 | 发布 | [`v1.3.4-fork.7`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.7)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）79 个用例；CI 里先跑测试再打包 |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）82 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
 | 代码规模 | 客户端 307 个 `.cs`、67 个 `.axaml`，0 处 TODO/FIXME |
 
@@ -33,7 +33,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 | G9 | 点网站分类必定闪退 | `Imager` 图标缓存淘汰时释放了仍在渲染的位图，`Image.Render` 抛 `ObjectDisposedException` | 整个客户端进程直接退出 |
 | G10 | 调试版启动弹「预料之外的错误」，主界面空白 | `AvaloniaUI.DiagnosticsSupport` 2.2.3 的样式里用了嵌套选择器，与 Avalonia 12.1.1 不兼容（`Nesting selector ... cannot determine parent selector`） | 只影响 Debug 构建；现已默认不挂 DevTools，需要时设 `TAIX_DEVTOOLS=1`。Release 构建不受影响 |
 | G12 | 榜单进度条不显示 / 滚动后消失 | 宽度靠代码手算（`容器宽*0.95 - 文字宽`），依赖「布局已完成」与「尺寸还会再变一次」两个假设；虚拟化复用的行尺寸不再变化，宽度永久停在 0 | 切页瞬间、快速滚动后榜单只剩文字没有条。`fork.7` 已修为布局驱动的 `RatioBar` |
-| G13 | 设置页折叠头不可点 | `SettingPanelMultiItem` 的 `Expander` 头部没渲染展开箭头，标题区也没有点击热区 | 用户只能靠右侧 `...` 菜单操作，折叠功能实际不可达 |
+| G13 | 设置页折叠头不可点 | `SettingPanelMultiItem` 的 `Expander` 头部没渲染展开箭头，标题区也没有点击热区 | 用户只能靠右侧 `...` 菜单操作，折叠功能实际不可达。**`fork.8` 已修控件层**（整条头部可点 + 箭头随状态转向），但注意：当前设置页两块 `SettingPanel` 传的都是单对象（走 `RenderSinglePanel`），多例面板没有实例化，所以这项在生产 UI 里**没有可见触点**，属于潜伏缺陷的提前修 |
 | G11 | 自绘图表用 Tab 走不到 | 原记录归因为 Avalonia 12 的 Tab 遍历不把自定义 `Control` 当候选，但 2026-11-11 在 Avalonia 12.1.1 headless 下逐层（StackPanel / ScrollViewer / ContentPresenter / ItemsControl 模板）都走到了，`Focusable` + `IsTabStop` + `GotFocus→InvalidateVisual` 三件套齐全 | 现已新增 `ChartTabNavigationTests` 锁住「Tab / Shift+Tab 能进出四类图表」；若实机仍复现，需要补充具体页面与操作序列 |
 
 ## 里程碑
@@ -133,7 +133,7 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       两处可能差几分钟（会话合并会把间隔 ≤60 秒的碎片并进去）；这是历史口径，未强行统一。
 - [x] 单测：`InsightBuilder`（切片 / 裁剪 / 星期与月日网格 / 会话汇总 / 环比 / 时段分段）新增 18 个用例。
 
-### M6 · 新一代体验（进行中：视觉体系 v1 + 动效 v2 已随 `fork.7` 发布）
+### M6 · 新一代体验（进行中：视觉体系 v1 + 动效 v2 已随 `fork.7` 发布；`fork.8` 收尾完成待发）
 
 > 详细顺序、依赖与发版切分见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md)；
 > 视觉/动效目标与逐项差距见 [`docs/DESIGN-SP-ALIGN.md`](DESIGN-SP-ALIGN.md)。
@@ -168,10 +168,17 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 - [x] **N1 + N3** 视觉体系 v1（已随 `fork.7` 发布）
       颜色 token（明暗两套字典 + 发丝线 + Elevation + 字号标尺）、全局 `.card`/`.statCard`/`.listRow`/`.eyebrow`、
       29 个卡片容器与 8 个页面统一到 8px 圆角 + 1px 发丝边 + 零阴影、页面留白与内容区光晕。
-      剩余：第二强调色的实际使用点、图表按分类取色阶、408 处硬编码色清洗（随 `fork.8` 一起做）
+      `fork.8` 收尾：第二强调色落地（`Accent2Color` = `#FF4081`，图表「上一周期」对比柱 `ChartCompareBrush` 改用它）、
+      25 处组件级硬编码色收进 token（`SelectRingBrush` / `WebBadgeBg/FgBrush` / `ScrimBrush` 等），
+      `AccentColor`/`AccentBrush` 这对**没人引用**的废弃 token 删除。
+      剩余：图表按分类取色阶（随 N7 或之后单独做）、`RadiusMedium=RadiusLarge=16` 的语义重复
 - [ ] **N6** 子母程序合并：自动判定 + 设置页「子母程序合并」管理页（子进程继承母进程分类，保留原标签）
 - [ ] **N2** 应用/网站统一实体表 + 「网站并入浏览器」开关（浏览器用真实活跃时长）
 - [ ] **N7** 分类页（发现页）信息密度：卡片瘦身 + 紧凑视图 + 排序（方案见 `PLAN-2026-11.md` 三·五，`fork.8.5`）
+      **下一步就做这个**。已核过数据源：应用侧 `api/data/category-range` + `category-hours`、网站侧
+      `api/webdata/browse-category-statistics`，都是「分类 × 时段」矩阵，本地按列求和即得每分类时长/占比，
+      不需要改服务端。周期口径已拍板：**只做「今天」，本轮不加周期选择器**。
+      当前 `Views/CategoryPage.axaml` 仍是 150×150 固定方块（图标 + 名称 + ×应用数），一屏只放得下 6 个。
 - [ ] **N5** 分类页「分类 / 应用」视图切换 + 应用视图快速打标签（依赖 N6 / N2）
 - [x] **G11** 自绘图表 Tab 焦点——核验结论：控件层面已可达（`ColumnChart` / `DonutChart` /
       `StackedBarChart` / `ClockRing` 均有 `Focusable` + `IsTabStop` + 焦点重绘），

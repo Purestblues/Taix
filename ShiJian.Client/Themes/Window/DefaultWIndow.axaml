@@ -92,7 +92,7 @@
               <Grid>
                 <Border x:Name="WindowBorder"
                         CornerRadius="{StaticResource RadiusXLarge}"
-                        BoxShadow="0 12 40 0 #28000000"
+                        BoxShadow="{DynamicResource Elevation3}"
                         ClipToBounds="False"
                         Margin="16">
                     <Border x:Name="ContentBorder"
@@ -132,7 +132,7 @@
                                             <Border x:Name="StatusDot"
                                                     Width="8" Height="8"
                                                     CornerRadius="4"
-                                                    Background="#999999"
+                                                    Background="{DynamicResource SubTextBrush}"
                                                     BorderBrush="{DynamicResource WindowBackground}"
                                                     BorderThickness="1.5"
                                                     HorizontalAlignment="Right"

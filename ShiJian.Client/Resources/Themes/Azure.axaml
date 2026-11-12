@@ -4,6 +4,15 @@
     <Color x:Key="ThemeColor">#2F9BFF</Color>
     <SolidColorBrush x:Key="ThemeBrush" Color="#2F9BFF" />
 
+    <!-- 第二强调色：只给「瞬时交互 / 差额项」用（与 Theme 字典同名） -->
+    <Color x:Key="Accent2Color">#FFFF4081</Color>
+    <SolidColorBrush x:Key="Accent2Brush" Color="{StaticResource Accent2Color}" />
+    <SolidColorBrush x:Key="ChartCompareBrush" Color="{StaticResource Accent2Color}" Opacity="0.18" />
+    <SolidColorBrush x:Key="SelectRingBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="WebBadgeBgBrush" Color="#1F2E6FE0" />
+    <SolidColorBrush x:Key="WebBadgeFgBrush" Color="#1F5FCC" />
+    <SolidColorBrush x:Key="ScrimBrush" Color="#000000" Opacity="0.35" />
+
     <SolidColorBrush x:Key="Background" Color="#D9F1FF" />
     <SolidColorBrush x:Key="StandardTextBrush" Color="#123A5A" />
     <SolidColorBrush x:Key="DefaultTextBrush" Color="#204D6D" />

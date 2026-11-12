@@ -173,6 +173,7 @@
                                                 Series="{Binding HourSeries}"
                                                 Labels="{Binding HourLabels}"
                                                 CompareValues="{Binding CompareValues}"
+                                                CompareBrush="{DynamicResource ChartCompareBrush}"
                                                 EmptyText="{DynamicResource NoData}"
                                                 TextBrush="{DynamicResource SubTextBrush}"
                                                 MutedTextBrush="{DynamicResource SubTextBrush}"
