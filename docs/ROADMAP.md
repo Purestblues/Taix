@@ -184,7 +184,21 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       - 推迟到 `fork.10`（与 N2 一起）：`Publisher` 采集（monitor + 服务端列）、服务端 `EntityMergeGroups/Members`、
         手动绑定与跨源（应用↔网站）合并。理由：本机没有 MSVC 链接器，Rust 改动无法本地编译验证；
         而合并是展示层映射，服务端不参与也能先把效果落地。
-- [ ] **N2** 应用/网站统一实体表 + 「网站并入浏览器」开关（浏览器用真实活跃时长）
+- [~] **N2** 应用/网站统一实体表 + 「网站并入浏览器」开关（`fork.10` 第一段：概览页已切源）
+      - ⑥ 浏览器标识：扩展构建期注入 `Browser`（esbuild `define`），服务端 `WebBrowseLogModels.BrowserRef`
+        新列（迁移 `web_browser_ref`），历史 NULL 落「默认浏览器」。只到浏览器、不区分 profile。
+      - `AppModels.Publisher`：monitor-windows 读文件版本资源 `CompanyName`，pipe 字段 `pub` 透传，
+        历史行为 NULL（按路径规则退化）。会话检查点也带上，崩溃恢复不丢合并依据。
+      - 合并组搬到服务端：`EntityMergeGroups/Members/Suppressions` 三张表 + `services/app_merge.rs` 判定
+        （客户端 `AppMergePlanner` 的移植 + 发布者守卫）；自动组首次查询时落库，解散写 suppression。
+        设置页「子母程序合并」卡片改读服务端，解散 / 恢复走 `/api/entity/merge-groups/*`，本地 `app.merge.json` 下线。
+      - `/api/entity/list`：应用与网站扣成互斥的一行一行（浏览器会话区间求交），
+        关闭合并时浏览器行只剩余额（「浏览器内其他页面」差额行），打开时站点行消失、浏览器拿回完整时长；
+        总额两种视图都等于「应用总时长 + 未对齐的站点时长」。
+      - 概览页头部「独立显示 / 并入浏览器」开关（`General.WebBrowserMerged`，配置 v6）；
+        设置 → 常规新增「默认浏览器」（`General.DefaultBrowser`，候选来自 `/api/entity/browsers`）。
+      - 未做（`fork.10.5`）：`/api/entity/hours`、`/api/entity/summary`，统计 / 详细 / 分类三页切源，
+        手动绑定 `Kind=mixed`，分类页/搜索/Web UI 的合并接入，服务端 Top N 与「其他」归并。
 - [ ] **N7** 分类页（发现页）信息密度（方案见 `PLAN-2026-11.md` 三·五，`fork.8.5`）
       - [x] **N7-a 卡片瘦身**（已实现，未发版）：150×150 方块 → 200×92 扁卡片，一屏 6 列；
             卡上新增「今日时长 + 占比条 + 占比百分比」，应用数降为次要信息；目录/URL 匹配从药丸改成图标右上角小圆点。

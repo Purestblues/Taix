@@ -34,6 +34,19 @@ jobs:
       - name: cargo test
         run: cargo test --manifest-path shijian-server/Cargo.toml --locked
 
+      # 本机没有 MSVC 链接器，`cargo build` 会调到 MSYS 的 link.exe 后失败。
+      # 这里顺手产出 debug 二进制，下载后可以直接替换安装目录里的同名文件，
+      # 用来在真机上验证服务端改动（数据库迁移 / 新接口）。
+      - name: cargo build (debug binary for local verification)
+        run: cargo build --manifest-path shijian-server/Cargo.toml --locked
+
+      - name: Upload shijian-server.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: shijian-server-debug
+          path: shijian-server/target/debug/shijian-server.exe
+          if-no-files-found: error
+
   monitor-windows:
     name: shijian-monitor-windows (cargo check)
     runs-on: windows-latest
@@ -54,3 +67,13 @@ jobs:
 
       - name: cargo check
         run: cargo check --manifest-path shijian-monitor-windows/Cargo.toml --locked
+
+      - name: cargo build (debug binary for local verification)
+        run: cargo build --manifest-path shijian-monitor-windows/Cargo.toml --locked
+
+      - name: Upload shijian-monitor-windows.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: shijian-monitor-windows-debug
+          path: shijian-monitor-windows/target/debug/shijian-monitor-windows.exe
+          if-no-files-found: error

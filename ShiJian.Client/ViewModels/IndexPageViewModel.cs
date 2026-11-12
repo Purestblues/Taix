@@ -36,7 +36,6 @@ public partial class IndexPageViewModel : IndexPageModel
     private readonly IAppConfig _appConfig;
     private readonly IStateService _stateService;
     private readonly IAppEventService _appEventService;
-    private readonly IAppMergeService _appMergeService;
     private readonly IEntityData _entityData;
     private readonly IAppData _appDataService;
 
@@ -55,7 +54,6 @@ public partial class IndexPageViewModel : IndexPageModel
         IAppConfig appConfig,
         IStateService stateService,
         IAppEventService appEventService,
-        IAppMergeService appMergeService,
         IEntityData entityData,
         IAppData appData)
     {
@@ -66,7 +64,6 @@ public partial class IndexPageViewModel : IndexPageModel
         _appConfig = appConfig;
         _stateService = stateService;
         _appEventService = appEventService;
-        _appMergeService = appMergeService;
         _entityData = entityData;
         _appDataService = appData;
 

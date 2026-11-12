@@ -220,3 +220,29 @@ GET /api/entity/merge-groups                  → 组列表（含自动候选）
 | `fork.11`（N5） | ⑩ 分类页「分类 / 应用」视图切换 + 快速打标签 | ⑧ |
 
 每步可独立发布、独立回滚。`fork.9` 只加表与映射层，页面看到的是「合并后的应用列表」，风险最小；`fork.10` 才是口径切换，单独一个版本观察。
+
+> **`fork.10` 实际执行（2026-11-12，未发版）**：⑥ ⑦ ⑨ 与 ⑧ 的「概览页」完成；⑧ 的其余三页（统计 / 详细 / 分类）与
+> `/api/entity/hours`、`/api/entity/summary` 推到 `fork.10.5`。逐条落地情况：
+>
+> | 步骤 | 落地 |
+> | --- | --- |
+> | ⑥ 浏览器标识 | `scripts/build.js` 用 esbuild `define` 注入 `__SHIJIAN_BROWSER__`，上报体加 `Browser`（三处上报统一走 `createBrowseData`，旧队列项发送前补字段）；服务端 `WebBrowseLogModels.BrowserRef`（迁移 `web_browser_ref`），同小时同 URL 追加时用 `COALESCE` 回填历史 NULL |
+> | Publisher | monitor-windows 新增 `get_file_company_name`（复用版本资源查询，抽成 `query_version_string(path, key)`），`AppInfo.Publisher` → pipe 字段 `pub` → `AppModels.Publisher`（迁移 `app_publisher`）；崩溃恢复的会话检查点（` ` 分隔的 key/value）也带 `pub`，旧检查点缺这个键按空串处理 |
+> | 合并组 | `EntityMergeGroups` / `EntityMergeMembers` / `EntitySuppressions`（迁移 `entity_merge_tables`）；判定规则在 `services/app_merge.rs`（客户端 `AppMergePlanner` 的移植，增加「两边都有发布者但不同则不合并」与「`setup`/`uninstall` 这类通用名不走发布者兜底」）；自动组在首次查询时落库（幂等），解散写 suppression 并删组 |
+> | ⑦ 实体聚合 | `GET /api/entity/list`（互斥归属 + 差额行 + 排序），`GET /api/entity/browsers`（默认浏览器候选） |
+> | ⑧ 概览页 | 榜单 / 卡片 / 总时长改读实体表；「应用 / 网站」两个列表分别吃实体行的应用侧与站点侧 |
+> | ⑨ 开关与设置 | 概览页头部 `独立显示 / 并入浏览器`（落 `General.WebBrowserMerged`，配置 v6）；设置 → 常规新增「默认浏览器」卡片（`General.DefaultBrowser`） |
+>
+> **与本文原有口径的三个偏离**（都是有意的，改动时先回来确认）：
+> 1. **溢出时裁剪站点**：本文 4.3 说「站点时长照实计入、不裁剪」，实现改为「按浏览器会话求交后再计入」，
+>    超出的部分进 `overflowSeconds` 计数。理由：不裁剪就意味着同一分钟被记两次，守恒不变式（§9.1）直接失效；
+>    裁剪后 `Σ 行 = 应用总时长`，页面上的差额行与溢出计数一起解释异常数据。
+> 2. **排序与「其他」归并留在客户端**：Q9 原定服务端做，实际服务端只做「按秒数降序 + 名称」，
+>    Top N 与「更多」仍是客户端按 `IndexPageFrequentUseNum` 切片（它本来就是展示层配置）。
+> 3. **多浏览器并发不归一**：4.3 的 `min(1, 1/并发数)` 未实现（扩展侧已按 visibility 过滤，正常不触发），
+>    只记录重叠量，不做缩放。
+>
+> **浏览器标识的映射**：扩展只有 chrome / firefox / safari 三份产物，但 Chromium 系（Edge / Brave / Arc）装 chrome 版扩展时上报的也是 `chrome`。
+> 因此服务端按「一族进程名」解析：`chrome` 族 = chrome / chromium / msedge / brave / vivaldi / arc / thorium / 360se / 360chrome / qqbrowser，
+> `firefox` 族 = firefox / librewolf / waterfox / zen，`safari` 族 = safari；同族里取时长最长的进程作为该标识的实体。
+> 站点日志没有标识时落 `General.DefaultBrowser`，它也为空时记为「未对齐」（`unmatchedSeconds`）。

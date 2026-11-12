@@ -426,8 +426,6 @@ impl EntityService {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 struct AppAggRow {
-    #[sqlx(rename = "AppModelID")]
-    app_model_id: i64,
     #[sqlx(rename = "total")]
     total: i64,
     #[sqlx(flatten)]
