@@ -188,10 +188,12 @@ impl EntityService {
                         name: other_row_name(&primary.app, browser_apps.len()),
                         icon: primary.app.app_icon_file.clone(),
                         seconds: balance,
-                        category_id: 0,
+                        // 差额行属于浏览器这个实体：分类跟着浏览器走，
+                        // 否则「分类页各分类之和」会比总额少掉浏览器剩下的那段时间
+                        category_id: primary.app.app_category_id.unwrap_or(0),
                         category_kind: "app".to_string(),
-                        category_name: None,
-                        category_color: None,
+                        category_name: primary.app.cat_name.clone(),
+                        category_color: primary.app.cat_color.clone(),
                         is_browser: true,
                         members: Vec::new(),
                     });
@@ -688,10 +690,11 @@ impl EntityService {
                 kind: if is_browser && !browser_merged { "other" } else { "app" }.to_string(),
                 name,
                 icon: primary.app.app_icon_file.clone(),
-                category_id: if is_browser && !browser_merged { 0 } else { primary.app.app_category_id.unwrap_or(0) },
+                // 差额行的分类跟着浏览器走（与 list 一致），否则分类维度会漏掉「其他页面」
+                category_id: primary.app.app_category_id.unwrap_or(0),
                 category_kind: "app".to_string(),
-                category_name: if is_browser && !browser_merged { None } else { primary.app.cat_name.clone() },
-                category_color: if is_browser && !browser_merged { None } else { primary.app.cat_color.clone() },
+                category_name: primary.app.cat_name.clone(),
+                category_color: primary.app.cat_color.clone(),
                 is_browser,
                 values,
                 members,
