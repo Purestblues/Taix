@@ -199,6 +199,7 @@ impl AppTimer {
                             executable_path: String::new(),
                             icon_path: String::new(),
                             app_type: AppType::Win32,
+                            publisher: String::new(),
                         },
                     );
                     let window_owned = std::mem::replace(
@@ -293,6 +294,7 @@ impl AppTimer {
                     exe_path: app.executable_path.clone(),
                     icon_path: app.icon_path.clone(),
                     desc: app.description.clone(),
+                    publisher: app.publisher.clone(),
                     since_ts,
                     session_id: session_id.clone(),
                     last_seen,
@@ -398,6 +400,7 @@ fn send_duration_event(queue: &MessageQueue, event: &AppDurationEvent) {
     let desc = (!event.app.description.is_empty())
         .then_some(event.app.description.as_str())
         .or_else(|| Some(event.app.process.as_str()));
+    let pubr = (!event.app.publisher.is_empty()).then_some(event.app.publisher.as_str());
     let a = event
         .start_time
         .duration_since(UNIX_EPOCH)
@@ -411,6 +414,7 @@ fn send_duration_event(queue: &MessageQueue, event: &AppDurationEvent) {
         f: exe,
         i: icon,
         desc,
+        publisher: pubr,
     };
     let mut json = msg.to_string();
     json.push('\n');
@@ -449,6 +453,7 @@ mod tests {
             executable_path: format!(r"C:\{process}.exe"),
             icon_path: String::new(),
             app_type: AppType::Win32,
+            publisher: String::new(),
         }
     }
 

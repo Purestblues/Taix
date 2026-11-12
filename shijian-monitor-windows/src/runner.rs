@@ -191,6 +191,7 @@ fn try_recover_session(data_dir: &Path, queue: &MessageQueue) {
     } else {
         Some(cp.process.as_str())
     };
+    let pubr = (!cp.publisher.is_empty()).then_some(cp.publisher.as_str());
     let msg = MonitorMessage::App {
         p: &cp.process,
         d: plan.duration_secs,
@@ -199,6 +200,7 @@ fn try_recover_session(data_dir: &Path, queue: &MessageQueue) {
         f: exe,
         i: icon,
         desc,
+        publisher: pubr,
     };
     let mut json = msg.to_string();
     json.push('\n');

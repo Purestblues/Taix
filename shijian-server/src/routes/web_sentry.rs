@@ -34,6 +34,9 @@ struct WebBrowseData {
     duration: i64,
     #[serde(rename = "ActiveTime")]
     active_time: i64,
+    /// 扩展构建期注入的浏览器标识；旧版扩展不带，解析为 None
+    #[serde(rename = "Browser", default)]
+    browser: Option<String>,
 }
 
 pub fn router(state: Arc<SentryState>) -> Router {
@@ -106,6 +109,7 @@ async fn handle_browse_data(state: Arc<SentryState>, data: WebBrowseData) {
         duration: data.duration,
         date_time,
         icon_url: data.icon,
+        browser: data.browser,
     };
 
     let favicons_dir = &state.web_favicons_dir;

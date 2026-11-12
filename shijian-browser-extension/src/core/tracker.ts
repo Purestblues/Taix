@@ -1,5 +1,6 @@
 import { BrowserAPI } from '../browser/interface';
 import { ActivePage, BrowseData, TabInfo } from '../types';
+import { BROWSER_NAME, createBrowseData } from './build-info';
 import { CONFIG } from './config';
 import { Connection } from './connection';
 import { Queue } from './queue';
@@ -244,13 +245,13 @@ export class Tracker {
     if (duration > 0) {
       this.lastSavedTime = now;
       const activeTime = Math.floor(this.state.activePage.startTime / 1000);
-      this.notifyTai({
-        Url: this.state.activePage.url,
-        Title: this.state.activePage.title,
-        Icon: this.state.activePage.icon,
-        Duration: duration,
-        ActiveTime: activeTime,
-      });
+      this.notifyTai(createBrowseData(
+        this.state.activePage.url,
+        this.state.activePage.title,
+        this.state.activePage.icon,
+        duration,
+        activeTime,
+      ));
     }
 
     this.state.activePage.startTime = now;
@@ -388,13 +389,13 @@ export class Tracker {
       return;
     }
 
-    this.notifyTai({
-      Url: this.state.activePage.url,
-      Title: this.state.activePage.title,
-      Icon: this.state.activePage.icon,
-      Duration: duration,
-      ActiveTime: Math.floor(startTime / 1000),
-    });
+    this.notifyTai(createBrowseData(
+      this.state.activePage.url,
+      this.state.activePage.title,
+      this.state.activePage.icon,
+      duration,
+      Math.floor(startTime / 1000),
+    ));
 
     this.state.save();
   }
@@ -553,15 +554,17 @@ export class Tracker {
 
     if (duration <= 0) return;
 
-    this.notifyTai({ Url, Title, Icon, Duration: duration, ActiveTime: Math.floor(startTime / 1000) });
+    this.notifyTai(createBrowseData(Url, Title, Icon, duration, Math.floor(startTime / 1000)));
   }
 
   private notifyTai(data: BrowseData): void {
-    console.log('[ShiJian] 发送浏览数据:', data);
-    const sent = this.connection.send(JSON.stringify(data));
+    // 旧版本存下来的队列项没有 Browser 字段，补上再发，避免历史队列把一批记录打回「默认浏览器」
+    const payload: BrowseData = data.Browser ? data : { ...data, Browser: BROWSER_NAME };
+    console.log('[ShiJian] 发送浏览数据:', payload);
+    const sent = this.connection.send(JSON.stringify(payload));
     if (!sent) {
       console.warn('[ShiJian] 发送失败，加入队列');
-      this.queue.add(data);
+      this.queue.add(payload);
       this.state.notifyFailList = this.queue.getAll();
       this.state.save();
     }

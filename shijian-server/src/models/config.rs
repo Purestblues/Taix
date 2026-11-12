@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 /// - v3: 添加 DataRetentionDays
 /// - v4: 添加 WindowGradientScheme, IsSaveWindowSize, InactiveThreshold, MaxSoundDuration
 /// - v5: 添加 MotionMode（客户端动效开关，0 跟随系统 / 1 始终开启 / 2 始终关闭）
-pub const CURRENT_CONFIG_VERSION: u32 = 5;
+/// - v6: 添加 DefaultBrowser（历史站点记录没有浏览器标识时归属给谁）
+pub const CURRENT_CONFIG_VERSION: u32 = 6;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -108,6 +109,11 @@ pub struct GeneralModel {
     pub is_save_window_size: bool,
     #[serde(rename = "MotionMode")]
     pub motion_mode: i32,
+    /// 默认浏览器（chrome / firefox / safari / …）。
+    /// 早期扩展上报的站点记录没有浏览器标识（`BrowserRef` 为 NULL），统一归给它；
+    /// 空串表示还没选过，此时按「浏览日志里出现最多的标识」自动推荐。
+    #[serde(rename = "DefaultBrowser")]
+    pub default_browser: String,
 }
 
 impl Default for GeneralModel {
@@ -127,6 +133,7 @@ impl Default for GeneralModel {
             window_gradient_scheme: 3,
             is_save_window_size: false,
             motion_mode: 0,
+            default_browser: String::new(),
         }
     }
 }

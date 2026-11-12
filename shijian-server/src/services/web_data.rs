@@ -15,7 +15,7 @@ use crate::models::web::{WebBrowseLogModel, WebSiteCategoryModel, WebSiteJoinCol
 use crate::services::config::ConfigService;
 use crate::services::web_domain::{
     clean_title, extract_domain, extract_domain_scheme, extract_site_name, host_without_port,
-    is_loopback_site_domain, is_placeholder_site_title,
+    is_loopback_site_domain, is_placeholder_site_title, normalize_browser_ref,
 };
 use crate::utils::{parse_timezone, tz_naive_to_utc};
 
@@ -109,6 +109,9 @@ impl WebDataService {
             return Ok((0, 0));
         }
         debug!("add_url_browse_time: url={} duration={}", req.url, req.duration);
+
+        // 浏览器归属：扩展构建期注入；旧版扩展 / 历史数据为 None → 读取时落「默认浏览器」
+        let browser_ref = normalize_browser_ref(req.browser.as_deref());
 
         // 时间戳合法性校验：拒绝明显过去或未来的时间
         if let Some(dt) = req.date_time {
@@ -204,12 +207,14 @@ impl WebDataService {
                 if overflow > 0 {
                     next_duration += overflow;
                 }
-                sqlx::query("UPDATE WebBrowseLogModels SET Duration = ? WHERE ID = ?")
-                    .bind(new_duration).bind(id).execute(&mut *tx).await?;
+                // 历史行（BrowserRef IS NULL）在同小时同 URL 追加时补上归属，不回写已有非空值
+                sqlx::query("UPDATE WebBrowseLogModels SET Duration = ?, BrowserRef = COALESCE(BrowserRef, ?) WHERE ID = ?")
+                    .bind(new_duration).bind(browser_ref.as_deref()).bind(id).execute(&mut *tx).await?;
                 now_duration - overflow
             } else {
-                sqlx::query("INSERT INTO WebBrowseLogModels (UrlId, LogTime, Duration, SiteId) VALUES (?, ?, ?, ?)")
-                    .bind(url_id).bind(log_time).bind(now_duration).bind(site_id).execute(&mut *tx).await?;
+                sqlx::query("INSERT INTO WebBrowseLogModels (UrlId, LogTime, Duration, SiteId, BrowserRef) VALUES (?, ?, ?, ?, ?)")
+                    .bind(url_id).bind(log_time).bind(now_duration).bind(site_id)
+                    .bind(browser_ref.as_deref()).execute(&mut *tx).await?;
                 now_duration
             };
 
@@ -229,6 +234,7 @@ impl WebDataService {
                     duration: next_duration,
                     date_time: Some(log_time + Duration::hours(1)),
                     icon_url: current_req.icon_url.clone(),
+                    browser: current_req.browser.clone(),
                 };
                 continue;
             }
@@ -978,7 +984,7 @@ impl WebDataService {
         let utc_end = tz_naive_to_utc(end_date, &parse_timezone(tz_id));
 
         let mut query = String::from(
-            r#"SELECT wbl.ID, wbl.UrlId, wbl.LogTime, wbl.Duration, wbl.SiteId,
+            r#"SELECT wbl.ID, wbl.UrlId, wbl.LogTime, wbl.Duration, wbl.SiteId, wbl.BrowserRef,
             ws.Domain, ws.Title AS WsTitle, ws.IconFile AS WsIconFile, ws.CategoryID AS WsCategoryID,
             wsc.ID AS WscID, wsc.Name AS WscName, wsc.IconFile AS WscIconFile, wsc.Color AS WscColor,
             wsc.IsUrlMatch AS WscIsUrlMatch, wsc.UrlPatterns AS WscUrlPatterns, wsc.IsSystem AS WscIsSystem,
@@ -1002,6 +1008,7 @@ impl WebDataService {
             LogTime: DateTime<Utc>,
             Duration: i64,
             SiteId: i64,
+            BrowserRef: Option<String>,
             Domain: String,
             WsTitle: Option<String>,
             WsIconFile: Option<String>,
@@ -1050,6 +1057,7 @@ impl WebDataService {
                 log_time: row.LogTime,
                 duration: row.Duration,
                 site_id: row.SiteId,
+                browser_ref: row.BrowserRef,
                 site: Some(WebSiteModel {
                     id: row.SiteId,
                     title: row.WsTitle,
@@ -1118,6 +1126,7 @@ impl WebDataService {
             log_time: DateTime<Utc>,
             duration: i64,
             site_id: i64,
+            browser_ref: Option<String>,
             domain: String,
             ws_title: Option<String>,
             ws_icon_file: Option<String>,
@@ -1133,6 +1142,7 @@ impl WebDataService {
             r#"
             SELECT
                 wbl.ID as id, wbl.UrlId as url_id, wbl.LogTime as log_time, wbl.Duration as duration, wbl.SiteId as site_id,
+                wbl.BrowserRef as browser_ref,
                 ws.Domain as domain, ws.Title as ws_title, ws.IconFile as ws_icon_file, ws.CategoryID as ws_category_id,
                 wu.Url as wu_url, wu.Title as wu_title, wu.IconFile as wu_icon_file,
                 wsc.Name as wsc_name, wsc.Color as wsc_color
@@ -1164,6 +1174,7 @@ impl WebDataService {
             log_time: row.log_time,
             duration: row.duration,
             site_id: row.site_id,
+            browser_ref: row.browser_ref,
             site: Some(WebSiteModel {
                 id: row.site_id,
                 title: row.ws_title,

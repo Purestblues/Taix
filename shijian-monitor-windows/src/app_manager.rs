@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 use windows::Win32::Foundation::HWND;
 
-use crate::win32::process::{get_file_description, get_process_exe_path, get_process_name};
+use crate::win32::process::{
+    get_file_company_name, get_file_description, get_process_exe_path, get_process_name,
+};
 use crate::win32::window::{enum_child_windows, extract_icon_to_png, get_window_class_name, get_window_text};
 use tracing::{debug, error, info, warn};
 
@@ -144,6 +146,11 @@ impl AppManager {
             .and_then(get_file_description)
             .unwrap_or_default();
 
+        let publisher = exe_path
+            .as_deref()
+            .and_then(get_file_company_name)
+            .unwrap_or_default();
+
         let icon_path = exe_path
             .as_deref()
             .and_then(|p| extract_icon(&self.data_dir, p, &process_name))
@@ -155,6 +162,7 @@ impl AppManager {
             executable_path: exe_path.clone().unwrap_or_default(),
             icon_path,
             app_type,
+            publisher,
         };
 
         // 缓存

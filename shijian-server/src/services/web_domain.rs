@@ -1,6 +1,16 @@
 const SEPARATORS: [&str; 7] = [" - ", " | ", " — ", " – ", " _ ", " · ", " • "];
 
 /// 从 URL 中提取域名，回环地址（localhost/127.0.0.1/::1）保留端口
+/// 归一化上报的浏览器标识：去掉空白、转小写；空串视为未上报。
+/// 不限定白名单，未来 edge / brave / arc 等产物改一行构建参数即可生效。
+pub(crate) fn normalize_browser_ref(raw: Option<&str>) -> Option<String> {
+    let value = raw?.trim().to_lowercase();
+    if value.is_empty() || value == "unknown" {
+        return None;
+    }
+    Some(value)
+}
+
 pub(crate) fn extract_domain(url: &str) -> String {
     let without_scheme = url
         .trim_start_matches("http://")

@@ -76,6 +76,10 @@ pub struct WebBrowseLogModel {
     pub duration: i64,
     #[sqlx(rename = "SiteId")]
     pub site_id: i64,
+    /// 站点记录的浏览器归属（扩展上报），历史行为 NULL
+    #[sqlx(default)]
+    #[sqlx(rename = "BrowserRef")]
+    pub browser_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[sqlx(skip)]
     pub site: Option<WebSiteModel>,

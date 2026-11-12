@@ -83,6 +83,7 @@ pub fn create_app(
         .merge(routes::category_summary::router())
         .merge(routes::app_timer::router())
         .merge(routes::data::router())
+        .merge(routes::entity::router())
         .merge(routes::web_data::router())
         .merge(routes::config::router())
         .merge(routes::health::router())

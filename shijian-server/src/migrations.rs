@@ -8,7 +8,7 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tracing::{info, warn};
 
-pub(crate) const MIGRATION_STEPS: [&str; 20] = [
+pub(crate) const MIGRATION_STEPS: [&str; 23] = [
     "baseline",
     "add_columns",
     "rename_columns",
@@ -29,6 +29,9 @@ pub(crate) const MIGRATION_STEPS: [&str; 20] = [
     "web_favicons_dir",
     "plugin_records",
     "app_duration_session_id",
+    "web_browser_ref",
+    "app_publisher",
+    "entity_merge_tables",
 ];
 
 const BASELINE_SQL: &str = r#"
@@ -380,6 +383,53 @@ pub(crate) async fn run(pool: &SqlitePool, tz_id: &str) -> anyhow::Result<()> {
         .await
         .context("重建 AppDurationRequests 会话主键")?;
         mark_done(&mut tx, "app_duration_session_id").await?;
+    }
+
+    // 站点记录的浏览器归属（扩展构建期注入 Browser 字段）；历史行保持 NULL，读取时落「默认浏览器」
+    if !is_done(&mut tx, "web_browser_ref").await? {
+        add_column_if_missing(&mut tx, "WebBrowseLogModels", "BrowserRef", "TEXT").await?;
+        mark_done(&mut tx, "web_browser_ref").await?;
+    }
+
+    // 应用的发布者（monitor 读文件版本资源 CompanyName）；历史行 NULL，按路径规则退化
+    if !is_done(&mut tx, "app_publisher").await? {
+        add_column_if_missing(&mut tx, "AppModels", "Publisher", "TEXT").await?;
+        mark_done(&mut tx, "app_publisher").await?;
+    }
+
+    // 子母程序合并组（N6 / N2）。合并只在查询期生效，原始表一行不改
+    if !is_done(&mut tx, "entity_merge_tables").await? {
+        execute_batch(
+            &mut tx,
+            r#"
+            CREATE TABLE IF NOT EXISTS EntityMergeGroups (
+                ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                Name TEXT NOT NULL,
+                Kind TEXT NOT NULL DEFAULT 'app',
+                AutoKey TEXT,
+                PrimaryRef TEXT NOT NULL,
+                IsAuto INTEGER NOT NULL DEFAULT 0,
+                UpdatedAt TEXT NOT NULL
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_entity_merge_autokey
+                ON EntityMergeGroups(AutoKey) WHERE AutoKey IS NOT NULL;
+            CREATE TABLE IF NOT EXISTS EntityMergeMembers (
+                GroupID INTEGER NOT NULL,
+                MemberRef TEXT NOT NULL,
+                OverrideCategoryRef TEXT,
+                AddedAt TEXT NOT NULL,
+                PRIMARY KEY (GroupID, MemberRef)
+            );
+            CREATE TABLE IF NOT EXISTS EntitySuppressions (
+                Ref TEXT NOT NULL PRIMARY KEY,
+                Reason TEXT,
+                CreatedAt TEXT NOT NULL
+            );
+            "#,
+        )
+        .await
+        .context("创建子母程序合并组表")?;
+        mark_done(&mut tx, "entity_merge_tables").await?;
     }
 
     tx.commit().await.context("提交迁移事务失败")?;

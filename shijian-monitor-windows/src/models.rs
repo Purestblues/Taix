@@ -56,6 +56,8 @@ pub struct AppInfo {
     pub executable_path: String,
     pub icon_path: String,
     pub app_type: AppType,
+    /// 文件版本资源里的 CompanyName；读不到就是空串（服务端按路径规则退化）
+    pub publisher: String,
 }
 
 #[derive(Debug, Clone)]
@@ -112,6 +114,7 @@ pub enum MonitorMessage<'a> {
         f: Option<&'a str>,
         i: Option<&'a str>,
         desc: Option<&'a str>,
+        publisher: Option<&'a str>,
     },
     Sleep,
     Wake,
@@ -136,6 +139,7 @@ impl<'a> fmt::Display for MonitorMessage<'a> {
                 f: file_path,
                 i: icon_path,
                 desc,
+                publisher,
             } => {
                 write!(f, "{{\"t\":\"app\",\"p\":{},\"d\":{},\"a\":{},\"sid\":{}", json_escape(p), d, a, json_escape(sid))?;
                 if let Some(v) = file_path {
@@ -146,6 +150,9 @@ impl<'a> fmt::Display for MonitorMessage<'a> {
                 }
                 if let Some(v) = desc {
                     write!(f, ",\"desc\":{}", json_escape(v))?;
+                }
+                if let Some(v) = publisher {
+                    write!(f, ",\"pub\":{}", json_escape(v))?;
                 }
                 write!(f, "}}")
             }
@@ -198,6 +205,8 @@ pub struct SessionCheckpoint {
     pub session_id: String,
     /// 最后一次观测到该会话仍活跃的时间。恢复只补到此刻，不把停机时间算成使用
     pub last_seen: i64,
+    /// 发布者（CompanyName），崩溃恢复时一并带回去，避免恢复出来的会话丢掉合并依据
+    pub publisher: String,
 }
 
 /// 恢复时实际要上报的内容
@@ -214,11 +223,12 @@ impl fmt::Display for SessionCheckpoint {
         // process\0<process>\0path\0<exe_path>\0icon\0<icon_path>\0desc\0<desc>\0since\0<ts>\0sid\0<id>\0last\0<ts>
         write!(
             f,
-            "process\x00{}\x00path\x00{}\x00icon\x00{}\x00desc\x00{}\x00since\x00{}\x00sid\x00{}\x00last\x00{}",
+            "process\x00{}\x00path\x00{}\x00icon\x00{}\x00desc\x00{}\x00pub\x00{}\x00since\x00{}\x00sid\x00{}\x00last\x00{}",
             self.process,
             self.exe_path,
             self.icon_path,
             self.desc,
+            self.publisher,
             self.since_ts,
             self.session_id,
             self.last_seen
@@ -240,6 +250,7 @@ impl SessionCheckpoint {
         let mut since_ts = 0i64;
         let mut session_id = "";
         let mut last_seen = 0i64;
+        let mut publisher = "";
         for chunk in parts.chunks(2) {
             if chunk.len() < 2 {
                 break;
@@ -249,6 +260,7 @@ impl SessionCheckpoint {
                 "path" => exe_path = chunk[1],
                 "icon" => icon_path = chunk[1],
                 "desc" => desc = chunk[1],
+                "pub" => publisher = chunk[1],
                 "since" => since_ts = chunk[1].parse().ok()?,
                 "sid" => session_id = chunk[1],
                 "last" => last_seen = chunk[1].parse().ok()?,
@@ -263,6 +275,7 @@ impl SessionCheckpoint {
             since_ts,
             session_id: session_id.to_owned(),
             last_seen,
+            publisher: publisher.to_owned(),
         })
     }
 
@@ -298,6 +311,7 @@ mod tests {
             f: Some(r"C:\app\chrome.exe"),
             i: None,
             desc: Some("Chrome"),
+            publisher: Some("Google LLC"),
         };
         let json = msg.to_string();
         assert!(json.starts_with(r#"{"t":"app""#), "{json}");
@@ -307,6 +321,7 @@ mod tests {
         assert!(json.contains(r#""sid":"nano-1""#), "{json}");
         assert!(json.contains(r#""f":"C:\\app\\chrome.exe""#), "{json}");
         assert!(json.contains(r#""desc":"Chrome""#), "{json}");
+        assert!(json.contains(r#""pub":"Google LLC""#), "{json}");
         assert!(!json.contains(r#""i":"#), "None 字段不得出现: {json}");
         assert!(json.ends_with('}'), "{json}");
     }
@@ -352,6 +367,7 @@ mod tests {
             exe_path: r"C:\app\chrome.exe".to_string(),
             icon_path: "icon.png".to_string(),
             desc: "Chrome".to_string(),
+            publisher: "Google LLC".to_string(),
             since_ts: 1_792_300_000,
             session_id: "1792300000000000000-7".to_string(),
             last_seen: 1_792_300_120,
@@ -385,6 +401,7 @@ mod tests {
             exe_path: String::new(),
             icon_path: String::new(),
             desc: String::new(),
+            publisher: String::new(),
             since_ts: 1_792_300_000,
             session_id: "sid-1".to_string(),
             last_seen: 1_792_300_090,
@@ -401,6 +418,7 @@ mod tests {
             exe_path: String::new(),
             icon_path: String::new(),
             desc: String::new(),
+            publisher: String::new(),
             since_ts: 1_792_300_000,
             session_id: "sid-1".to_string(),
             last_seen: 1_792_300_000,

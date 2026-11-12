@@ -183,6 +183,14 @@ impl AppTimerService {
                     .execute(&mut *tx)
                     .await?;
                 }
+                // 发布者单独回填：历史行是 NULL，且只有 monitor 升级后才会带这个字段
+                if let Some(publisher) = req.publisher.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+                    sqlx::query("UPDATE AppModels SET Publisher = ? WHERE ID = ? AND (Publisher IS NULL OR Publisher = '')")
+                        .bind(publisher)
+                        .bind(id)
+                        .execute(&mut *tx)
+                        .await?;
+                }
                 id
             }
             None => {
@@ -192,7 +200,7 @@ impl AppTimerService {
                     None => CategoryService::get_system_category_id(&mut *tx).await?,
                 };
                 let result = sqlx::query(
-                    "INSERT INTO AppModels (Name, Alias, CategoryID, TotalTime, File, IconFile, Description) VALUES (?, ?, ?, 0, ?, ?, ?)",
+                    "INSERT INTO AppModels (Name, Alias, CategoryID, TotalTime, File, IconFile, Description, Publisher) VALUES (?, ?, ?, 0, ?, ?, ?, ?)",
                 )
                 .bind(&process)
                 .bind(None::<&str>)
@@ -200,6 +208,7 @@ impl AppTimerService {
                 .bind(&req.file)
                 .bind(&req.icon_file)
                 .bind(&req.description)
+                .bind(req.publisher.as_deref().map(str::trim).filter(|v| !v.is_empty()))
                 .execute(&mut *tx)
                 .await?;
                 result.last_insert_rowid()

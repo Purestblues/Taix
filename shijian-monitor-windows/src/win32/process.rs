@@ -45,7 +45,20 @@ pub fn get_process_name(pid: u32) -> Option<String> {
     })
 }
 
+/// FileDescription（用户看到的应用名）
 pub fn get_file_description(path: &str) -> Option<String> {
+    query_version_string(path, "FileDescription")
+}
+
+/// CompanyName（发布者）。子母程序合并用它把「同一厂商的多个版本」归成一组；
+/// 读不到时返回 None，由调用方按路径规则退化。
+/// 注意：这里读的是版本资源里的 CompanyName，不做数字签名验签 —— 验签要走 WinVerifyTrust，
+/// 成本高，而且我们只做分组、不做安全判定。
+pub fn get_file_company_name(path: &str) -> Option<String> {
+    query_version_string(path, "CompanyName")
+}
+
+fn query_version_string(path: &str, key: &str) -> Option<String> {
     if path.is_empty() {
         return None;
     }
@@ -86,7 +99,7 @@ pub fn get_file_description(path: &str) -> Option<String> {
         let user_lang = GetUserDefaultLangID();
 
         let try_query = |lang: u16, codepage: u16| -> Option<String> {
-            let query = format!("\\StringFileInfo\\{:04x}{:04x}\\FileDescription", lang, codepage);
+            let query = format!("\\StringFileInfo\\{:04x}{:04x}\\{}", lang, codepage, key);
             let query_wide: Vec<u16> = query.encode_utf16().chain(Some(0)).collect();
             let mut desc_ptr = std::ptr::null_mut();
             let mut desc_len = 0u32;

@@ -24,6 +24,9 @@ pub struct UpdateAppDurationRequest {
     pub file: Option<String>,
     pub icon_file: Option<String>,
     pub description: Option<String>,
+    /// 发布者（monitor 从文件版本资源 CompanyName 读取）；旧版 monitor 不带此字段
+    #[serde(default)]
+    pub publisher: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -82,6 +85,9 @@ pub struct AddUrlBrowseTimeRequest {
     pub duration: i64,
     pub date_time: Option<DateTime<Utc>>,
     pub icon_url: Option<String>,
+    /// 上报方浏览器标识（chrome / firefox / safari，扩展构建期注入）；旧版扩展不带此字段
+    #[serde(default)]
+    pub browser: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

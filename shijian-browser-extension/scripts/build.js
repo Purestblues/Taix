@@ -34,6 +34,8 @@ try {
     platform: 'browser',
     target: 'es2020',
     minify: false,
+    // 构建期注入浏览器标识：一份产物只对应一个浏览器，服务端据此把站点归属到浏览器实体
+    define: { __SHIJIAN_BROWSER__: JSON.stringify(browser) },
   });
 
   esbuild.buildSync({
@@ -44,6 +46,8 @@ try {
     platform: 'browser',
     target: 'es2020',
     minify: false,
+    // 构建期注入浏览器标识：一份产物只对应一个浏览器，服务端据此把站点归属到浏览器实体
+    define: { __SHIJIAN_BROWSER__: JSON.stringify(browser) },
   });
 } catch (err) {
   console.error('Build failed:', err);

@@ -22,6 +22,11 @@ pub struct AppModel {
     pub icon_file: Option<String>,
     #[sqlx(rename = "TotalTime")]
     pub total_time: i64,
+    /// 发布者（CompanyName）；历史行为 NULL
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[sqlx(default)]
+    #[sqlx(rename = "Publisher")]
+    pub publisher: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[sqlx(skip)]
     pub category: Option<CategoryModel>,
@@ -38,6 +43,7 @@ pub struct AppJoinCols {
     pub app_category_id: Option<i64>,
     pub app_icon_file: Option<String>,
     pub app_total_time: Option<i64>,
+    pub app_publisher: Option<String>,
     pub cat_id: Option<i64>,
     pub cat_name: Option<String>,
     pub cat_icon_file: Option<String>,
@@ -59,6 +65,7 @@ impl AppJoinCols {
             category_id: self.app_category_id.unwrap_or(0),
             icon_file: self.app_icon_file.clone(),
             total_time: self.app_total_time.unwrap_or(0),
+            publisher: self.app_publisher.clone(),
             category: self.cat_id.map(|cid| CategoryModel {
                 id: cid,
                 name: self.cat_name.clone(),
@@ -76,6 +83,7 @@ impl AppJoinCols {
 pub const APP_JOIN_COLS_SQL: &str = r#"
 a.ID AS app_id, a.Name AS app_name, a.Alias AS app_alias, a.Description AS app_description,
 a.File AS app_file, a.CategoryID AS app_category_id, a.IconFile AS app_icon_file, a.TotalTime AS app_total_time,
+a.Publisher AS app_publisher,
 c.ID AS cat_id, c.Name AS cat_name, c.IconFile AS cat_icon_file, c.Color AS cat_color,
 c.IsDirectoryMatch AS cat_is_directory_match, c.Directories AS cat_directories, c.IsSystem AS cat_is_system
 "#;

@@ -4,6 +4,7 @@ pub mod category;
 pub mod category_summary;
 pub mod config;
 pub mod data;
+pub mod entity;
 pub mod events;
 pub mod health;
 pub mod plugins;

@@ -11,6 +11,8 @@ export interface BrowseData {
   Icon: string;
   Duration: number;
   ActiveTime: number;
+  /** 构建期注入的浏览器标识（chrome / firefox / safari），服务端据此把站点归属到浏览器 */
+  Browser: string;
 }
 
 export interface SavedState {

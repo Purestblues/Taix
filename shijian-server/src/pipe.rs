@@ -19,6 +19,8 @@ struct PipeAppMsg {
     f: Option<String>,
     i: Option<String>,
     desc: Option<String>,
+    #[serde(default, rename = "pub")]
+    publisher: Option<String>,
 }
 
 /// M4 心跳：p=进程名 / f=可执行路径 / i=图标 / s=会话开始 epoch 秒 / sid=会话 id
@@ -295,6 +297,7 @@ where
                                 file: extra.f,
                                 icon_file: extra.i,
                                 description: extra.desc,
+                                publisher: extra.publisher,
                             };
 
                             if let Err(e) =
