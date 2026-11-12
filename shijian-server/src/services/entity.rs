@@ -814,6 +814,21 @@ async fn apply_merge_groups(
         }
     }
 
+    // 组的时长 = 本窗口内所有可见成员之和（母成员没跑的日子，子成员的时长也不能丢）
+    for (agg, group) in result.iter_mut() {
+        let Some(group) = group else { continue };
+        let total: i64 = group
+            .members
+            .iter()
+            .filter_map(|member| {
+                apps.iter()
+                    .find(|candidate| candidate.app.app_name.as_deref() == Some(member.as_str()))
+                    .map(|candidate| candidate.seconds)
+            })
+            .sum();
+        agg.seconds = total.max(agg.seconds);
+    }
+
     Ok(result)
 }
 
