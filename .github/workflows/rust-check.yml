@@ -12,9 +12,11 @@ on:
   workflow_dispatch:
 
 jobs:
+  # 服务端在 Linux 上编不过（`constants::default_data_dir` 只有 windows / macos 两个分支），
+  # 所以跑在 windows-latest 上——这也正是发版机器，口径一致。
   server:
     name: shijian-server (test)
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
