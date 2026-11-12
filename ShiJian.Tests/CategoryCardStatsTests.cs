@@ -113,4 +113,108 @@ public class CategoryCardStatsTests
         card.Count = 218;
         Assert.Equal("×218", card.CountText);
     }
+
+    private static CategoryModel Named(int id, string name, int count = 0, double duration = 0)
+    {
+        var card = new CategoryModel
+        {
+            Data = new ShiJian.Client.Shared.Models.CategoryModel { ID = id, Name = name },
+            Count = count,
+            Duration = duration
+        };
+        return card;
+    }
+
+    [Fact]
+    public void Sort_Duration_KeepsEmptyCategoriesAtTheEnd()
+    {
+        var cards = new[]
+        {
+            Named(1, ""),
+            Named(2, "b", duration: 60),
+            Named(3, "c", duration: 3600)
+        };
+
+        var sorted = CategoryCardStats.Sort(cards, CategorySortMode.Duration, m => m.Data.Name);
+
+        Assert.Equal([3, 2, 1], sorted.Select(m => m.Data.ID));
+    }
+
+    [Fact]
+    public void Sort_Name_IsPureAlphabeticalEvenWithEmptyCards()
+    {
+        var cards = new[]
+        {
+            Named(1, "C"),
+            Named(2, "A", duration: 9999, count: 5),
+            Named(3, "B")
+        };
+
+        var sorted = CategoryCardStats.Sort(cards, CategorySortMode.Name, m => m.Data.Name);
+
+        Assert.Equal([2, 3, 1], sorted.Select(m => m.Data.ID));
+    }
+
+    [Fact]
+    public void Sort_Count_PutsBiggestFirstAndEmptiesLast()
+    {
+        var cards = new[]
+        {
+            Named(1, "empty"),
+            Named(2, "few", count: 2),
+            Named(3, "many", count: 30),
+            Named(4, "mid", count: 8)
+        };
+
+        var sorted = CategoryCardStats.Sort(cards, CategorySortMode.Count, m => m.Data.Name);
+
+        Assert.Equal([3, 4, 2, 1], sorted.Select(m => m.Data.ID));
+    }
+
+    [Fact]
+    public void Sort_Count_CountsDurationOnlyCardAsHavingData()
+    {
+        // 有网站/应用落在这个分类，但按分类取数失败时数量为 0、时长不为 0：不能当成空分类踢到末尾组
+        var cards = new[]
+        {
+            Named(1, "empty"),
+            Named(2, "durationOnly", duration: 120),
+            Named(3, "one", count: 1)
+        };
+
+        var sorted = CategoryCardStats.Sort(cards, CategorySortMode.Count, m => m.Data.Name);
+
+        Assert.Equal(1, sorted[^1].Data.ID);
+    }
+
+    [Fact]
+    public void ReorderInPlace_MovesWithoutRebuilding()
+    {
+        var first = Named(1, "a");
+        var second = Named(2, "b");
+        var third = Named(3, "c");
+        var target = new System.Collections.ObjectModel.ObservableCollection<CategoryModel> { first, second, third };
+
+        CategoryCardStats.ReorderInPlace(target, [third, first, second]);
+
+        Assert.Equal([3, 1, 2], target.Select(m => m.Data.ID));
+        Assert.Same(third, target[0]);
+        Assert.Same(first, target[1]);
+        Assert.Same(second, target[2]);
+    }
+
+    [Fact]
+    public void ReorderInPlace_IsNoOpWhenAlreadyOrdered()
+    {
+        var a = Named(1, "a");
+        var b = Named(2, "b");
+        var target = new System.Collections.ObjectModel.ObservableCollection<CategoryModel> { a, b };
+
+        var raised = 0;
+        target.CollectionChanged += (_, _) => raised++;
+
+        CategoryCardStats.ReorderInPlace(target, [a, b]);
+
+        Assert.Equal(0, raised);
+    }
 }

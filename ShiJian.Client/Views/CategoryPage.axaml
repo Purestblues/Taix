@@ -179,7 +179,18 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{DynamicResource SortOrder}" FontSize="12"
+                               Foreground="{DynamicResource SubTextBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <select:TabSwitch Margin="0,0,16,0" VerticalAlignment="Center"
+                                   ToolTip.Tip="{DynamicResource SortOrder}"
+                                   IsShowIcon="False" SelectedItem="{Binding SortMode,Mode=TwoWay}"
+                                   Options="{Binding SortOptions}" />
+                    <TextBlock Text="{DynamicResource ViewMode}" FontSize="12"
+                               Foreground="{DynamicResource SubTextBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" />
                     <select:TabSwitch Margin="0,0,10,0" VerticalAlignment="Center"
+                                   ToolTip.Tip="{DynamicResource ViewMode}"
                                    IsShowIcon="False" SelectedItem="{Binding ViewMode,Mode=TwoWay}"
                                    Options="{Binding ViewModeOptions}" />
                     <Button:Button Icon="CalculatorAddition"

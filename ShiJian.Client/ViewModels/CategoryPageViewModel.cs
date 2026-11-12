@@ -74,6 +74,12 @@ public class CategoryPageViewModel : CategoryPageModel
         ApplyDirectoryMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyDirectoryMatchAsync).DisposeWith(Disposables);
         ApplyUrlMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyUrlMatchAsync).DisposeWith(Disposables);
         WhenPropertyChanged(this, x => x.ShowType, _ => ExecuteAsync(LoadDataCoreAsync)).DisposeWith(Disposables);
+        // 排序不重拉数据，所以不走 WhenPropertyChanged 那个会 CancelAndResetLoadToken 的重载：
+        // 否则加载还没回来时切换排序，会把正在跑的那次加载取消掉。
+        ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.SortMode)
+            .Skip(1)
+            .Subscribe(_ => ApplySort())
+            .DisposeWith(Disposables);
 
         ChartColorHelper.ThemeChanged += OnThemeChanged;
     }
@@ -121,6 +127,30 @@ public class CategoryPageViewModel : CategoryPageModel
             _hasDirectoryMatchCategory = value;
             OnPropertyChanged();
         }
+    }
+
+    private CategorySortMode CurrentSortMode => SortMode?.Id switch
+    {
+        1 => CategorySortMode.Name,
+        2 => CategorySortMode.Count,
+        _ => CategorySortMode.Duration
+    };
+
+    /// <summary>
+    /// 切换排序只重排现有卡片：时长与数量在加载时已经全量算好，不需要再发请求。
+    /// 重排走 <c>ObservableCollection.Move</c>——容器不重建，选中项与滚动位置都保留。
+    /// </summary>
+    private void ApplySort()
+    {
+        if (IsRestoringState) return;
+
+        if (Data.Count > 0)
+            CategoryCardStats.ReorderInPlace(Data,
+                CategoryCardStats.Sort(Data.ToList(), CurrentSortMode, m => m.Data?.Name));
+
+        if (WebCategoryData.Count > 0)
+            CategoryCardStats.ReorderInPlace(WebCategoryData,
+                CategoryCardStats.Sort(WebCategoryData.ToList(), CurrentSortMode, m => m.Data?.Name));
     }
 
     private Task OnRefreshAsync(object _) => ExecuteAsync(LoadDataCoreAsync);
@@ -178,6 +208,7 @@ public class CategoryPageViewModel : CategoryPageModel
                 Ratio = selected.Ratio,
                 Data = restored
             };
+            ApplySort();
         }
         catch (Exception ex)
         {
@@ -262,6 +293,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
             WebCategoryData.Remove(SelectedWebCategoryItem);
             SelectedWebCategoryItem = null;
+            ApplySort();
 
             _toastService.Success(ResourceStrings.CategoryDeleted);
         }
@@ -557,6 +589,7 @@ public class CategoryPageViewModel : CategoryPageModel
             }
 
             ComputeHasDirectoryMatchCategory();
+            ApplySort();
             EditVisibility = false;
             SelectedAppCategoryItem = null;
         }
@@ -611,6 +644,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
             Data.Remove(SelectedAppCategoryItem);
             SelectedAppCategoryItem = null;
+            ApplySort();
 
             _toastService.Success(ResourceStrings.CategoryDeleted);
         }
@@ -733,6 +767,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
             EditVisibility = false;
             SelectedWebCategoryItem = null;
+            ApplySort();
         }
         catch (Exception ex)
         {
@@ -890,7 +925,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
         CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
 
-        foreach (var card in CategoryCardStats.Order(cards, m => m.Data.Name)) Data.Add(card);
+        foreach (var card in CategoryCardStats.Sort(cards, CurrentSortMode, m => m.Data.Name)) Data.Add(card);
 
         ComputeHasDirectoryMatchCategory();
     }
@@ -925,7 +960,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
         CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
 
-        foreach (var card in CategoryCardStats.Order(cards, m => m.Data?.Name)) WebCategoryData.Add(card);
+        foreach (var card in CategoryCardStats.Sort(cards, CurrentSortMode, m => m.Data?.Name)) WebCategoryData.Add(card);
     }
 
     public override void Dispose()

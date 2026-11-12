@@ -10,6 +10,17 @@ namespace ShiJian.Client.Models;
 [GeneratePageState]
 public partial class CategoryPageModel : ModelBase
 {
+    /// <summary>
+    /// 视图形态与排序口径需要默认值：<c>[PageState]</c> 只负责「返回导航时恢复」
+    /// （<c>TryRestoreState</c> 第一句就是 <c>if (!navigation.IsNavigatingBack) return false;</c>），
+    /// 从侧边栏进页面时不会写入任何值，开关就会停在一个「什么都没选」的空状态。
+    /// </summary>
+    public CategoryPageModel()
+    {
+        ViewMode = ViewModeOptions[0];
+        SortMode = SortOptions[0];
+    }
+
     private ObservableCollection<CategoryModel> _data = new();
     private string _editColor = string.Empty;
     private string _editErrorText = string.Empty;
@@ -67,6 +78,42 @@ public partial class CategoryPageModel : ModelBase
     ];
 
     public bool IsCardView => ViewMode?.Id == 1;
+
+    private SelectItemModel _sortMode;
+
+    /// <summary>
+    /// 排序口径（N7-c）：时长 / 名称 / 数量。只重排现有卡片，不重拉数据
+    /// （卡片上的时长与数量已经是全量，排序纯属展示层）。
+    /// </summary>
+    [PageState(LookupFrom = nameof(SortOptions))]
+    public SelectItemModel SortMode
+    {
+        get => _sortMode;
+        set
+        {
+            _sortMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public List<SelectItemModel> SortOptions { get; } =
+    [
+        new()
+        {
+            Id = 0,
+            Name = ResourceStrings.SortByDuration
+        },
+        new()
+        {
+            Id = 1,
+            Name = ResourceStrings.SortByName
+        },
+        new()
+        {
+            Id = 2,
+            Name = ResourceStrings.SortByCount
+        }
+    ];
 
     public ObservableCollection<CategoryModel> Data
     {

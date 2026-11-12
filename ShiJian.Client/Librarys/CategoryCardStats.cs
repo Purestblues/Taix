@@ -1,10 +1,24 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using ShiJian.Client.Models.Category;
 using ShiJian.Client.Shared.Models.Data;
 
 namespace ShiJian.Client.Librarys;
+
+/// <summary>分类卡片的排序口径（N7-c）。Id 与页面上的排序开关一一对应，改序就是改 UI。</summary>
+public enum CategorySortMode
+{
+    /// <summary>按时长降序，没时长的收在末尾</summary>
+    Duration = 0,
+
+    /// <summary>按名称升序（当前区域文化的比较规则，中文即拼音）</summary>
+    Name = 1,
+
+    /// <summary>按应用数 / 站点数降序，空分类收在末尾</summary>
+    Count = 2
+}
 
 /// <summary>
 /// 分类卡片上「时长 / 占比」的纯计算：把服务端的「分类 × 时段」矩阵压成每张卡的统计量。
@@ -55,4 +69,41 @@ public static class CategoryCardStats
             .ThenByDescending(m => m.Duration)
             .ThenBy(m => name(m) ?? string.Empty, StringComparer.CurrentCulture)
             .ToList();
+
+    /// <summary>
+    /// 按用户选的排序口径重排卡片（N7-c）。三种口径的分组规则有意不同：
+    /// <list type="list">
+    /// <item>时长 / 数量：先把「有数据」的一组排完，空分类统一收尾——否则一堆空分类会把真正在用的挤走；</item>
+    /// <item>名称：纯字典序。用户既然点了「名称」，就不该再被隐形的分组边界打断。</item>
+    /// </list>
+    /// </summary>
+    public static List<T> Sort<T>(IEnumerable<T> cards, CategorySortMode mode, Func<T, string?> name)
+        where T : CategoryCardModel
+    {
+        var list = cards.ToList();
+
+        return mode switch
+        {
+            CategorySortMode.Name => list
+                .OrderBy(m => name(m) ?? string.Empty, StringComparer.CurrentCulture)
+                .ToList(),
+            CategorySortMode.Count => list
+                .OrderByDescending(m => m.Count > 0 || m.HasDuration)
+                .ThenByDescending(m => m.Count)
+                .ThenByDescending(m => m.Duration)
+                .ThenBy(m => name(m) ?? string.Empty, StringComparer.CurrentCulture)
+                .ToList(),
+            _ => Order(list, name)
+        };
+    }
+
+    /// <summary>把列表就地按目标顺序重排（用 Move 而不是 Clear+Add，选中项与滚动位置都不会丢）</summary>
+    public static void ReorderInPlace<T>(ObservableCollection<T> target, IReadOnlyList<T> ordered)
+    {
+        for (var i = 0; i < ordered.Count; i++)
+        {
+            var current = target.IndexOf(ordered[i]);
+            if (current >= 0 && current != i) target.Move(current, i);
+        }
+    }
 }

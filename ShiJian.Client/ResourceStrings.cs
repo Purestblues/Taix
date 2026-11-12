@@ -30,6 +30,11 @@ public static class ResourceStrings
     public static string CategoryNoData => GetStringValue("CategoryNoData");
     public static string ViewCompact => GetStringValue("ViewCompact");
     public static string ViewCard => GetStringValue("ViewCard");
+    public static string SortByDuration => GetStringValue("SortByDuration");
+    public static string SortByName => GetStringValue("SortByName");
+    public static string SortByCount => GetStringValue("SortByCount");
+    public static string SortOrder => GetStringValue("SortOrder");
+    public static string ViewMode => GetStringValue("ViewMode");
     public static string CategoryVsYesterday => GetStringValue("CategoryVsYesterday");
     public static string CategoryVsLastWeek => GetStringValue("CategoryVsLastWeek");
     public static string CategoryVsLastMonth => GetStringValue("CategoryVsLastMonth");

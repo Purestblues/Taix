@@ -11,7 +11,7 @@
 | --- | --- |
 | 发布 | [`v1.3.4-fork.7`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.7)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）93 个用例；CI 里先跑测试再打包 |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）99 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
 | 代码规模 | 客户端 308 个 `.cs`、69 个 `.axaml`，0 处 TODO/FIXME |
 
@@ -185,7 +185,13 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
             换模板不改 DataTemplate，列表项容器不重建，所以**滚动位置与选中态都不会丢**。
             紧凑 200×92、卡片 168×148（图标 40、时长 20px）。选择走 `[PageState]`，返回导航时保持
             （注意 `TryRestoreState` 只在**返回导航**时生效，从侧边栏切页会回到默认值，这是既有设计）。
-      - [ ] **N7-c** 排序菜单（时长 / 名称 / 应用数）——「0 时长收尾」已随 N7-a 完成
+      - [x] **N7-c 排序菜单**（已实现，未发版）：标题栏「排序」开关，三种口径——
+            时长（默认，0 时长收尾按名称）、名称（纯字典序，中文即拼音）、数量（应用数 / 站点数降序，空分类收尾）。
+            排序只对已有卡片做 `Move` 重排，不重拉数据、不重建容器，切换是瞬时的，选中项与滚动位置都不动；
+            选择走 `[PageState]`。纯函数 `CategoryCardStats.Sort` / `ReorderInPlace` + 6 个单测。
+            另修了一个 N7-b 留下的坑：视图开关首次进入时没有任何一项被选中
+            （`TryRestoreState` 只在返回导航时恢复），现在视图与排序在模型构造时就有默认值。
+            「空分类折叠成一组」**未做**，理由见 `PLAN-2026-11.md` 三·五
 - [ ] **N5** 分类页「分类 / 应用」视图切换 + 应用视图快速打标签（依赖 N6 / N2）
 - [x] **G11** 自绘图表 Tab 焦点——核验结论：控件层面已可达（`ColumnChart` / `DonutChart` /
       `StackedBarChart` / `ClockRing` 均有 `Focusable` + `IsTabStop` + 焦点重绘），

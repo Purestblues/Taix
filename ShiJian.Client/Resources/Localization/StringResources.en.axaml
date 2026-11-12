@@ -445,4 +445,11 @@
     <!-- 分类页视图切换（N7-b） -->
     <system:String x:Key="ViewCompact">Compact</system:String>
     <system:String x:Key="ViewCard">Cards</system:String>
+
+    <!-- Category page sorting (N7-c) -->
+    <system:String x:Key="SortByDuration">Time</system:String>
+    <system:String x:Key="SortByName">Name</system:String>
+    <system:String x:Key="SortByCount">Count</system:String>
+    <system:String x:Key="SortOrder">Sort</system:String>
+    <system:String x:Key="ViewMode">View</system:String>
 </ResourceDictionary>

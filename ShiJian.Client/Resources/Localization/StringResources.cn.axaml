@@ -459,4 +459,11 @@
     <!-- 分类页视图切换（N7-b） -->
     <system:String x:Key="ViewCompact">紧凑</system:String>
     <system:String x:Key="ViewCard">卡片</system:String>
+
+    <!-- 分类页排序（N7-c） -->
+    <system:String x:Key="SortByDuration">时长</system:String>
+    <system:String x:Key="SortByName">名称</system:String>
+    <system:String x:Key="SortByCount">数量</system:String>
+    <system:String x:Key="SortOrder">排序</system:String>
+    <system:String x:Key="ViewMode">视图</system:String>
 </ResourceDictionary>
