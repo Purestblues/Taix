@@ -200,6 +200,17 @@ public partial class CategoryPage : TPage
 
     private void OnTagOptionClicked(object? sender, RoutedEventArgs e)
     {
+        // 先提取 Tag 并触发异步更新，再关闭 Flyout，避免关闭 Popup 后视觉树卸载导致命令或上下文丢失
+        var option = (sender as Button)?.Tag as CategoryTagOption;
         _activeTagFlyout?.Hide();
+        if (_model != null && option != null)
+            _ = _model.AssignEntityCategoryAsync(option);
+    }
+
+    private void OnTagNewCategoryClicked(object? sender, RoutedEventArgs e)
+    {
+        _activeTagFlyout?.Hide();
+        if (_model != null && _model.EditCommand.CanExecute(null))
+            _model.EditCommand.Execute(null);
     }
 }

@@ -990,9 +990,13 @@ public class CategoryPageViewModel : CategoryPageModel
         }
     }
 
-    private async Task OnAssignEntityCategoryAsync(object param)
+    private Task OnAssignEntityCategoryAsync(object param) =>
+        param is CategoryTagOption option ? AssignEntityCategoryAsync(option) : Task.CompletedTask;
+
+    /// <summary>快速切换实体（应用或网站）的所属分类并立即同步当前行状态</summary>
+    public async Task AssignEntityCategoryAsync(CategoryTagOption option)
     {
-        if (param is not CategoryTagOption option || _tagTargetRow == null) return;
+        if (option == null || _tagTargetRow == null) return;
         var row = _tagTargetRow;
         if (row.CategoryId == option.Id) return;
 
