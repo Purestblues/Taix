@@ -198,6 +198,7 @@ public class DonutChart : Control
         if (radius <= 2) return;
 
         var center = new Point(width / 2, height / 2);
+        var innerRadius = Math.Max(0, radius - thickness / 2);
         var trackPen = new Pen(TrackBrush ?? new SolidColorBrush(Color.FromArgb(40, 128, 128, 128)), thickness);
         context.DrawEllipse(null, trackPen, center, radius, radius);
 
@@ -206,7 +207,9 @@ public class DonutChart : Control
 
         if (total <= 0 || _slices.Count == 0)
         {
-            DrawCenter(context, center, EmptyText, null);
+            DrawEmpty(context, center, innerRadius);
+            FocusVisual.Draw(context, Bounds.Size, IsKeyboardFocusWithin,
+                Math.Min(Bounds.Width, Bounds.Height) / 2);
             return;
         }
 
@@ -235,7 +238,7 @@ public class DonutChart : Control
             startAngle += sweep;
         }
 
-        DrawCenterForHover(context, center, total);
+        DrawCenterForHover(context, center, innerRadius, total);
 
         FocusVisual.Draw(context, Bounds.Size, IsKeyboardFocusWithin,
             Math.Min(Bounds.Width, Bounds.Height) / 2);
@@ -291,12 +294,12 @@ public class DonutChart : Control
         return new Point(center.X + radius * Math.Cos(radians), center.Y + radius * Math.Sin(radians));
     }
 
-    private void DrawCenterForHover(DrawingContext context, Point center, double total)
+    private void DrawCenterForHover(DrawingContext context, Point center, double innerRadius, double total)
     {
         if (_hoverIndex >= 0 && _hoverIndex < _slices.Count)
         {
             var (model, value) = _slices[_hoverIndex];
-            DrawCenter(context, center, FormatDuration(value), model.Name);
+            DrawCenter(context, center, innerRadius, FormatDuration(value), model.Name);
             return;
         }
 
@@ -304,27 +307,115 @@ public class DonutChart : Control
         if (string.IsNullOrEmpty(text))
             text = FormatDuration(total);
 
-        DrawCenter(context, center, text, CenterCaption);
+        DrawCenter(context, center, innerRadius, text, CenterCaption);
     }
 
-    private void DrawCenter(DrawingContext context, Point center, string? main, string? caption)
+    private void DrawEmpty(DrawingContext context, Point center, double innerRadius)
     {
+        if (string.IsNullOrEmpty(EmptyText)) return;
+
+        var safeRadius = ComputeSafeRadius(innerRadius);
+        if (safeRadius <= 6) return;
+
+        var brush = MutedTextBrush ?? TextBrush ?? Brushes.Gray;
+        var (text, origin) = LayoutCenteredText(
+            EmptyText, center, safeRadius, verticalShift: 0,
+            maxFontSize: 12, minFontSize: 9.5, step: 0.5,
+            brush, FontWeight.Normal, allowWrap: true);
+
+        context.DrawText(text, origin);
+    }
+
+    private void DrawCenter(DrawingContext context, Point center, double innerRadius, string? main, string? caption)
+    {
+        var safeRadius = ComputeSafeRadius(innerRadius);
+        if (safeRadius <= 6) return;
+
         if (!string.IsNullOrEmpty(main))
         {
             var brush = TextBrush ?? Brushes.Black;
-            var text = MakeText(main, 20, brush, FontWeight.SemiBold);
-            var y = center.Y - text.Height / 2 - (string.IsNullOrEmpty(caption) ? 0 : 7);
-            context.DrawText(text, new Point(center.X - text.Width / 2, y));
+            var shift = string.IsNullOrEmpty(caption) ? 0 : -7;
+            var maxFontSize = Math.Min(20, Math.Max(12, safeRadius * 0.52));
+            var (text, origin) = LayoutCenteredText(
+                main, center, safeRadius, verticalShift: shift,
+                maxFontSize, minFontSize: 11, step: 1,
+                brush, FontWeight.SemiBold, allowWrap: false);
+            context.DrawText(text, origin);
         }
 
         if (string.IsNullOrEmpty(caption)) return;
 
-        var captionText = MakeText(caption, 11, MutedTextBrush ?? TextBrush);
-        var captionY = string.IsNullOrEmpty(main)
-            ? center.Y - captionText.Height / 2
-            : center.Y + 5;
+        var captionShift = string.IsNullOrEmpty(main) ? 0 : 12;
+        var (captionText, captionOrigin) = LayoutCenteredText(
+            caption, center, safeRadius, verticalShift: captionShift,
+            maxFontSize: 11, minFontSize: 9.5, step: 0.5,
+            MutedTextBrush ?? TextBrush, FontWeight.Normal, allowWrap: false);
 
-        context.DrawText(captionText, new Point(center.X - captionText.Width / 2, captionY));
+        context.DrawText(captionText, captionOrigin);
+    }
+
+    internal static double ComputeSafeRadius(double innerRadius) =>
+        innerRadius <= 4 ? 0 : Math.Max(0, innerRadius - Math.Clamp(innerRadius * 0.12, 3, 6));
+
+    internal static double SafeChordWidth(double safeRadius, double maxAbsDy) =>
+        safeRadius <= 0 || maxAbsDy >= safeRadius
+            ? 0
+            : 2 * Math.Sqrt(safeRadius * safeRadius - maxAbsDy * maxAbsDy);
+
+    internal static (FormattedText Text, Point Origin) LayoutCenteredText(
+        string content,
+        Point center,
+        double safeRadius,
+        double verticalShift,
+        double maxFontSize,
+        double minFontSize,
+        double step,
+        IBrush? brush,
+        FontWeight weight,
+        bool allowWrap)
+    {
+        FormattedText? fallback = null;
+
+        for (var size = maxFontSize; size >= minFontSize - 0.01; size -= step)
+        {
+            var ft = MakeText(content, size, brush, weight);
+            fallback = ft;
+
+            var topDy = -ft.Height / 2 + verticalShift;
+            var bottomDy = ft.Height / 2 + verticalShift;
+            var maxAbsDy = Math.Max(Math.Abs(topDy), Math.Abs(bottomDy));
+            var chordWidth = SafeChordWidth(safeRadius, maxAbsDy);
+
+            if (chordWidth > 0 && ft.Width <= chordWidth)
+                return (ft, new Point(center.X - ft.Width / 2, center.Y + topDy));
+        }
+
+        // 即使最小字号仍超出安全弦宽，启用限宽居中（空态允许最多两行换行，数据/标签单行截断）
+        var constrained = fallback ?? MakeText(content, minFontSize, brush, weight);
+        var singleHeight = constrained.Height;
+        if (allowWrap)
+        {
+            var maxLines = safeRadius >= singleHeight * 1.4 ? 2 : 1;
+            var boxHalfHeight = singleHeight * maxLines / 2;
+            var boxWidth = Math.Max(12, SafeChordWidth(safeRadius, Math.Abs(verticalShift) + boxHalfHeight));
+            constrained.MaxTextWidth = boxWidth;
+            constrained.MaxTextHeight = singleHeight * maxLines + 1;
+            constrained.MaxLineCount = maxLines;
+            constrained.TextAlignment = TextAlignment.Center;
+            constrained.Trimming = TextTrimming.CharacterEllipsis;
+            return (constrained, new Point(center.X - boxWidth / 2, center.Y + verticalShift - constrained.Height / 2));
+        }
+
+        var singleTopDy = -singleHeight / 2 + verticalShift;
+        var singleBottomDy = singleHeight / 2 + verticalShift;
+        var singleMaxDy = Math.Max(Math.Abs(singleTopDy), Math.Abs(singleBottomDy));
+        var singleWidth = Math.Max(12, SafeChordWidth(safeRadius, singleMaxDy));
+        constrained.MaxTextWidth = singleWidth;
+        constrained.MaxTextHeight = singleHeight + 1;
+        constrained.MaxLineCount = 1;
+        constrained.TextAlignment = TextAlignment.Center;
+        constrained.Trimming = TextTrimming.CharacterEllipsis;
+        return (constrained, new Point(center.X - singleWidth / 2, center.Y + singleTopDy));
     }
 
     #region Hover
