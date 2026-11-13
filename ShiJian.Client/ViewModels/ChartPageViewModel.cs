@@ -293,23 +293,20 @@ public partial class ChartPageViewModel : ChartPageModel
         var summaryTask = _entityData.GetEntitySummaryAsync(start, end, false, cancellationToken);
         var prevSummaryTask = _entityData.GetEntitySummaryAsync(prevStart, prevEnd, false, cancellationToken);
         var categoriesTask = _categoryService.GetCategoriesAsync(cancellationToken);
-        var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
 
         EntityHoursModel? entityHours;
         EntityListModel? entityList;
         EntitySummaryModel? summary;
         EntitySummaryModel? prevSummary;
         IReadOnlyList<CategoryModel> categories;
-        IReadOnlyList<WebSiteCategoryModel> webCategories;
         try
         {
-            await Task.WhenAll(hoursTask, listTask, summaryTask, prevSummaryTask, categoriesTask, webCategoriesTask);
+            await Task.WhenAll(hoursTask, listTask, summaryTask, prevSummaryTask, categoriesTask);
             entityHours = await hoursTask;
             entityList = await listTask;
             summary = await summaryTask;
             prevSummary = await prevSummaryTask;
             categories = await categoriesTask;
-            webCategories = await webCategoriesTask;
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
         {
@@ -325,7 +322,6 @@ public partial class ChartPageViewModel : ChartPageModel
         var categoryData = ChartDataMapper.BuildUnifiedCategorySeries(
             entityHours,
             ChartDataMapper.ToVisualMap(categories, ResourceStrings.Uncategorized),
-            ChartDataMapper.ToVisualMap(webCategories, ResourceStrings.Uncategorized),
             ResourceStrings.Uncategorized,
             columnNames);
 

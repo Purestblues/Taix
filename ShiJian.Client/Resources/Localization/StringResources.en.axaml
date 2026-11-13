@@ -370,6 +370,8 @@
     <system:String x:Key="RestoreSystemCategory">Restore System Category</system:String>
     <system:String x:Key="CategoryHasApps">This category has {0} apps. They will be moved to the default category  after deletion</system:String>
     <system:String x:Key="CategoryHasSites">This category has {0} sites. They will be moved to the default category after deletion</system:String>
+    <system:String x:Key="CategoryHasEntities">This category has {0} apps or sites. They will be moved to the default category after deletion</system:String>
+    <system:String x:Key="ViewCategorySummary">View Overview</system:String>
 
     <system:String x:Key="ChooseColor">Choose color</system:String>
     <system:String x:Key="CustomColor">Custom color</system:String>
@@ -486,7 +488,7 @@
 
     <!-- Category page redesign (N5) -->
     <system:String x:Key="BrowseByCategory">Categories</system:String>
-    <system:String x:Key="BrowseByEntity">Apps</system:String>
+    <system:String x:Key="BrowseByEntity">Apps &amp; Sites</system:String>
     <system:String x:Key="EmptyCategoriesHeader">Empty ({0})</system:String>
     <system:String x:Key="FilterAll">All</system:String>
     <system:String x:Key="FilterUncategorized">Uncategorized</system:String>

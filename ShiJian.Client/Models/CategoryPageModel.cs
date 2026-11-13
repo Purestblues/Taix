@@ -21,6 +21,7 @@ public partial class CategoryPageModel : ModelBase
         BrowseMode = BrowseModeOptions[0];
         ViewMode = ViewModeOptions[0];
         SortMode = SortOptions[0];
+        EntityTypeMode = EntityTypeOptions[0];
         EntityFilterMode = EntityFilterOptions[0];
         EntitySortMode = EntitySortOptions[0];
     }
@@ -28,12 +29,10 @@ public partial class CategoryPageModel : ModelBase
     private ObservableCollection<CategoryModel> _data = new();
     private ObservableCollection<CategoryModel> _activeAppCategories = new();
     private ObservableCollection<CategoryModel> _emptyAppCategories = new();
-    private ObservableCollection<WebCategoryModel> _activeWebCategories = new();
-    private ObservableCollection<WebCategoryModel> _emptyWebCategories = new();
     private bool _isAppEmptyExpanded;
-    private bool _isWebEmptyExpanded;
     private SelectItemModel _browseMode;
     private string _entitySearchInput = string.Empty;
+    private SelectItemModel _entityTypeMode;
     private SelectItemModel _entityFilterMode;
     private SelectItemModel _entitySortMode;
     private ObservableCollection<CategoryEntityRow> _filteredEntities = new();
@@ -54,17 +53,8 @@ public partial class CategoryPageModel : ModelBase
     private bool _isEditError;
     private bool _isSysCategory;
     private CategoryModel? _selectedAppCategoryItem;
-    private WebCategoryModel? _selectedWebCategoryItem;
-    private ObservableCollection<WebCategoryModel> _webCategoryData = new();
 
-    [PageState(LookupFrom = nameof(ShowTypeOptions))]
-    public new SelectItemModel ShowType
-    {
-        get => base.ShowType;
-        set => base.ShowType = value;
-    }
-
-    /// <summary>N5：「分类 / 应用」主视图切换</summary>
+    /// <summary>N5：「分类 / 应用与网站」主视图切换</summary>
     [PageState(LookupFrom = nameof(BrowseModeOptions))]
     public SelectItemModel BrowseMode
     {
@@ -99,32 +89,13 @@ public partial class CategoryPageModel : ModelBase
         }
     }
 
-    [PageState]
-    public bool IsWebEmptyExpanded
-    {
-        get => _isWebEmptyExpanded;
-        set
-        {
-            if (_isWebEmptyExpanded == value) return;
-            _isWebEmptyExpanded = value;
-            OnPropertyChanged();
-        }
-    }
-
     public ObservableCollection<CategoryModel> ActiveAppCategories => _activeAppCategories;
     public ObservableCollection<CategoryModel> EmptyAppCategories => _emptyAppCategories;
-    public ObservableCollection<WebCategoryModel> ActiveWebCategories => _activeWebCategories;
-    public ObservableCollection<WebCategoryModel> EmptyWebCategories => _emptyWebCategories;
 
     public bool HasAnyAppCategories => Data.Count > 0;
     public bool HasActiveAppCategories => ActiveAppCategories.Count > 0;
     public bool HasEmptyAppCategories => EmptyAppCategories.Count > 0;
     public string AppEmptyHeaderText => string.Format(ResourceStrings.EmptyCategoriesHeader, EmptyAppCategories.Count);
-
-    public bool HasAnyWebCategories => WebCategoryData.Count > 0;
-    public bool HasActiveWebCategories => ActiveWebCategories.Count > 0;
-    public bool HasEmptyWebCategories => EmptyWebCategories.Count > 0;
-    public string WebEmptyHeaderText => string.Format(ResourceStrings.EmptyCategoriesHeader, EmptyWebCategories.Count);
 
     public string EntitySearchInput
     {
@@ -136,6 +107,24 @@ public partial class CategoryPageModel : ModelBase
             OnPropertyChanged();
         }
     }
+
+    [PageState(LookupFrom = nameof(EntityTypeOptions))]
+    public SelectItemModel EntityTypeMode
+    {
+        get => _entityTypeMode;
+        set
+        {
+            _entityTypeMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public List<SelectItemModel> EntityTypeOptions { get; } =
+    [
+        new() { Id = 0, Name = ResourceStrings.FilterAll },
+        new() { Id = 1, Name = ResourceStrings.MergeCandidateApp },
+        new() { Id = 2, Name = ResourceStrings.MergeCandidateSite }
+    ];
 
     [PageState(LookupFrom = nameof(EntityFilterOptions))]
     public SelectItemModel EntityFilterMode
@@ -219,10 +208,6 @@ public partial class CategoryPageModel : ModelBase
         OnPropertyChanged(nameof(HasActiveAppCategories));
         OnPropertyChanged(nameof(HasEmptyAppCategories));
         OnPropertyChanged(nameof(AppEmptyHeaderText));
-        OnPropertyChanged(nameof(HasAnyWebCategories));
-        OnPropertyChanged(nameof(HasActiveWebCategories));
-        OnPropertyChanged(nameof(HasEmptyWebCategories));
-        OnPropertyChanged(nameof(WebEmptyHeaderText));
     }
 
     public void NotifyEntityListState()
@@ -456,38 +441,5 @@ public partial class CategoryPageModel : ModelBase
             _isSysCategory = value;
             OnPropertyChanged();
         }
-    }
-
-    public ObservableCollection<WebCategoryModel> WebCategoryData
-    {
-        get => _webCategoryData;
-        set
-        {
-            _webCategoryData = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public WebCategoryModel? SelectedWebCategoryItem
-    {
-        get => _selectedWebCategoryItem;
-        set
-        {
-            _selectedWebCategoryItem = value;
-            OnPropertyChanged();
-        }
-    }
-
-    public class WebCategoryModel : Category.CategoryCardModel
-    {
-        public WebSiteCategoryModel? Data { get; set; }
-
-        public override string? Name => Data?.Name;
-
-        public override string? IconFile => Data?.IconFile;
-
-        protected override string? RawColor => Data?.Color;
-
-        protected override bool IsSystemCategory => Data?.IsSystem ?? false;
     }
 }

@@ -50,5 +50,27 @@ public record class CategoryModel
         }
     }
 
+    /// <summary>
+    /// 是否启用 URL 匹配（统一分类共享）
+    /// </summary>
+    public bool IsUrlMatch { get; init; }
+
+    /// <summary>
+    /// URL 匹配规则（Json List string）
+    /// </summary>
+    public string? UrlPatterns { get; init; }
+
+    /// <summary>
+    /// URL 匹配规则集合（已解析）
+    /// </summary>
+    public List<string> UrlPatternList
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(UrlPatterns)) return new List<string>();
+            return JsonSerializer.Deserialize<List<string>>(UrlPatterns, ClientJsonContext.Default.ListString) ?? new List<string>();
+        }
+    }
+
 
 }

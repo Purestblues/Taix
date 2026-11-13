@@ -642,7 +642,7 @@ public class ContextMenuServicer : IContextMenuServicer, IDisposable
             setCategoryMenuItem.Items.Clear();
 
             var site = await _webData.GetWebSiteAsync(siteId);
-            var categories = await _webData.GetWebSiteCategoriesAsync();
+            var categories = await _categorys.GetCategoriesAsync();
             var siteCategoryId = site?.CategoryID ?? 0;
 
             foreach (var category in categories.Where(c => !c.IsSystem))
@@ -694,7 +694,7 @@ public class ContextMenuServicer : IContextMenuServicer, IDisposable
 
     private async Task ClearWebSiteCategoryAsync(int siteId)
     {
-        var categories = await _webData.GetWebSiteCategoriesAsync();
+        var categories = await _categorys.GetCategoriesAsync();
         var systemCategory = categories.FirstOrDefault(c => c.IsSystem);
         var categoryId = systemCategory?.ID ?? 0;
 
@@ -707,21 +707,25 @@ public class ContextMenuServicer : IContextMenuServicer, IDisposable
         }
     }
 
-    private async Task CreateNewWebSiteCategoryAsync(int siteId, IReadOnlyList<WebSiteCategoryModel> existingCategories)
+    private async Task CreateNewWebSiteCategoryAsync(int siteId, IReadOnlyList<CategoryModel> existingCategories)
     {
         var result = await _uiServicer.ShowCreateCategoryDialogAsync(
             ResourceStrings.NewCategory,
             null,
-            existingCategories.Select(c => c.Name),
-            existingCategories.Select(c => c.Color));
+            existingCategories.Select(c => c.Name ?? string.Empty),
+            existingCategories.Select(c => c.Color ?? string.Empty));
 
         if (result == null) return;
 
-        var newCategory = await _webData.CreateWebSiteCategoryAsync(new WebSiteCategoryModel
+        var newCategory = await _categorys.CreateAsync(new CategoryModel
         {
             Name = result.Name,
             IconFile = result.IconFile,
-            Color = result.Color
+            Color = result.Color,
+            IsDirectoryMatch = false,
+            Directories = "[]",
+            IsUrlMatch = false,
+            UrlPatterns = "[]"
         });
 
         if (newCategory == null)

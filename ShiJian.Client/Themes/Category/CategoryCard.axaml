@@ -37,6 +37,7 @@
                                 <Border CornerRadius="6" Background="{DynamicResource NavHoverGlassBrush}">
                                     <base:Img Radius="6" Width="22" Height="22" DecodeWidth="22"
                                               URL="{Binding IconFile}"
+                                              Foreground="{Binding DisplayColor, Converter={StaticResource HextoColorConverter}}"
                                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <base:View Value="{Binding IsMatchFlag}">
@@ -96,6 +97,7 @@
                                     <Border CornerRadius="8" Background="{DynamicResource NavHoverGlassBrush}">
                                         <base:Img Radius="8" Width="32" Height="32" DecodeWidth="32"
                                                   URL="{Binding IconFile}"
+                                                  Foreground="{Binding DisplayColor, Converter={StaticResource HextoColorConverter}}"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                                     </Border>
                                     <base:View Value="{Binding IsMatchFlag}">

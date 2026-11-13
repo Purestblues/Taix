@@ -261,6 +261,8 @@ public static class ResourceStrings
     public static string SystemCategoryUncategorized => GetStringValue("Uncategorized");
     public static string Total => GetStringValue("Total");
     public static string InsightEntities => GetStringValue("InsightEntities");
+    public static string CategoryHasEntities => GetStringValue("CategoryHasEntities");
+    public static string ViewCategorySummary => GetStringValue("ViewCategorySummary");
 
     private static string GetStringValue(string key)
     {

@@ -155,7 +155,7 @@ impl CategorySummaryService {
         );
 
         let category_name: Option<String> =
-            sqlx::query_scalar("SELECT Name FROM WebSiteCategoryModels WHERE ID = ?")
+            sqlx::query_scalar("SELECT Name FROM CategoryModels WHERE ID = ?")
                 .bind(category_id)
                 .fetch_optional(pool)
                 .await?;
@@ -331,6 +331,114 @@ impl CategorySummaryService {
 
         build_top_items_for_sites(pool, &by_site).await
     }
+
+    /// 统一分类摘要（同时聚合应用与网站，N8）
+    pub async fn get_unified_category_summary(
+        pool: &SqlitePool,
+        category_id: i64,
+        start: NaiveDate,
+        end: NaiveDate,
+        prev_start: Option<NaiveDate>,
+        prev_end: Option<NaiveDate>,
+        tz_id: &str,
+        config_service: &ConfigService,
+    ) -> Result<CategorySummaryModel, AppError> {
+        let app_summary = Self::get_app_category_summary(
+            pool,
+            category_id,
+            start,
+            end,
+            prev_start,
+            prev_end,
+            tz_id,
+            config_service,
+        )
+        .await?;
+        let web_summary = Self::get_web_category_summary(
+            pool,
+            category_id,
+            start,
+            end,
+            prev_start,
+            prev_end,
+            tz_id,
+            config_service,
+        )
+        .await?;
+
+        let total_seconds = app_summary.total_seconds + web_summary.total_seconds;
+        let previous_total_seconds =
+            app_summary.previous_total_seconds + web_summary.previous_total_seconds;
+
+        let daily_trend: Vec<DailyPointModel> = app_summary
+            .daily_trend
+            .iter()
+            .zip(web_summary.daily_trend.iter())
+            .map(|(a, w)| DailyPointModel {
+                date: a.date,
+                seconds: a.seconds + w.seconds,
+            })
+            .collect();
+
+        let active_days = daily_trend.iter().filter(|d| d.seconds > 0).count() as i64;
+        let average_daily_seconds = if active_days > 0 {
+            total_seconds / active_days
+        } else {
+            0
+        };
+
+        let hourly_distribution: Vec<i64> = app_summary
+            .hourly_distribution
+            .iter()
+            .zip(web_summary.hourly_distribution.iter())
+            .map(|(a, w)| a + w)
+            .collect();
+
+        Ok(CategorySummaryModel {
+            category_id,
+            category_name: app_summary.category_name,
+            total_seconds,
+            previous_total_seconds,
+            active_days,
+            average_daily_seconds,
+            daily_trend,
+            hourly_distribution,
+        })
+    }
+
+    /// 统一分类成员明细（合并应用与网站按时长降序，N8）
+    pub async fn get_unified_category_members(
+        pool: &SqlitePool,
+        category_id: i64,
+        start: NaiveDateTime,
+        end: NaiveDateTime,
+        tz_id: &str,
+        config_service: &ConfigService,
+    ) -> Result<Vec<CategoryMemberModel>, AppError> {
+        let mut apps = Self::get_app_category_members(
+            pool,
+            category_id,
+            start,
+            end,
+            tz_id,
+            config_service,
+        )
+        .await?;
+        for item in &mut apps {
+            if item.kind.is_none() {
+                item.kind = Some(String::from("app"));
+            }
+        }
+        let mut sites = Self::get_web_category_members(pool, category_id, start, end, tz_id).await?;
+        for item in &mut sites {
+            if item.kind.is_none() {
+                item.kind = Some(String::from("site"));
+            }
+        }
+        apps.append(&mut sites);
+        apps.sort_by(|a, b| b.seconds.cmp(&a.seconds));
+        Ok(apps)
+    }
 }
 
 fn build_daily_trend(
@@ -390,7 +498,7 @@ async fn build_top_items_for_apps(
     let mut sorted: Vec<(i64, i64)> = by_app.iter().map(|(k, v)| (*k, *v)).collect();
     sorted.sort_by(|a, b| b.1.cmp(&a.1));
 
-    Ok(reduce_to_top_n(sorted, &meta_map))
+    Ok(reduce_to_top_n(sorted, &meta_map, "app"))
 }
 
 async fn build_top_items_for_sites(
@@ -433,13 +541,14 @@ async fn build_top_items_for_sites(
     let mut sorted: Vec<(i64, i64)> = by_site.iter().map(|(k, v)| (*k, *v)).collect();
     sorted.sort_by(|a, b| b.1.cmp(&a.1));
 
-    Ok(reduce_to_top_n(sorted, &meta_map))
+    Ok(reduce_to_top_n(sorted, &meta_map, "site"))
 }
 
 /// 全量返回成员，按秒降序
 fn reduce_to_top_n(
     sorted: Vec<(i64, i64)>,
     meta: &HashMap<i64, (String, Option<String>)>,
+    kind: &str,
 ) -> Vec<CategoryMemberModel> {
     sorted
         .into_iter()
@@ -453,6 +562,7 @@ fn reduce_to_top_n(
                 name,
                 icon_file: icon,
                 seconds: secs,
+                kind: Some(kind.to_string()),
             }
         })
         .collect()

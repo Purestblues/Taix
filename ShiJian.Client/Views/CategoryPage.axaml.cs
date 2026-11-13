@@ -24,7 +24,6 @@ public partial class CategoryPage : TPage
     private readonly IDisposable _editIsUrlMatchSubscription;
     private readonly IDisposable _editUrlPatternsSubscription;
     private readonly IDisposable _appEmptyExpandedSubscription;
-    private readonly IDisposable _webEmptyExpandedSubscription;
     private ObservableCollection<string>? _observedEditDirectories;
     private ObservableCollection<string>? _observedEditUrlPatterns;
     private CategoryPageViewModel _model;
@@ -61,10 +60,6 @@ public partial class CategoryPage : TPage
         _appEmptyExpandedSubscription = ObservablePropertyChangedExtensions.WhenPropertyChanged(model, x => x.IsAppEmptyExpanded)
             .Skip(1)
             .Subscribe(expanded => _ = ExpandMotion.SetExpandedAsync(EmptyAppCategoriesHost, expanded));
-
-        _webEmptyExpandedSubscription = ObservablePropertyChangedExtensions.WhenPropertyChanged(model, x => x.IsWebEmptyExpanded)
-            .Skip(1)
-            .Subscribe(expanded => _ = ExpandMotion.SetExpandedAsync(EmptyWebCategoriesHost, expanded));
     }
 
     protected override void OnLoaded(RoutedEventArgs e)
@@ -73,7 +68,6 @@ public partial class CategoryPage : TPage
         if (_model != null)
         {
             ExpandMotion.ApplyFinal(EmptyAppCategoriesHost, _model.IsAppEmptyExpanded);
-            ExpandMotion.ApplyFinal(EmptyWebCategoriesHost, _model.IsWebEmptyExpanded);
         }
     }
 
@@ -103,7 +97,6 @@ public partial class CategoryPage : TPage
         _editIsUrlMatchSubscription.Dispose();
         _editUrlPatternsSubscription.Dispose();
         _appEmptyExpandedSubscription.Dispose();
-        _webEmptyExpandedSubscription.Dispose();
         if (_observedEditDirectories != null)
             _observedEditDirectories.CollectionChanged -= OnEditDirectoriesCollectionChanged;
         if (_observedEditUrlPatterns != null)
@@ -158,28 +151,6 @@ public partial class CategoryPage : TPage
         if (visual is ListBoxItem listBoxItem && listBoxItem.DataContext is CategoryModel category)
         {
             _model.SelectedAppCategoryItem = category;
-        }
-    }
-
-    private void OnWebCategoryListBoxPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (!e.GetCurrentPoint(this).Properties.IsRightButtonPressed)
-            return;
-
-        if (sender is not ListBox listBox) return;
-
-        var point = e.GetPosition(listBox);
-        var hit = listBox.InputHitTest(point) as Visual;
-
-        Visual? visual = hit;
-        while (visual != null && visual is not ListBoxItem)
-        {
-            visual = visual.GetVisualParent();
-        }
-
-        if (visual is ListBoxItem listBoxItem && listBoxItem.DataContext is CategoryPageModel.WebCategoryModel category)
-        {
-            _model.SelectedWebCategoryItem = category;
         }
     }
 

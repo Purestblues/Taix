@@ -48,6 +48,12 @@ public class Img : TemplatedControl
     public static readonly DirectProperty<Img, bool> IsFallbackVisibleProperty =
         AvaloniaProperty.RegisterDirect<Img, bool>(nameof(IsFallbackVisible), o => o.IsFallbackVisible);
 
+    public static readonly DirectProperty<Img, Geometry?> SvgGeometryProperty =
+        AvaloniaProperty.RegisterDirect<Img, Geometry?>(nameof(SvgGeometry), o => o.SvgGeometry);
+
+    public static readonly DirectProperty<Img, bool> HasSvgProperty =
+        AvaloniaProperty.RegisterDirect<Img, bool>(nameof(HasSvg), o => o.HasSvg);
+
     private string _url = string.Empty;
     private CancellationTokenSource? _cts;
     private string? _loadingUrl;
@@ -55,6 +61,8 @@ public class Img : TemplatedControl
     private IBrush? _fallbackBrush = Brushes.Transparent;
     private bool _isFallbackVisible;
     private bool _loadFailed;
+    private Geometry? _svgGeometry;
+    private bool _hasSvg;
 
     /// <summary>占位色：同一域名每次都拿到同一个颜色</summary>
     private static readonly string[] FallbackPalette =
@@ -126,6 +134,18 @@ public class Img : TemplatedControl
     {
         get => _isFallbackVisible;
         private set => SetAndRaise(IsFallbackVisibleProperty, ref _isFallbackVisible, value);
+    }
+
+    public Geometry? SvgGeometry
+    {
+        get => _svgGeometry;
+        private set => SetAndRaise(SvgGeometryProperty, ref _svgGeometry, value);
+    }
+
+    public bool HasSvg
+    {
+        get => _hasSvg;
+        private set => SetAndRaise(HasSvgProperty, ref _hasSvg, value);
     }
 
     protected override Type StyleKeyOverride => typeof(Img);
@@ -212,7 +232,7 @@ public class Img : TemplatedControl
     {
         base.OnAttachedToVisualTree(e);
 
-        if (!string.IsNullOrWhiteSpace(URL) && Resource == Imager.GetDefaultBitmap())
+        if (!string.IsNullOrWhiteSpace(URL) && !HasSvg && Resource == Imager.GetDefaultBitmap())
             ReloadFromUrl();
     }
 
@@ -246,10 +266,24 @@ public class Img : TemplatedControl
 
         if (string.IsNullOrWhiteSpace(path))
         {
+            SvgGeometry = null;
+            HasSvg = false;
             Resource = Imager.GetDefaultBitmap();
             UpdateFallbackVisibility();
             return;
         }
+
+        if (CategoryIconCatalog.TryGetGeometry(path, out var svgGeometry))
+        {
+            SvgGeometry = svgGeometry;
+            HasSvg = true;
+            Resource = Imager.GetDefaultBitmap();
+            UpdateFallbackVisibility();
+            return;
+        }
+
+        SvgGeometry = null;
+        HasSvg = false;
 
         var dpiScale = GetDpiScale();
         var decodeWidth = DecodeWidth > 0 ? (int)(DecodeWidth * dpiScale) : 0;

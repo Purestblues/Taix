@@ -33,8 +33,10 @@ public interface IShiJianApiClient
     Task<int> ApplyDirectoryMatchAsync(string[]? patterns = null);
 
     // CategorySummary
+    Task<CategorySummaryModel> GetCategorySummaryAsync(int categoryId, DateTime start, DateTime end, DateTime? prevStart = null, DateTime? prevEnd = null, CancellationToken cancellationToken = default);
     Task<CategorySummaryModel> GetAppCategorySummaryAsync(int categoryId, DateTime start, DateTime end, DateTime? prevStart = null, DateTime? prevEnd = null, CancellationToken cancellationToken = default);
     Task<CategorySummaryModel> GetWebCategorySummaryAsync(int categoryId, DateTime start, DateTime end, DateTime? prevStart = null, DateTime? prevEnd = null, CancellationToken cancellationToken = default);
+    Task<List<CategoryMemberModel>> GetCategoryMembersAsync(int categoryId, DateTime start, DateTime end, CancellationToken cancellationToken = default);
     Task<List<CategoryMemberModel>> GetAppCategoryMembersAsync(int categoryId, DateTime start, DateTime end, CancellationToken cancellationToken = default);
     Task<List<CategoryMemberModel>> GetWebCategoryMembersAsync(int categoryId, DateTime start, DateTime end, CancellationToken cancellationToken = default);
 

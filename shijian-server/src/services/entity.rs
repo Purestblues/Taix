@@ -1572,7 +1572,8 @@ async fn load_app_aggregates_all(pool: &SqlitePool) -> Result<Vec<AppAgg>, AppEr
                a.CategoryID AS app_category_id, a.IconFile AS app_icon_file, a.TotalTime AS app_total_time,
                a.Publisher AS app_publisher,
                c.ID AS cat_id, c.Name AS cat_name, c.IconFile AS cat_icon_file, c.Color AS cat_color,
-               c.IsDirectoryMatch AS cat_is_directory_match, c.Directories AS cat_directories, c.IsSystem AS cat_is_system
+               c.IsDirectoryMatch AS cat_is_directory_match, c.Directories AS cat_directories,
+               c.IsUrlMatch AS cat_is_url_match, c.UrlPatterns AS cat_url_patterns, c.IsSystem AS cat_is_system
         FROM AppModels a
         LEFT JOIN CategoryModels c ON a.CategoryID = c.ID
         "#,
@@ -1929,7 +1930,7 @@ async fn fill_site_details(
                c.ID AS cat_id, c.Name AS cat_name, c.IconFile AS cat_icon_file, c.Color AS cat_color,
                c.IsUrlMatch AS cat_is_url_match, c.UrlPatterns AS cat_url_patterns, c.IsSystem AS cat_is_system
         FROM WebSiteModels ws
-        LEFT JOIN WebSiteCategoryModels c ON ws.CategoryID = c.ID
+        LEFT JOIN CategoryModels c ON ws.CategoryID = c.ID
         WHERE ws.ID IN ({})
         "#,
         placeholders
@@ -2714,6 +2715,8 @@ mod tests {
             cat_color: None,
             cat_is_directory_match: None,
             cat_directories: None,
+            cat_is_url_match: None,
+            cat_url_patterns: None,
             cat_is_system: None,
         };
         assert_eq!(other_row_name(&app, 1), "浏览器内其他页面");
@@ -2759,7 +2762,7 @@ mod tests {
         .unwrap()
         .last_insert_rowid();
         let site_cat = sqlx::query(
-            "INSERT INTO WebSiteCategoryModels (Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem) VALUES ('SiteCat', NULL, '#445566', 0, NULL, 0)",
+            "INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsUrlMatch, UrlPatterns, IsSystem) VALUES ('SiteCat', NULL, '#445566', 0, '[]', 0, NULL, 0)",
         )
         .execute(&pool)
         .await

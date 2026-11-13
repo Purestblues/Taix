@@ -19,6 +19,7 @@ using ShiJian.Client.Servicers;
 using ShiJian.Client.Servicers.Interfaces;
 using ShiJian.Client.Shared.Helpers;
 using ShiJian.Client.Shared.Librarys;
+using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Web;
 using ShiJian.Client.Shared.Servicers.Interfaces;
 
@@ -33,12 +34,14 @@ public class WebSiteDetailPageViewModel : WebSiteDetailPageModel
     private readonly IToastService _toastService;
     private readonly INavigationDataService _navigationData;
     private readonly IWebData _webData;
+    private readonly ICategorys _categorys;
     private readonly IContextMenuServicer _contextMenuService;
     private readonly IAppEventService _appEventService;
     private IDisposable? _languageSubscription;
 
     public WebSiteDetailPageViewModel(
         IWebData webData,
+        ICategorys categorys,
         INavigationDataService navigationData,
         IAppConfig appConfig,
         IDialogService dialogService,
@@ -49,6 +52,7 @@ public class WebSiteDetailPageViewModel : WebSiteDetailPageModel
         IAppEventService appEventService)
     {
         _webData = webData;
+        _categorys = categorys;
         _navigationData = navigationData;
         _appConfig = appConfig;
         _dialogService = dialogService;
@@ -256,7 +260,7 @@ public class WebSiteDetailPageViewModel : WebSiteDetailPageModel
     private async Task LoadCategoriesAsync(CancellationToken cancellationToken)
     {
         if (WebSite == null) return;
-        var data = await _webData.GetWebSiteCategoriesAsync(cancellationToken);
+        var data = await _categorys.GetCategoriesAsync(cancellationToken);
         var list = new List<SelectItemModel>();
         foreach (var category in data)
         {
@@ -279,21 +283,32 @@ public class WebSiteDetailPageViewModel : WebSiteDetailPageModel
     {
         if (WebSite == null) return;
 
-        WebSiteCategoryModel? category;
+        CategoryModel? category;
+        var categories = await _categorys.GetCategoriesAsync();
         if (categoryId > 0)
         {
-            var categories = await _webData.GetWebSiteCategoriesAsync();
             category = categories.FirstOrDefault(c => c.ID == categoryId);
         }
         else
         {
-            var categories = await _webData.GetWebSiteCategoriesAsync();
             category = categories.FirstOrDefault(c => c.IsSystem);
             categoryId = category?.ID ?? 0;
         }
 
         await _webData.UpdateWebSitesCategoryAsync(new[] { WebSite.ID }, categoryId);
-        WebSite = WebSite with { CategoryID = categoryId, Category = category };
+        var webCategory = category == null
+            ? null
+            : new WebSiteCategoryModel
+            {
+                ID = category.ID,
+                Name = category.Name ?? string.Empty,
+                IconFile = category.IconFile,
+                Color = category.Color,
+                IsUrlMatch = category.IsUrlMatch,
+                UrlPatterns = category.UrlPatterns,
+                IsSystem = category.IsSystem
+            };
+        WebSite = WebSite with { CategoryID = categoryId, Category = webCategory };
         if (Category == null || categoryId != Category.Id)
             Category = Categories.FirstOrDefault(m => m.Id == categoryId);
         await UpdateContextMenuDataAsync();

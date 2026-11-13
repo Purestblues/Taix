@@ -280,8 +280,24 @@ public static class ChartDataMapper
     }
 
     /// <summary>
-    /// 统一聚合实体矩阵中的所有分类（应用分类 + 网站分类）：未分类/系统分类合并成同一项，
-    /// 避免应用与网站两套 ID 空间相撞或重复出现多个「未分类」。
+    /// 统一聚合实体矩阵中的所有分类（应用与网站共享统一分类 ID 空间）：同一非系统分类合并为同一序列，
+    /// 未分类/系统分类合并成同一项。
+    /// </summary>
+    public static List<ChartsDataModel> BuildUnifiedCategorySeries(
+        EntityHoursModel? hours,
+        IReadOnlyDictionary<int, CategoryVisualInfo> categories,
+        string fallbackUncategorizedName,
+        string[]? columnNames = null)
+    {
+        return BuildUnifiedCategorySeriesCore(
+            hours,
+            row => (categories, row.CategoryId.ToString()),
+            fallbackUncategorizedName,
+            columnNames);
+    }
+
+    /// <summary>
+    /// 兼容旧双表测试的分类聚合入口（当应用与网站分别传入独立视觉映射时分别分组）。
     /// </summary>
     public static List<ChartsDataModel> BuildUnifiedCategorySeries(
         EntityHoursModel? hours,
@@ -289,6 +305,23 @@ public static class ChartDataMapper
         IReadOnlyDictionary<int, CategoryVisualInfo> siteCategories,
         string fallbackUncategorizedName,
         string[]? columnNames = null)
+    {
+        return BuildUnifiedCategorySeriesCore(
+            hours,
+            row =>
+            {
+                var isSite = row.Kind == "site" || row.CategoryKind == "site";
+                return (isSite ? siteCategories : appCategories, $"{(isSite ? "site" : "app")}:{row.CategoryId}");
+            },
+            fallbackUncategorizedName,
+            columnNames);
+    }
+
+    private static List<ChartsDataModel> BuildUnifiedCategorySeriesCore(
+        EntityHoursModel? hours,
+        Func<EntityHoursRow, (IReadOnlyDictionary<int, CategoryVisualInfo> Map, string Key)> resolver,
+        string fallbackUncategorizedName,
+        string[]? columnNames)
     {
         if (hours == null || hours.Rows.Count == 0) return [];
 
@@ -300,15 +333,12 @@ public static class ChartDataMapper
         var buckets = new Dictionary<string, (CategoryVisualInfo Visual, double[] Sums)>(StringComparer.Ordinal);
         foreach (var row in hours.Rows)
         {
-            var isSite = row.Kind == "site" || row.CategoryKind == "site";
-            var map = isSite ? siteCategories : appCategories;
+            var (map, rowBucketKey) = resolver(row);
             CategoryVisualInfo found = default;
             var hasVisual = row.CategoryId > 0 && map.TryGetValue(row.CategoryId, out found);
             var isUncategorized = !hasVisual || found.IsSystem;
 
-            var bucketKey = isUncategorized
-                ? "__uncategorized__"
-                : $"{(isSite ? "site" : "app")}:{row.CategoryId}";
+            var bucketKey = isUncategorized ? "__uncategorized__" : rowBucketKey;
 
             if (!buckets.TryGetValue(bucketKey, out var entry))
             {

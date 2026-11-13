@@ -8,7 +8,7 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tracing::{info, warn};
 
-pub(crate) const MIGRATION_STEPS: [&str; 23] = [
+pub(crate) const MIGRATION_STEPS: [&str; 26] = [
     "baseline",
     "add_columns",
     "rename_columns",
@@ -32,6 +32,9 @@ pub(crate) const MIGRATION_STEPS: [&str; 23] = [
     "web_browser_ref",
     "app_publisher",
     "entity_merge_tables",
+    "unified_categories",
+    "svg_category_icons",
+    "preset_categories",
 ];
 
 const BASELINE_SQL: &str = r#"
@@ -430,6 +433,33 @@ pub(crate) async fn run(pool: &SqlitePool, tz_id: &str) -> anyhow::Result<()> {
         .await
         .context("创建子母程序合并组表")?;
         mark_done(&mut tx, "entity_merge_tables").await?;
+    }
+
+    if !is_done(&mut tx, "unified_categories").await? {
+        add_column_if_missing(
+            &mut tx,
+            "CategoryModels",
+            "IsUrlMatch",
+            "INTEGER NOT NULL DEFAULT 0",
+        )
+        .await?;
+        add_column_if_missing(&mut tx, "CategoryModels", "UrlPatterns", "TEXT").await?;
+        unify_categories(&mut tx).await.context("统一应用与网站分类表")?;
+        mark_done(&mut tx, "unified_categories").await?;
+    }
+
+    if !is_done(&mut tx, "svg_category_icons").await? {
+        migrate_category_icons_to_svg(&mut tx)
+            .await
+            .context("迁移分类图标至 SVG 图标库")?;
+        mark_done(&mut tx, "svg_category_icons").await?;
+    }
+
+    if !is_done(&mut tx, "preset_categories").await? {
+        seed_preset_categories(&mut tx)
+            .await
+            .context("初始化预设常用分类")?;
+        mark_done(&mut tx, "preset_categories").await?;
     }
 
     tx.commit().await.context("提交迁移事务失败")?;
@@ -930,4 +960,509 @@ async fn migrate_legacy_web_favicons_dir() -> anyhow::Result<()> {
 
     info!("migrated {copied} web favicons to Application Support");
     Ok(())
+}
+
+/// Matches `CategoryIconCatalog` order in `ShiJian.Client`.
+const SVG_ICON_KEYS: [&str; 32] = [
+    "svg:code",
+    "svg:briefcase",
+    "svg:sparkles",
+    "svg:gamepad",
+    "svg:message",
+    "svg:book",
+    "svg:palette",
+    "svg:film",
+    "svg:wrench",
+    "svg:tag",
+    "svg:inbox",
+    "svg:terminal",
+    "svg:globe",
+    "svg:music",
+    "svg:camera",
+    "svg:headphones",
+    "svg:shopping",
+    "svg:heart",
+    "svg:star",
+    "svg:compass",
+    "svg:cloud",
+    "svg:shield",
+    "svg:file",
+    "svg:clock",
+    "svg:rocket",
+    "svg:zap",
+    "svg:chart",
+    "svg:folder",
+    "svg:cpu",
+    "svg:coffee",
+    "svg:layers",
+    "svg:lightbulb",
+];
+
+const PRESET_CATEGORIES: [(&str, &str, &str); 9] = [
+    ("开发", "svg:code", "#2563EB"),
+    ("办公", "svg:briefcase", "#0EA5E9"),
+    ("AI", "svg:sparkles", "#8B5CF6"),
+    ("娱乐", "svg:gamepad", "#F59E0B"),
+    ("社交", "svg:message", "#EC4899"),
+    ("学习", "svg:book", "#10B981"),
+    ("设计", "svg:palette", "#F43F5E"),
+    ("影音", "svg:film", "#EA580C"),
+    ("工具", "svg:wrench", "#64748B"),
+];
+
+fn merge_json_string_arrays(a: Option<&str>, b: Option<&str>) -> String {
+    let mut result: Vec<String> = Vec::new();
+    let mut seen = std::collections::HashSet::<String>::new();
+    for src in [a, b].into_iter().flatten() {
+        if let Ok(items) = serde_json::from_str::<Vec<String>>(src) {
+            for item in items {
+                let trimmed = item.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let key = trimmed.to_lowercase();
+                if seen.insert(key) {
+                    result.push(trimmed.to_string());
+                }
+            }
+        }
+    }
+    serde_json::to_string(&result).unwrap_or_else(|_| "[]".to_string())
+}
+
+fn is_blank_or_default_icon(icon: Option<&str>) -> bool {
+    match icon.map(str::trim) {
+        None | Some("") => true,
+        Some("avares://ShiJian/Resources/Icons/shijian.ico") => true,
+        _ => false,
+    }
+}
+
+fn is_blank_or_default_color(color: Option<&str>) -> bool {
+    match color.map(str::trim) {
+        None | Some("") => true,
+        Some(c) if c.eq_ignore_ascii_case(DEFAULT_COLOR) => true,
+        _ => false,
+    }
+}
+
+async fn unify_categories(tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>) -> anyhow::Result<()> {
+    // Ensure unified system category exists in CategoryModels
+    let sys_cat_id: i64 = match sqlx::query_scalar::<_, i64>(
+        "SELECT ID FROM CategoryModels WHERE IsSystem = 1 LIMIT 1",
+    )
+    .fetch_optional(&mut **tx)
+    .await?
+    {
+        Some(id) => id,
+        None => {
+            if let Some(id) = sqlx::query_scalar::<_, i64>(
+                "SELECT ID FROM CategoryModels WHERE LOWER(TRIM(Name)) = LOWER(?) LIMIT 1",
+            )
+            .bind(DEFAULT_CATEGORY)
+            .fetch_optional(&mut **tx)
+            .await?
+            {
+                sqlx::query("UPDATE CategoryModels SET IsSystem = 1 WHERE ID = ?")
+                    .bind(id)
+                    .execute(&mut **tx)
+                    .await?;
+                id
+            } else {
+                sqlx::query(
+                    "INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsUrlMatch, UrlPatterns, IsSystem) \
+                     VALUES (?, ?, ?, 0, '[]', 0, '[]', 1)",
+                )
+                .bind(DEFAULT_CATEGORY)
+                .bind(DEFAULT_ICON)
+                .bind(DEFAULT_COLOR)
+                .execute(&mut **tx)
+                .await?
+                .last_insert_rowid()
+            }
+        }
+    };
+
+    let has_web_cat_table: Option<(i64,)> = sqlx::query_as(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='WebSiteCategoryModels'",
+    )
+    .fetch_optional(&mut **tx)
+    .await?;
+    if has_web_cat_table.is_none() {
+        return Ok(());
+    }
+
+    #[derive(sqlx::FromRow, Clone)]
+    struct CatRow {
+        #[sqlx(rename = "ID")]
+        id: i64,
+        #[sqlx(rename = "Name")]
+        name: Option<String>,
+        #[sqlx(rename = "IconFile")]
+        icon_file: Option<String>,
+        #[sqlx(rename = "Color")]
+        color: Option<String>,
+        #[sqlx(rename = "IsUrlMatch")]
+        is_url_match: bool,
+        #[sqlx(rename = "UrlPatterns")]
+        url_patterns: Option<String>,
+        #[sqlx(rename = "IsSystem")]
+        is_system: bool,
+    }
+
+    let mut unified_cats: Vec<CatRow> = sqlx::query_as(
+        "SELECT ID, Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem FROM CategoryModels ORDER BY ID ASC",
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+
+    let web_cats: Vec<CatRow> = sqlx::query_as(
+        "SELECT ID, Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem FROM WebSiteCategoryModels ORDER BY ID ASC",
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+
+    let mut web_to_unified: HashMap<i64, i64> = HashMap::new();
+    let mut valid_ids: std::collections::HashSet<i64> =
+        unified_cats.iter().map(|c| c.id).collect();
+
+    for wc in web_cats {
+        let wc_name = wc.name.as_deref().unwrap_or("").trim().to_string();
+        if wc.is_system || wc_name == DEFAULT_CATEGORY || wc_name.is_empty() {
+            web_to_unified.insert(wc.id, sys_cat_id);
+            continue;
+        }
+
+        let name_key = wc_name.to_lowercase();
+        if let Some(existing) = unified_cats
+            .iter_mut()
+            .find(|c| !c.is_system && c.name.as_deref().unwrap_or("").trim().to_lowercase() == name_key)
+        {
+            let merged_patterns = merge_json_string_arrays(
+                existing.url_patterns.as_deref(),
+                wc.url_patterns.as_deref(),
+            );
+            let merged_url_match = existing.is_url_match || wc.is_url_match;
+            let new_icon = if is_blank_or_default_icon(existing.icon_file.as_deref())
+                && !is_blank_or_default_icon(wc.icon_file.as_deref())
+            {
+                wc.icon_file.clone()
+            } else {
+                existing.icon_file.clone()
+            };
+            let new_color = if is_blank_or_default_color(existing.color.as_deref())
+                && !is_blank_or_default_color(wc.color.as_deref())
+            {
+                wc.color.clone()
+            } else {
+                existing.color.clone()
+            };
+
+            sqlx::query(
+                "UPDATE CategoryModels SET IconFile = ?, Color = ?, IsUrlMatch = ?, UrlPatterns = ? WHERE ID = ?",
+            )
+            .bind(&new_icon)
+            .bind(&new_color)
+            .bind(merged_url_match)
+            .bind(&merged_patterns)
+            .bind(existing.id)
+            .execute(&mut **tx)
+            .await?;
+
+            existing.icon_file = new_icon;
+            existing.color = new_color;
+            existing.is_url_match = merged_url_match;
+            existing.url_patterns = Some(merged_patterns);
+
+            web_to_unified.insert(wc.id, existing.id);
+        } else {
+            let new_id = sqlx::query(
+                "INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsUrlMatch, UrlPatterns, IsSystem) \
+                 VALUES (?, ?, ?, 0, '[]', ?, ?, 0)",
+            )
+            .bind(&wc_name)
+            .bind(&wc.icon_file)
+            .bind(&wc.color)
+            .bind(wc.is_url_match)
+            .bind(&wc.url_patterns)
+            .execute(&mut **tx)
+            .await?
+            .last_insert_rowid();
+
+            valid_ids.insert(new_id);
+            web_to_unified.insert(wc.id, new_id);
+            unified_cats.push(CatRow {
+                id: new_id,
+                name: Some(wc_name),
+                icon_file: wc.icon_file,
+                color: wc.color,
+                is_url_match: wc.is_url_match,
+                url_patterns: wc.url_patterns,
+                is_system: false,
+            });
+        }
+    }
+
+    // Rewrite WebSiteModels.CategoryID row-by-row to avoid transitive ID collisions.
+    let sites: Vec<(i64, i64)> = sqlx::query_as("SELECT ID, CategoryID FROM WebSiteModels")
+        .fetch_all(&mut **tx)
+        .await?;
+    let mut updated_sites = 0usize;
+    for (site_id, old_cat_id) in sites {
+        let target_id = web_to_unified
+            .get(&old_cat_id)
+            .copied()
+            .filter(|id| valid_ids.contains(id))
+            .unwrap_or(sys_cat_id);
+        if target_id != old_cat_id {
+            sqlx::query("UPDATE WebSiteModels SET CategoryID = ? WHERE ID = ?")
+                .bind(target_id)
+                .bind(site_id)
+                .execute(&mut **tx)
+                .await?;
+            updated_sites += 1;
+        }
+    }
+
+    info!(
+        "分类体系统一完成: 映射 {} 条网站分类，更新 {} 条网站归属",
+        web_to_unified.len(),
+        updated_sites
+    );
+    Ok(())
+}
+
+fn map_legacy_emoji_to_svg(icon: &str) -> Option<&'static str> {
+    let lower = icon.to_ascii_lowercase();
+    let pos = lower.find("emoji/(")?;
+    let rest = &icon[pos + "emoji/(".len()..];
+    let end = rest.find(").png").or_else(|| rest.find(").PNG"))?;
+    let idx: usize = rest[..end].parse().ok()?;
+    if idx == 0 {
+        return Some("svg:tag");
+    }
+    Some(SVG_ICON_KEYS[(idx - 1) % SVG_ICON_KEYS.len()])
+}
+
+fn default_svg_for_category_name(name: &str, is_system: bool) -> &'static str {
+    if is_system {
+        return DEFAULT_ICON;
+    }
+    for (preset_name, icon, _) in PRESET_CATEGORIES {
+        if name.trim().eq_ignore_ascii_case(preset_name) {
+            return icon;
+        }
+    }
+    "svg:tag"
+}
+
+async fn migrate_category_icons_to_svg(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+) -> anyhow::Result<()> {
+    let rows: Vec<(i64, Option<String>, Option<String>, bool)> =
+        sqlx::query_as("SELECT ID, Name, IconFile, IsSystem FROM CategoryModels")
+            .fetch_all(&mut **tx)
+            .await?;
+
+    let mut migrated = 0usize;
+    for (id, name, icon_file, is_system) in rows {
+        let raw = icon_file.as_deref().unwrap_or("").trim();
+        if raw.starts_with("svg:") {
+            continue;
+        }
+
+        let target = if raw.is_empty() || raw == "avares://ShiJian/Resources/Icons/shijian.ico" {
+            Some(default_svg_for_category_name(
+                name.as_deref().unwrap_or(""),
+                is_system,
+            ))
+        } else {
+            map_legacy_emoji_to_svg(raw)
+        };
+
+        if let Some(svg_key) = target {
+            sqlx::query("UPDATE CategoryModels SET IconFile = ? WHERE ID = ?")
+                .bind(svg_key)
+                .bind(id)
+                .execute(&mut **tx)
+                .await?;
+            migrated += 1;
+        }
+    }
+
+    info!("分类图标 SVG 迁移完成: 更新 {} 条记录", migrated);
+    Ok(())
+}
+
+async fn seed_preset_categories(
+    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+) -> anyhow::Result<()> {
+    let existing_names: Vec<(String,)> =
+        sqlx::query_as("SELECT Name FROM CategoryModels WHERE Name IS NOT NULL")
+            .fetch_all(&mut **tx)
+            .await?;
+    let mut seen: std::collections::HashSet<String> = existing_names
+        .into_iter()
+        .map(|(n,)| n.trim().to_lowercase())
+        .collect();
+
+    let mut inserted = 0usize;
+    for (name, icon, color) in PRESET_CATEGORIES {
+        if seen.contains(&name.to_lowercase()) {
+            continue;
+        }
+        sqlx::query(
+            "INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsUrlMatch, UrlPatterns, IsSystem) \
+             VALUES (?, ?, ?, 0, '[]', 0, '[]', 0)",
+        )
+        .bind(name)
+        .bind(icon)
+        .bind(color)
+        .execute(&mut **tx)
+        .await?;
+        seen.insert(name.to_lowercase());
+        inserted += 1;
+    }
+
+    info!("预设常用分类初始化完成: 新增 {} 个", inserted);
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::services::category::CategoryService;
+    use crate::services::web_data::WebDataService;
+    use crate::services::category_summary::CategorySummaryService;
+    use crate::services::config::ConfigService;
+    use sqlx::sqlite::SqlitePoolOptions;
+
+    async fn mem_pool() -> SqlitePool {
+        SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect(":memory:")
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn unified_migration_merges_web_categories_migrates_svg_and_seeds_presets() {
+        let pool = mem_pool().await;
+        // Build legacy schema & run steps up through entity_merge_tables before seeding legacy data
+        sqlx::query(
+            "CREATE TABLE IF NOT EXISTS _migrations (step TEXT PRIMARY KEY, executed_at TEXT NOT NULL DEFAULT (datetime('now')))",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+        let mut tx = pool.begin().await.unwrap();
+        execute_batch(&mut tx, BASELINE_SQL).await.unwrap();
+        add_column_if_missing(&mut tx, "WebSiteCategoryModels", "IsSystem", "INTEGER NOT NULL DEFAULT 0").await.unwrap();
+        add_column_if_missing(&mut tx, "WebSiteCategoryModels", "IsUrlMatch", "INTEGER NOT NULL DEFAULT 0").await.unwrap();
+        add_column_if_missing(&mut tx, "WebSiteCategoryModels", "UrlPatterns", "TEXT").await.unwrap();
+        ensure_default_categories(&mut tx).await.unwrap();
+
+        // Simulate legacy user categories:
+        // App category "开发" using legacy Emoji (2).png + directory match
+        let dev_app_id = sqlx::query(
+            "INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsSystem) VALUES ('开发', 'avares://ShiJian/Resources/Emoji/(2).png', '#111111', 1, '[\"C:/Code\"]', 0)",
+        )
+        .execute(&mut *tx)
+        .await
+        .unwrap()
+        .last_insert_rowid();
+
+        // Web category with SAME name "开发" + URL match rules
+        let dev_web_id = sqlx::query(
+            "INSERT INTO WebSiteCategoryModels (Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem) VALUES ('开发', 'avares://ShiJian/Resources/Emoji/(1).png', '#222222', 1, '[\"*.github.com\"]', 0)",
+        )
+        .execute(&mut *tx)
+        .await
+        .unwrap()
+        .last_insert_rowid();
+
+        // Web-only category "阅读"
+        let read_web_id = sqlx::query(
+            "INSERT INTO WebSiteCategoryModels (Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem) VALUES ('阅读', 'avares://ShiJian/Resources/Emoji/(6).png', '#10B981', 1, '[\"*.medium.com\"]', 0)",
+        )
+        .execute(&mut *tx)
+        .await
+        .unwrap()
+        .last_insert_rowid();
+
+        // System web category
+        let sys_web_id: i64 = sqlx::query_scalar("SELECT ID FROM WebSiteCategoryModels WHERE IsSystem = 1 LIMIT 1")
+            .fetch_one(&mut *tx)
+            .await
+            .unwrap();
+
+        let s1 = sqlx::query("INSERT INTO WebSiteModels (Title, Domain, CategoryID, Duration) VALUES ('GitHub', 'github.com', ?, 100)")
+            .bind(dev_web_id).execute(&mut *tx).await.unwrap().last_insert_rowid();
+        let s2 = sqlx::query("INSERT INTO WebSiteModels (Title, Domain, CategoryID, Duration) VALUES ('Medium', 'medium.com', ?, 50)")
+            .bind(read_web_id).execute(&mut *tx).await.unwrap().last_insert_rowid();
+        let s3 = sqlx::query("INSERT INTO WebSiteModels (Title, Domain, CategoryID, Duration) VALUES ('Other', 'other.test', ?, 10)")
+            .bind(sys_web_id).execute(&mut *tx).await.unwrap().last_insert_rowid();
+        let s4 = sqlx::query("INSERT INTO WebSiteModels (Title, Domain, CategoryID, Duration) VALUES ('Orphan', 'orphan.test', 9999, 5)")
+            .execute(&mut *tx).await.unwrap().last_insert_rowid();
+
+        for step in &MIGRATION_STEPS[..MIGRATION_STEPS.len() - 3] {
+            mark_done(&mut tx, step).await.unwrap();
+        }
+        tx.commit().await.unwrap();
+
+        // Run migration for unified_categories + svg_category_icons + preset_categories
+        run(&pool, "Asia/Shanghai").await.unwrap();
+
+        let cats = CategoryService::get_categories(&pool).await.unwrap();
+        let dev = cats.iter().find(|c| c.name.as_deref() == Some("开发")).expect("dev merged");
+        assert_eq!(dev.id, dev_app_id);
+        assert!(dev.is_directory_match);
+        assert!(dev.is_url_match);
+        assert_eq!(dev.url_patterns.as_deref(), Some("[\"*.github.com\"]"));
+        assert_eq!(dev.icon_file.as_deref(), Some("svg:briefcase")); // Emoji/(2) -> index 1 => svg:briefcase
+
+        let read = cats.iter().find(|c| c.name.as_deref() == Some("阅读")).expect("web-only migrated");
+        assert!(read.is_url_match);
+        assert_eq!(read.icon_file.as_deref(), Some("svg:book")); // Emoji/(6) -> index 5 => svg:book
+
+        // Check WebSiteModels reassigned accurately
+        let c1: i64 = sqlx::query_scalar("SELECT CategoryID FROM WebSiteModels WHERE ID = ?").bind(s1).fetch_one(&pool).await.unwrap();
+        let c2: i64 = sqlx::query_scalar("SELECT CategoryID FROM WebSiteModels WHERE ID = ?").bind(s2).fetch_one(&pool).await.unwrap();
+        let c3: i64 = sqlx::query_scalar("SELECT CategoryID FROM WebSiteModels WHERE ID = ?").bind(s3).fetch_one(&pool).await.unwrap();
+        let c4: i64 = sqlx::query_scalar("SELECT CategoryID FROM WebSiteModels WHERE ID = ?").bind(s4).fetch_one(&pool).await.unwrap();
+        let sys_id = CategoryService::get_system_category_id(&pool).await.unwrap();
+        assert_eq!(c1, dev_app_id);
+        assert_eq!(c2, read.id);
+        assert_eq!(c3, sys_id);
+        assert_eq!(c4, sys_id);
+
+        // System category icon migrated from shijian.ico / default to svg:inbox
+        let sys_cat = cats.iter().find(|c| c.is_system).unwrap();
+        assert_eq!(sys_cat.icon_file.as_deref(), Some("svg:inbox"));
+
+        // Presets exist without duplicating existing "开发"
+        assert_eq!(cats.iter().filter(|c| c.name.as_deref() == Some("开发")).count(), 1);
+        assert!(cats.iter().any(|c| c.name.as_deref() == Some("AI") && c.icon_file.as_deref() == Some("svg:sparkles")));
+        assert!(cats.iter().any(|c| c.name.as_deref() == Some("工具") && c.icon_file.as_deref() == Some("svg:wrench")));
+
+        // Delete "阅读" -> deleting again won't resurrect after rerun & moves s2 to sys_id
+        CategoryService::delete_category(&pool, read.id).await.unwrap();
+        let c2_after: i64 = sqlx::query_scalar("SELECT CategoryID FROM WebSiteModels WHERE ID = ?").bind(s2).fetch_one(&pool).await.unwrap();
+        assert_eq!(c2_after, sys_id);
+        run(&pool, "Asia/Shanghai").await.unwrap();
+        let cats_after = CategoryService::get_categories(&pool).await.unwrap();
+        assert!(!cats_after.iter().any(|c| c.name.as_deref() == Some("阅读")));
+
+        // WebDataService::get_web_site_categories returns unified categories too
+        let web_cats = WebDataService::get_web_site_categories(&pool).await.unwrap();
+        assert!(web_cats.iter().any(|c| c.id == dev.id && c.name == "开发"));
+
+        // Unified category summary works when apps & sites share dev.id
+        let cfg = ConfigService::new(&std::env::temp_dir().join(format!("shijian_test_{}", std::process::id())));
+        let day = chrono::NaiveDate::from_ymd_opt(2026, 11, 13).unwrap();
+        let summary = CategorySummaryService::get_unified_category_summary(
+            &pool, dev.id, day, day, None, None, "Asia/Shanghai", &cfg,
+        ).await.unwrap();
+        assert_eq!(summary.category_name, "开发");
+    }
 }

@@ -43,8 +43,7 @@ public partial class IndexPageViewModel : IndexPageModel
     // 图表原始数据缓存（换主题时本地重建，不重复请求）
     private EntityHoursModel? _entityHours;
     private double[] _compareTotalsAll = [];
-    private IReadOnlyList<CategoryModel>? _appColumnCategories;
-    private IReadOnlyList<WebSiteCategoryModel>? _webColumnCategories;
+    private IReadOnlyList<CategoryModel>? _columnCategories;
 
     public IndexPageViewModel(
         IWebData webData,
@@ -233,12 +232,11 @@ public partial class IndexPageViewModel : IndexPageModel
         var prevPageCountTask = _webDataService.GetBrowsePagesTotalAsync(prevStart, prevEnd, cancellationToken);
 
         var categoriesTask = _categoryService.GetCategoriesAsync(cancellationToken);
-        var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
 
         HasEntityError = false;
         EntityErrorText = string.Empty;
 
-        await Task.WhenAll(pageCountTask, prevPageCountTask, categoriesTask, webCategoriesTask);
+        await Task.WhenAll(pageCountTask, prevPageCountTask, categoriesTask);
         cancellationToken.ThrowIfCancellationRequested();
 
         EntityListModel? entity;
@@ -302,8 +300,7 @@ public partial class IndexPageViewModel : IndexPageModel
 
         // 缓存原始矩阵，换主题时本地重建即可
         _entityHours = hours;
-        _appColumnCategories = await categoriesTask;
-        _webColumnCategories = await webCategoriesTask;
+        _columnCategories = await categoriesTask;
         _compareTotalsAll = ChartDataMapper.SumAllBuckets(prevHours, labels.Length);
 
         ApplyChartSeries();
@@ -317,8 +314,7 @@ public partial class IndexPageViewModel : IndexPageModel
     {
         var series = ChartDataMapper.BuildUnifiedCategorySeries(
             _entityHours,
-            ChartDataMapper.ToVisualMap(_appColumnCategories, ResourceStrings.Uncategorized),
-            ChartDataMapper.ToVisualMap(_webColumnCategories, ResourceStrings.Uncategorized),
+            ChartDataMapper.ToVisualMap(_columnCategories, ResourceStrings.Uncategorized),
             ResourceStrings.Uncategorized);
 
         HourSeries = series;
@@ -376,9 +372,8 @@ public partial class IndexPageViewModel : IndexPageModel
     {
         if (obj is not ChartBadgeModel badge || badge.CategoryId <= 0) return;
 
-        var kind = badge.IsWebCategory ? CategorySummaryKind.Web : CategorySummaryKind.App;
         _navigationService.NavigateTo(nameof(CategorySummaryPage),
-            CategorySummaryNavigationContext.Create(kind, badge.CategoryId, badge.Name));
+            CategorySummaryNavigationContext.Create(CategorySummaryKind.Unified, badge.CategoryId, badge.Name));
     }
 
     private async Task OnToDetailAsync(object obj)

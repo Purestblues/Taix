@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using ShiJian.Client.Librarys.Image;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -44,7 +45,7 @@ public class IconSelect : TemplatedControl
     public IconSelect()
     {
         Focusable = true;
-        URL = "avares://ShiJian/Resources/Emoji/(1).png";
+        URL = CategoryIconCatalog.DefaultIconKey;
         ShowSelectCommand = AsyncRelayCommand.Create(OnToggleSelect);
         FileSelectCommand = AsyncRelayCommand.CreateFromTask(OnFileSelect);
         LoadIcons();
@@ -75,10 +76,7 @@ public class IconSelect : TemplatedControl
 
     private void LoadIcons()
     {
-        var list = new List<string>();
-        for (var i = 1; i < 45; i++)
-            list.Add($"avares://ShiJian/Resources/Emoji/({i}).png");
-        Icons = list;
+        Icons = new List<string>(CategoryIconCatalog.AllKeys);
     }
 
     private void OnToggleSelect()

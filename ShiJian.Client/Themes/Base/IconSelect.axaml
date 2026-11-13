@@ -41,6 +41,7 @@
                                 BorderBrush="{DynamicResource PopupBorderBrush}"
                                 BorderThickness="1"
                                 Background="{DynamicResource PopupBackgroundBrush}"
+                                TextElement.Foreground="{DynamicResource DefaultTextBrush}"
                                 Padding="10" Width="275" MaxHeight="300" Margin="10">
                                 <Border.Effect>
                                     <DropShadowDirectionEffect BlurRadius="10"
@@ -128,9 +129,7 @@
 
                                                         <Style Selector="^ /template/ Border ContentPresenter">
                                                             <Setter Property="Background" Value="Transparent" />
-                                                        </Style>
-
-                                                        <Style Selector="^ /template/ Border ContentPresenter">
+                                                            <Setter Property="TextElement.Foreground" Value="White" />
                                                             <Setter Property="RenderTransform" Value="scale(1)" />
                                                         </Style>
                                                     </Style>

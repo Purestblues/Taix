@@ -28,11 +28,9 @@ public class CategorySummaryPageViewModel : ModelBase
     private readonly IAppData _appData;
     private readonly INavigationDataService _navigationData;
 
-    // 内部存储分类列表
-    private List<CategoryChip> _appCategoryList = [];
-    private List<CategoryChip> _webCategoryList = [];
+    private List<CategoryChip> _unifiedCategoryList = [];
 
-    private CategorySummaryKind _kind = CategorySummaryKind.App;
+    private CategorySummaryKind _kind = CategorySummaryKind.Unified;
     private int _categoryId;
     private string _categoryName = string.Empty;
     private string? _categoryIcon;
@@ -107,7 +105,7 @@ public class CategorySummaryPageViewModel : ModelBase
         _currentSelectType = RangeIdToSelectType(_selectedRange.Id);
 
         KindOptions = BuildKindOptions();
-        _selectedKind = KindOptions[(int)Kind]; // 同步初始 Kind
+        _selectedKind = KindOptions.FirstOrDefault(o => o.Id == (int)Kind) ?? KindOptions[0]; // 同步初始 Kind
 
         WhenPropertyChanged(this, x => x.SelectedRange, _ =>
         {
@@ -489,62 +487,37 @@ public class CategorySummaryPageViewModel : ModelBase
 
     private async Task OnKindChangedAsync()
     {
-        // 切换 Kind，刷新 CurrentCategories
         Kind = (CategorySummaryKind)_selectedKind.Id;
-
-        var targetList = Kind == CategorySummaryKind.App ? _appCategoryList : _webCategoryList;
-        CurrentCategories = new ObservableCollection<CategoryChip>(targetList);
-
-        // 选中第一个分类
-        if (CurrentCategories.Count > 0)
-        {
-            var first = CurrentCategories[0];
-            await OnSwitchCategoryAsync(first);
-        }
+        await LoadAsync();
     }
 
     private async Task BuildCategoryChipsAsync()
     {
         try
         {
-            var appCats = await _categorys.GetCategoriesAsync(LoadToken).ConfigureAwait(false);
-            var webCats = await _webData.GetWebSiteCategoriesAsync(LoadToken).ConfigureAwait(false);
+            var cats = await _categorys.GetCategoriesAsync(LoadToken).ConfigureAwait(false);
 
             await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
             {
                 Categories.Clear();
-                _appCategoryList = [];
-                _webCategoryList = [];
+                _unifiedCategoryList = [];
 
-                foreach (var c in appCats)
+                foreach (var c in cats)
                 {
                     var chip = new CategoryChip(
-                        Kind: CategorySummaryKind.App,
+                        Kind: Kind,
                         Id: c.ID,
                         Name: c.Name ?? string.Empty,
                         Color: ChartColorHelper.Resolve(c.Color, c.IsSystem),
-                        IsActive: Kind == CategorySummaryKind.App && c.ID == CategoryId);
+                        IsActive: c.ID == CategoryId);
                     Categories.Add(chip);
-                    _appCategoryList.Add(chip);
-                }
-                foreach (var c in webCats)
-                {
-                    var chip = new CategoryChip(
-                        Kind: CategorySummaryKind.Web,
-                        Id: c.ID,
-                        Name: c.Name ?? string.Empty,
-                        Color: ChartColorHelper.Resolve(c.Color, c.IsSystem),
-                        IsActive: Kind == CategorySummaryKind.Web && c.ID == CategoryId);
-                    Categories.Add(chip);
-                    _webCategoryList.Add(chip);
+                    _unifiedCategoryList.Add(chip);
                 }
 
-                // 设置当前显示的分类列表
-                CurrentCategories = new ObservableCollection<CategoryChip>(
-                    Kind == CategorySummaryKind.App ? _appCategoryList : _webCategoryList);
+                CurrentCategories = new ObservableCollection<CategoryChip>(_unifiedCategoryList);
 
                 // 同步 TabSwitch 选中项
-                _selectedKind = KindOptions[(int)Kind];
+                _selectedKind = KindOptions.FirstOrDefault(o => o.Id == (int)Kind) ?? KindOptions[0];
                 OnPropertyChanged(nameof(SelectedKind));
 
                 // 同步当前分类的颜色
@@ -565,9 +538,8 @@ public class CategorySummaryPageViewModel : ModelBase
     private async Task OnSwitchCategoryAsync(CategoryChip chip)
     {
         if (chip == null) return;
-        if (chip.Kind == Kind && chip.Id == CategoryId) return;
+        if (chip.Id == CategoryId) return;
 
-        Kind = chip.Kind;
         CategoryId = chip.Id;
         CategoryName = chip.Name;
         CategoryColor = chip.Color;
@@ -576,7 +548,7 @@ public class CategorySummaryPageViewModel : ModelBase
         for (var i = 0; i < Categories.Count; i++)
         {
             var c = Categories[i];
-            var active = c.Kind == Kind && c.Id == CategoryId;
+            var active = c.Id == CategoryId;
             if (c.IsActive != active)
             {
                 Categories[i] = c with { IsActive = active };
@@ -586,7 +558,7 @@ public class CategorySummaryPageViewModel : ModelBase
         for (var i = 0; i < CurrentCategories.Count; i++)
         {
             var c = CurrentCategories[i];
-            var active = c.Kind == Kind && c.Id == CategoryId;
+            var active = c.Id == CategoryId;
             if (c.IsActive != active)
             {
                 CurrentCategories[i] = c with { IsActive = active };
@@ -759,8 +731,9 @@ public class CategorySummaryPageViewModel : ModelBase
     {
         return new List<SelectItemModel>
         {
-            new() { Id = 0, Name = ResourceStrings.App },
-            new() { Id = 1, Name = ResourceStrings.Website },
+            new() { Id = (int)CategorySummaryKind.Unified, Name = ResourceStrings.FilterAll },
+            new() { Id = (int)CategorySummaryKind.App, Name = ResourceStrings.App },
+            new() { Id = (int)CategorySummaryKind.Web, Name = ResourceStrings.Website },
         };
     }
 
@@ -856,18 +829,19 @@ public class CategorySummaryPageViewModel : ModelBase
             var members = await _summaryData.GetMembersAsync(Kind, CategoryId, subStart, subEnd, ct).ConfigureAwait(false);
 
             // 解析成员完整模型（供右键菜单操作使用），id == -1 为"其他"聚合行，无对应模型
-            Dictionary<int, object>? modelMap = null;
+            Dictionary<int, object>? appMap = null;
+            Dictionary<int, object>? siteMap = null;
             if (members.Any(m => m.Id > 0))
             {
-                if (Kind == CategorySummaryKind.App)
+                if (Kind is CategorySummaryKind.App or CategorySummaryKind.Unified)
                 {
                     var apps = await _appData.GetAppsByCategoryIDAsync(CategoryId, ct).ConfigureAwait(false);
-                    modelMap = apps.Where(a => a.ID > 0).ToDictionary(a => a.ID, a => (object)a);
+                    appMap = apps.Where(a => a.ID > 0).ToDictionary(a => a.ID, a => (object)a);
                 }
-                else
+                if (Kind is CategorySummaryKind.Web or CategorySummaryKind.Unified)
                 {
                     var sites = await _webData.GetWebSitesAsync(CategoryId, ct).ConfigureAwait(false);
-                    modelMap = sites.Where(s => s.ID > 0).ToDictionary(s => s.ID, s => (object)s);
+                    siteMap = sites.Where(s => s.ID > 0).ToDictionary(s => s.ID, s => (object)s);
                 }
             }
 
@@ -876,13 +850,22 @@ public class CategorySummaryPageViewModel : ModelBase
                 var list = new List<ChartsDataModel>();
                 foreach (var m in members)
                 {
+                    object? model = null;
+                    if (m.Id > 0)
+                    {
+                        var isSite = m.Kind == "site" || Kind == CategorySummaryKind.Web;
+                        if (isSite)
+                            siteMap?.TryGetValue(m.Id, out model);
+                        else
+                            appMap?.TryGetValue(m.Id, out model);
+                    }
                     list.Add(new ChartsDataModel
                     {
                         Name = m.Name,
                         Value = m.Seconds,
                         Icon = m.IconFile,
                         Tag = m.Seconds > 0 ? Time.ToString((int)Math.Min(m.Seconds, int.MaxValue)) : string.Empty,
-                        Data = m.Id > 0 && modelMap != null && modelMap.TryGetValue(m.Id, out var model) ? model : null,
+                        Data = model,
                     });
                 }
                 SelectedMembers = list;

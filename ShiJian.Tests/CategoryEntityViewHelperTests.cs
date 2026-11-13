@@ -171,4 +171,41 @@ public class CategoryEntityViewHelperTests
         Assert.Equal([2, 3, 1], CategoryEntityViewHelper.FilterAndSort(rows, null, EntityFilterMode.All, EntitySortMode.Name).Select(r => r.PrimaryId));
         Assert.Equal([2, 1, 3], CategoryEntityViewHelper.FilterAndSort(rows, null, EntityFilterMode.All, EntitySortMode.UncategorizedFirst).Select(r => r.PrimaryId));
     }
+
+    [Fact]
+    public void BuildSiteRows_WithUnifiedCategories_ResolvesSharedCategoryAndUncategorized()
+    {
+        var categories = new List<CategoryModel>
+        {
+            new() { ID = 1, Name = "未分类", Color = "#999999", IsSystem = true },
+            new() { ID = 2, Name = "开发", Color = "#22c55e", IsSystem = false }
+        };
+        var sites = new List<WebSiteModel>
+        {
+            new() { ID = 10, Title = "GitHub", Domain = "github.com", Duration = 300, CategoryID = 2 },
+            new() { ID = 11, Title = "Blog", Domain = "example.org", Duration = 60, CategoryID = 0 }
+        };
+        var todayEntities = new EntityListModel
+        {
+            Rows =
+            [
+                new EntityModel { Key = "site:10", Kind = "site", Seconds = 120 },
+                new EntityModel { Key = "site:11", Kind = "site", Seconds = 30 }
+            ]
+        };
+
+        var rows = CategoryEntityViewHelper.BuildSiteRows(sites, categories, [], todayEntities, "未分类");
+
+        Assert.Equal(2, rows.Count);
+        var github = rows.First(r => r.PrimaryId == 10);
+        Assert.True(github.IsSite);
+        Assert.Equal("开发", github.CategoryName);
+        Assert.Equal("#22c55e", github.CategoryColor);
+        Assert.False(github.IsUncategorized);
+        Assert.Equal(120, github.TodaySeconds);
+
+        var blog = rows.First(r => r.PrimaryId == 11);
+        Assert.Equal("未分类", blog.CategoryName);
+        Assert.True(blog.IsUncategorized);
+    }
 }

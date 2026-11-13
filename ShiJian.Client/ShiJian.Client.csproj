@@ -70,8 +70,6 @@
         <TrimmerRootDescriptor Include="TrimmerRoots.xml" />
     </ItemGroup>
     <ItemGroup>
-        <AvaloniaResource Include="Resources\Emoji\(*).png" />
-
         <AvaloniaResource Include="Resources\Fonts\SegoeFluentIcons-Subset.ttf">
             <CopyToOutputDirectory>Never</CopyToOutputDirectory>
         </AvaloniaResource>

@@ -28,6 +28,8 @@ public class CategoryEntityRow : ModelBase
 
     public int MemberCount { get; init; } = 1;
 
+    public string KindLabel => IsSite ? ResourceStrings.MergeCandidateSite : ResourceStrings.MergeCandidateApp;
+
     public string? MemberTooltip { get; init; }
 
     public bool IsMerged => MemberCount > 1;

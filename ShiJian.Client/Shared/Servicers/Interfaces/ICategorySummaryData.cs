@@ -30,4 +30,5 @@ public enum CategorySummaryKind
 {
     App = 0,
     Web = 1,
+    Unified = 2,
 }

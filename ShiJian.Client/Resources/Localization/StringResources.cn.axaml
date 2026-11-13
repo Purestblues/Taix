@@ -385,6 +385,8 @@
     <system:String x:Key="RestoreSystemCategory">还原系统分类</system:String>
     <system:String x:Key="CategoryHasApps">该分类下有 {0} 个应用，删除后将移入系统默认分类</system:String>
     <system:String x:Key="CategoryHasSites">该分类下有 {0} 个网站，删除后将移入系统默认分类</system:String>
+    <system:String x:Key="CategoryHasEntities">该分类下有 {0} 个应用或网站，删除后将移入系统默认分类</system:String>
+    <system:String x:Key="ViewCategorySummary">查看统计概览</system:String>
 
 
     <system:String x:Key="ChooseColor">选择颜色</system:String>
@@ -500,7 +502,7 @@
 
     <!-- 分类页重设计（N5） -->
     <system:String x:Key="BrowseByCategory">分类</system:String>
-    <system:String x:Key="BrowseByEntity">应用</system:String>
+    <system:String x:Key="BrowseByEntity">应用与网站</system:String>
     <system:String x:Key="EmptyCategoriesHeader">空分类 ({0})</system:String>
     <system:String x:Key="FilterAll">全部</system:String>
     <system:String x:Key="FilterUncategorized">未分类</system:String>

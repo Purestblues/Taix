@@ -12,6 +12,7 @@ using ShiJian.Client.Controls.Window;
 using ShiJian.Client.Foundation;
 using ShiJian.Client.Foundation.Rx;
 using ShiJian.Client.Librarys;
+using ShiJian.Client.Librarys.Image;
 using ShiJian.Client.Logging;
 using ShiJian.Client.Models;
 using ShiJian.Client.Models.Category;
@@ -45,8 +46,7 @@ public class CategoryPageViewModel : CategoryPageModel
     private List<string> _originalUrlPatterns = new();
     private List<CategoryEntityRow> _allAppEntityRows = new();
     private List<CategoryEntityRow> _allWebEntityRows = new();
-    private bool _appEntitiesLoaded;
-    private bool _webEntitiesLoaded;
+    private bool _entitiesLoaded;
     private bool _categoryStatsDirty;
     private CategoryEntityRow? _tagTargetRow;
 
@@ -77,11 +77,12 @@ public class CategoryPageViewModel : CategoryPageModel
         _toastService = toastService;
         _stateService = stateService;
         Data = new ObservableCollection<CategoryModel>();
-        WebCategoryData = new ObservableCollection<WebCategoryModel>();
         EditDirectories = new ObservableCollection<string>();
         EditUrlPatterns = new ObservableCollection<string>();
 
         GotoListCommand = AsyncRelayCommand.Create<object>(OnGotoList).DisposeWith(Disposables);
+        GotoAppListCommand = AsyncRelayCommand.Create<object>(OnGotoAppList).DisposeWith(Disposables);
+        GotoWebListCommand = AsyncRelayCommand.Create<object>(OnGotoWebList).DisposeWith(Disposables);
         EditCommand = AsyncRelayCommand.Create<object>(OnEdit).DisposeWith(Disposables);
         EditDoneCommand = AsyncRelayCommand.CreateFromTask<object>(OnEditDoneAsync).DisposeWith(Disposables);
         EditCloseCommand = AsyncRelayCommand.Create<object>(OnEditClose).DisposeWith(Disposables);
@@ -95,11 +96,9 @@ public class CategoryPageViewModel : CategoryPageModel
         ApplyDirectoryMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyDirectoryMatchAsync).DisposeWith(Disposables);
         ApplyUrlMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyUrlMatchAsync).DisposeWith(Disposables);
         ToggleAppEmptyExpandedCommand = AsyncRelayCommand.Create<object>(_ => IsAppEmptyExpanded = !IsAppEmptyExpanded).DisposeWith(Disposables);
-        ToggleWebEmptyExpandedCommand = AsyncRelayCommand.Create<object>(_ => IsWebEmptyExpanded = !IsWebEmptyExpanded).DisposeWith(Disposables);
         GotoEntityDetailCommand = AsyncRelayCommand.CreateFromTask<object>(OnGotoEntityDetailAsync).DisposeWith(Disposables);
         AssignEntityCategoryCommand = AsyncRelayCommand.CreateFromTask<object>(OnAssignEntityCategoryAsync).DisposeWith(Disposables);
 
-        WhenPropertyChanged(this, x => x.ShowType, _ => ExecuteAsync(LoadDataCoreAsync)).DisposeWith(Disposables);
         // 排序不重拉数据，所以不走 WhenPropertyChanged 那个会 CancelAndResetLoadToken 的重载：
         // 否则加载还没回来时切换排序，会把正在跑的那次加载取消掉。
         ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.SortMode)
@@ -111,6 +110,10 @@ public class CategoryPageViewModel : CategoryPageModel
             .Subscribe(_ => OnBrowseModeChanged())
             .DisposeWith(Disposables);
         ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.EntitySearchInput)
+            .Skip(1)
+            .Subscribe(_ => ApplyEntityFilterAndSort())
+            .DisposeWith(Disposables);
+        ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.EntityTypeMode)
             .Skip(1)
             .Subscribe(_ => ApplyEntityFilterAndSort())
             .DisposeWith(Disposables);
@@ -129,7 +132,7 @@ public class CategoryPageViewModel : CategoryPageModel
     /// <summary>主题切换后分类圆点要按新背景重算</summary>
     private void OnThemeChanged()
     {
-        if (Data.Count == 0 && WebCategoryData.Count == 0) return;
+        if (Data.Count == 0) return;
         _ = RefreshAsync();
     }
 
@@ -146,6 +149,8 @@ public class CategoryPageViewModel : CategoryPageModel
     }
 
     public ICommand GotoListCommand { get; }
+    public ICommand GotoAppListCommand { get; }
+    public ICommand GotoWebListCommand { get; }
     public ICommand EditCommand { get; }
     public ICommand EditDoneCommand { get; }
     public ICommand EditCloseCommand { get; }
@@ -159,7 +164,6 @@ public class CategoryPageViewModel : CategoryPageModel
     public ICommand ApplyDirectoryMatchCommand { get; }
     public ICommand ApplyUrlMatchCommand { get; }
     public ICommand ToggleAppEmptyExpandedCommand { get; }
-    public ICommand ToggleWebEmptyExpandedCommand { get; }
     public ICommand GotoEntityDetailCommand { get; }
     public ICommand AssignEntityCategoryCommand { get; }
 
@@ -194,10 +198,6 @@ public class CategoryPageViewModel : CategoryPageModel
             CategoryCardStats.ReorderInPlace(Data,
                 CategoryCardStats.Sort(Data.ToList(), CurrentSortMode, m => m.Data?.Name));
 
-        if (WebCategoryData.Count > 0)
-            CategoryCardStats.ReorderInPlace(WebCategoryData,
-                CategoryCardStats.Sort(WebCategoryData.ToList(), CurrentSortMode, m => m.Data?.Name));
-
         RebuildCategoryBuckets();
     }
 
@@ -208,24 +208,18 @@ public class CategoryPageViewModel : CategoryPageModel
         CategoryCardStats.SyncCollection(ActiveAppCategories, activeApps);
         CategoryCardStats.SyncCollection(EmptyAppCategories, emptyApps);
 
-        var (activeWebs, emptyWebs) = CategoryCardStats.SplitEmpty(WebCategoryData);
-        CategoryCardStats.SyncCollection(ActiveWebCategories, activeWebs);
-        CategoryCardStats.SyncCollection(EmptyWebCategories, emptyWebs);
-
         NotifyCategoryBucketStates();
     }
 
     private Task OnRefreshAsync(object _)
     {
-        _appEntitiesLoaded = false;
-        _webEntitiesLoaded = false;
+        _entitiesLoaded = false;
         return ExecuteAsync(LoadDataCoreAsync);
     }
 
     public override Task RefreshAsync()
     {
-        _appEntitiesLoaded = false;
-        _webEntitiesLoaded = false;
+        _entitiesLoaded = false;
         return ExecuteAsync(LoadDataCoreAsync);
     }
 
@@ -288,13 +282,7 @@ public class CategoryPageViewModel : CategoryPageModel
         }
     }
 
-    private async Task OnDelAsync(object obj)
-    {
-        if (ShowType.Id == 0)
-            await DelAppCategoryAsync();
-        else if (ShowType.Id == 1)
-            await DelWebSiteCategoryAsync();
-    }
+    private Task OnDelAsync(object obj) => DelCategoryAsync(obj as CategoryModel);
 
     private void OnEditClose(object obj)
     {
@@ -305,7 +293,7 @@ public class CategoryPageViewModel : CategoryPageModel
     private void ClearEditFields()
     {
         EditName = "";
-        EditIconFile = "avares://ShiJian/Resources/Emoji/(1).png";
+        EditIconFile = CategoryIconCatalog.DefaultIconKey;
         EditColor = "#00FFAB";
         EditIsDirectoryMatch = false;
         EditIsUrlMatch = false;
@@ -315,66 +303,7 @@ public class CategoryPageViewModel : CategoryPageModel
         EditErrorText = "";
     }
 
-    private Task OnEditDoneAsync(object obj)
-    {
-        if (ShowType.Id == 0) return EditAppCategoryActionAsync();
-        if (ShowType.Id == 1) return EditWebSiteCategoryActionAsync();
-        return Task.CompletedTask;
-    }
-
-    private async Task DelWebSiteCategoryAsync()
-    {
-        if (SelectedWebCategoryItem == null) return;
-
-        try
-        {
-            var category = SelectedWebCategoryItem.Data;
-            if (category.IsSystem) return;
-
-            var message = SelectedWebCategoryItem.Count > 0
-                ? string.Format(ResourceStrings.CategoryHasSites, SelectedWebCategoryItem.Count)
-                : ResourceStrings.WantDeleteCategory;
-
-            var isConfirm = await _dialogService.ShowConfirmDialogAsync(
-                ResourceStrings.DeleteCategory,
-                message);
-
-            if (!isConfirm) return;
-
-            await _webDataService.DeleteWebSiteCategoryAsync(category);
-
-            if (SelectedWebCategoryItem.Count > 0)
-            {
-                var sysCategory = WebCategoryData.FirstOrDefault(m => m.Data.IsSystem);
-                if (sysCategory != null)
-                {
-                    var index = WebCategoryData.IndexOf(sysCategory);
-                    if (index != -1)
-                    {
-                        WebCategoryData[index] = new WebCategoryModel
-                        {
-                            Data = sysCategory.Data,
-                            Count = sysCategory.Count + SelectedWebCategoryItem.Count,
-                            // 并入的站点时长跟着走，否则卡片上的时长会凭空少一块
-                            Duration = sysCategory.Duration + SelectedWebCategoryItem.Duration,
-                            Ratio = sysCategory.Ratio + SelectedWebCategoryItem.Ratio
-                        };
-                    }
-                }
-            }
-
-            WebCategoryData.Remove(SelectedWebCategoryItem);
-            SelectedWebCategoryItem = null;
-            _webEntitiesLoaded = false;
-            ApplySort();
-
-            _toastService.Success(ResourceStrings.CategoryDeleted);
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex.Message, ex);
-        }
-    }
+    private Task OnEditDoneAsync(object obj) => EditCategoryActionAsync();
 
     private async Task OnAddDirectoryAsync(object obj)
     {
@@ -513,7 +442,9 @@ public class CategoryPageViewModel : CategoryPageModel
                 return false;
             }
 
-            if (!EditIconFile.StartsWith("avares://") && File.Exists(EditIconFile))
+            if (!EditIconFile.StartsWith("avares://")
+                && !CategoryIconCatalog.IsSvgIcon(EditIconFile)
+                && File.Exists(EditIconFile))
             {
                 var fileInfo = new FileInfo(EditIconFile);
                 if (fileInfo.Length > 1000000)
@@ -539,13 +470,22 @@ public class CategoryPageViewModel : CategoryPageModel
         HasDirectoryMatchCategory = Data.Any(m => m.Data.IsDirectoryMatch);
     }
 
-    private async Task EditAppCategoryActionAsync()
+    private static string FormatMatchTip(bool isDirectoryMatch, bool isUrlMatch) => (isDirectoryMatch, isUrlMatch) switch
+    {
+        (true, true) => $"{ResourceStrings.DirectoryMatch} · {ResourceStrings.UrlMatch}",
+        (true, false) => ResourceStrings.DirectoryMatch,
+        (false, true) => ResourceStrings.UrlMatch,
+        _ => string.Empty
+    };
+
+    private async Task EditCategoryActionAsync()
     {
         try
         {
             if (!IsEditVerify()) return;
 
             var directoriesStr = JsonSerializer.Serialize(EditDirectories.ToList(), ClientJsonContext.Default.ListString);
+            var urlPatternsStr = JsonSerializer.Serialize(EditUrlPatterns.ToList(), ClientJsonContext.Default.ListString);
 
             if (IsCreate)
             {
@@ -561,7 +501,9 @@ public class CategoryPageViewModel : CategoryPageModel
                     IconFile = EditIconFile,
                     Color = EditColor,
                     IsDirectoryMatch = EditIsDirectoryMatch,
-                    Directories = directoriesStr
+                    Directories = directoriesStr,
+                    IsUrlMatch = EditIsUrlMatch,
+                    UrlPatterns = urlPatternsStr
                 });
 
                 if (res == null)
@@ -573,7 +515,9 @@ public class CategoryPageViewModel : CategoryPageModel
                 Data.Add(new CategoryModel
                 {
                     Data = res,
-                    Count = 0
+                    Count = 0,
+                    IsMatchFlag = res.IsDirectoryMatch || res.IsUrlMatch,
+                    MatchTip = FormatMatchTip(res.IsDirectoryMatch, res.IsUrlMatch)
                 });
                 _toastService.Success(ResourceStrings.CreationCompleted);
             }
@@ -605,7 +549,9 @@ public class CategoryPageViewModel : CategoryPageModel
                     IconFile = EditIconFile,
                     Color = EditColor,
                     IsDirectoryMatch = EditIsDirectoryMatch,
-                    Directories = directoriesStr
+                    Directories = directoriesStr,
+                    IsUrlMatch = EditIsUrlMatch,
+                    UrlPatterns = urlPatternsStr
                 };
 
                 await _categoryService.UpdateAsync(category);
@@ -621,16 +567,9 @@ public class CategoryPageViewModel : CategoryPageModel
                             Count = item.Count,
                             Duration = item.Duration,
                             Ratio = item.Ratio,
-                            Data = new Shared.Models.CategoryModel
-                            {
-                                ID = item.Data.ID,
-                                Name = EditName,
-                                IconFile = EditIconFile,
-                                Color = EditColor,
-                                IsDirectoryMatch = EditIsDirectoryMatch,
-                                IsSystem = item.Data.IsSystem,
-                                Directories = directoriesStr
-                            }
+                            IsMatchFlag = EditIsDirectoryMatch || EditIsUrlMatch,
+                            MatchTip = FormatMatchTip(EditIsDirectoryMatch, EditIsUrlMatch),
+                            Data = category
                         };
                     }
                 }
@@ -638,6 +577,7 @@ public class CategoryPageViewModel : CategoryPageModel
                 _toastService.Success(ResourceStrings.Updated);
             }
 
+            var matchedAny = false;
             if (EditIsDirectoryMatch && EditDirectories.Count > 0)
             {
                 try
@@ -650,7 +590,7 @@ public class CategoryPageViewModel : CategoryPageModel
                         var matchCount = await _categoryService.ApplyDirectoryMatchAsync(newDirectories);
                         if (matchCount > 0)
                         {
-                            await LoadDataCoreAsync(default);
+                            matchedAny = true;
                             _toastService.Success(string.Format(ResourceStrings.ApplyDirectoryMatchSuccess, matchCount));
                         }
                     }
@@ -659,162 +599,6 @@ public class CategoryPageViewModel : CategoryPageModel
                 {
                     Logger.Error(ex.Message, ex);
                 }
-            }
-
-            ComputeHasDirectoryMatchCategory();
-            _appEntitiesLoaded = false;
-            ApplySort();
-            EditVisibility = false;
-            SelectedAppCategoryItem = null;
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex.Message, ex);
-            _toastService.Error(ResourceStrings.OperationFailedRetry);
-        }
-    }
-
-    private async Task DelAppCategoryAsync()
-    {
-        if (SelectedAppCategoryItem == null) return;
-
-        try
-        {
-            var category = await _categoryService.GetCategoryAsync(SelectedAppCategoryItem.Data.ID);
-            if (category == null || category.IsSystem)
-                return;
-
-            var message = SelectedAppCategoryItem.Count > 0
-                ? string.Format(ResourceStrings.CategoryHasApps, SelectedAppCategoryItem.Count)
-                : ResourceStrings.WantDeleteCategory;
-
-            var isConfirm = await _dialogService.ShowConfirmDialogAsync(
-                ResourceStrings.DeleteCategory,
-                message);
-
-            if (!isConfirm) return;
-
-            await _categoryService.DeleteAsync(category);
-
-            if (SelectedAppCategoryItem.Count > 0)
-            {
-                var sysCategory = Data.FirstOrDefault(m => m.Data.IsSystem);
-                if (sysCategory != null)
-                {
-                    var index = Data.IndexOf(sysCategory);
-                    if (index != -1)
-                    {
-                        Data[index] = new CategoryModel
-                        {
-                            Data = sysCategory.Data,
-                            Count = sysCategory.Count + SelectedAppCategoryItem.Count,
-                            // 并入的应用时长跟着走，否则卡片上的时长会凭空少一块
-                            Duration = sysCategory.Duration + SelectedAppCategoryItem.Duration,
-                            Ratio = sysCategory.Ratio + SelectedAppCategoryItem.Ratio
-                        };
-                    }
-                }
-            }
-
-            Data.Remove(SelectedAppCategoryItem);
-            SelectedAppCategoryItem = null;
-            _appEntitiesLoaded = false;
-            ApplySort();
-
-            _toastService.Success(ResourceStrings.CategoryDeleted);
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex.Message, ex);
-            _toastService.Error(ResourceStrings.OperationFailedRetry);
-        }
-    }
-
-    private async Task EditWebSiteCategoryActionAsync()
-    {
-        try
-        {
-            if (!IsEditVerify()) return;
-
-            var urlPatternsStr = JsonSerializer.Serialize(EditUrlPatterns.ToList(), ClientJsonContext.Default.ListString);
-
-            if (IsCreate)
-            {
-                if (WebCategoryData.Any(m => EditName.Equals(m.Data.Name, StringComparison.OrdinalIgnoreCase)))
-                {
-                    _toastService.Toast(ResourceStrings.CategoryNameExists, ToastType.Error, IconTypes.ImportantBadge12);
-                    return;
-                }
-
-                var category = await _webDataService.CreateWebSiteCategoryAsync(new WebSiteCategoryModel
-                {
-                    Color = EditColor,
-                    IconFile = EditIconFile,
-                    Name = EditName,
-                    IsUrlMatch = EditIsUrlMatch,
-                    UrlPatterns = urlPatternsStr
-                });
-
-                if (category == null)
-                {
-                    _toastService.Toast(ResourceStrings.CreationFailed, ToastType.Error, IconTypes.ImportantBadge12);
-                    return;
-                }
-
-                WebCategoryData.Add(new WebCategoryModel
-                {
-                    Count = 0,
-                    Data = category
-                });
-                _toastService.Success(ResourceStrings.CreationCompleted);
-            }
-            else
-            {
-                if (SelectedWebCategoryItem?.Data == null)
-                {
-                    _toastService.Error(ResourceStrings.SelectedItemNotFound);
-                    return;
-                }
-
-                if (WebCategoryData.Any(m => EditName.Equals(m.Data.Name, StringComparison.OrdinalIgnoreCase) &&
-                                           m.Data.ID != SelectedWebCategoryItem.Data.ID))
-                {
-                    _toastService.Toast(ResourceStrings.CategoryNameExists, ToastType.Error, IconTypes.ImportantBadge12);
-                    return;
-                }
-
-                var existingIconFile = SelectedWebCategoryItem.Data.IconFile ?? "";
-                var existingColor = string.IsNullOrWhiteSpace(SelectedWebCategoryItem.Data.Color) ? "#00FFAB" : SelectedWebCategoryItem.Data.Color;
-                var existingUrlPatterns = SelectedWebCategoryItem.Data.UrlPatterns ?? "[]";
-
-                var category = SelectedWebCategoryItem.Data with
-                {
-                    Name = EditName,
-                    IconFile = EditIconFile,
-                    Color = EditColor,
-                    IsUrlMatch = EditIsUrlMatch,
-                    UrlPatterns = urlPatternsStr
-                };
-
-                await _webDataService.UpdateWebSiteCategoryAsync(category);
-
-                var item = WebCategoryData.FirstOrDefault(m => m.Data.ID == category.ID);
-                if (item != null)
-                {
-                    var index = WebCategoryData.IndexOf(item);
-                    if (index != -1)
-                    {
-                        WebCategoryData[index] = new WebCategoryModel
-                        {
-                            Count = item.Count,
-                            Duration = item.Duration,
-                            Ratio = item.Ratio,
-                            Data = category
-                        };
-                    }
-                }
-
-                _toastService.Success(ResourceStrings.Updated);
             }
 
             if (EditIsUrlMatch && EditUrlPatterns.Count > 0)
@@ -829,7 +613,7 @@ public class CategoryPageViewModel : CategoryPageModel
                         var matchCount = await _webDataService.ApplyUrlMatchAsync(newPatterns);
                         if (matchCount > 0)
                         {
-                            await LoadDataCoreAsync(default);
+                            matchedAny = true;
                             _toastService.Success(string.Format(ResourceStrings.ApplyUrlMatchSuccess, matchCount));
                         }
                     }
@@ -840,10 +624,71 @@ public class CategoryPageViewModel : CategoryPageModel
                 }
             }
 
-            EditVisibility = false;
-            SelectedWebCategoryItem = null;
-            _webEntitiesLoaded = false;
+            if (matchedAny)
+                await LoadDataCoreAsync(default);
+
+            ComputeHasDirectoryMatchCategory();
+            _entitiesLoaded = false;
             ApplySort();
+            EditVisibility = false;
+            SelectedAppCategoryItem = null;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Error(ResourceStrings.OperationFailedRetry);
+        }
+    }
+
+    private async Task DelCategoryAsync(CategoryModel? target = null)
+    {
+        var selected = target ?? SelectedAppCategoryItem;
+        if (selected?.Data == null) return;
+
+        try
+        {
+            var category = await _categoryService.GetCategoryAsync(selected.Data.ID);
+            if (category == null || category.IsSystem)
+                return;
+
+            var message = selected.Count > 0
+                ? string.Format(ResourceStrings.CategoryHasEntities, selected.Count)
+                : ResourceStrings.WantDeleteCategory;
+
+            var isConfirm = await _dialogService.ShowConfirmDialogAsync(
+                ResourceStrings.DeleteCategory,
+                message);
+
+            if (!isConfirm) return;
+
+            await _categoryService.DeleteAsync(category);
+
+            if (selected.Count > 0)
+            {
+                var sysCategory = Data.FirstOrDefault(m => m.Data.IsSystem);
+                if (sysCategory != null)
+                {
+                    var index = Data.IndexOf(sysCategory);
+                    if (index != -1)
+                    {
+                        Data[index] = new CategoryModel
+                        {
+                            Data = sysCategory.Data,
+                            Count = sysCategory.Count + selected.Count,
+                            Duration = sysCategory.Duration + selected.Duration,
+                            Ratio = sysCategory.Ratio + selected.Ratio
+                        };
+                    }
+                }
+            }
+
+            Data.Remove(selected);
+            if (ReferenceEquals(SelectedAppCategoryItem, selected))
+                SelectedAppCategoryItem = null;
+            _entitiesLoaded = false;
+            ApplySort();
+
+            _toastService.Success(ResourceStrings.CategoryDeleted);
         }
         catch (Exception ex)
         {
@@ -864,75 +709,69 @@ public class CategoryPageViewModel : CategoryPageModel
         _originalDirectories.Clear();
         _originalUrlPatterns.Clear();
 
-        if (obj != null)
+        if (obj is CategoryModel category && category.Data != null)
         {
-            if (ShowType.Id == 0 && obj is CategoryModel appCategory && appCategory.Data != null)
-            {
-                IsSysCategory = appCategory.Data.IsSystem;
-                EditName = appCategory.Data.Name;
-                EditIconFile = appCategory.Data.IconFile;
-                EditColor = string.IsNullOrWhiteSpace(appCategory.Data.Color) ? "#00FFAB" : appCategory.Data.Color;
-                EditIsDirectoryMatch = appCategory.Data.IsDirectoryMatch;
+            SelectedAppCategoryItem = category;
+            IsSysCategory = category.Data.IsSystem;
+            EditName = category.Data.Name;
+            EditIconFile = CategoryIconCatalog.IsSvgIcon(category.Data.IconFile)
+                || CategoryIconCatalog.ResolveKey(category.Data.IconFile) == null && !string.IsNullOrWhiteSpace(category.Data.IconFile)
+                ? category.Data.IconFile!
+                : CategoryIconCatalog.ResolveKey(category.Data.IconFile) ?? CategoryIconCatalog.DefaultIconKey;
+            EditColor = string.IsNullOrWhiteSpace(category.Data.Color) ? "#00FFAB" : category.Data.Color;
+            EditIsDirectoryMatch = category.Data.IsDirectoryMatch;
+            EditIsUrlMatch = category.Data.IsUrlMatch;
 
-                if (!string.IsNullOrWhiteSpace(appCategory.Data.Directories))
+            if (!string.IsNullOrWhiteSpace(category.Data.Directories))
+            {
+                try
                 {
-                    try
+                    var directories = JsonSerializer.Deserialize<List<string>>(category.Data.Directories, ClientJsonContext.Default.ListString);
+                    if (directories != null)
                     {
-                        var directories = JsonSerializer.Deserialize<List<string>>(appCategory.Data.Directories, ClientJsonContext.Default.ListString);
-                        if (directories != null)
+                        foreach (var dir in directories)
                         {
-                            foreach (var dir in directories)
+                            if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
                             {
-                                if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
-                                {
-                                    EditDirectories.Add(dir);
-                                    _originalDirectories.Add(dir);
-                                }
+                                EditDirectories.Add(dir);
+                                _originalDirectories.Add(dir);
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Error($"Failed to load directories: {ex.Message}", ex);
                     }
                 }
-            }
-            else if (ShowType.Id == 1 && obj is WebCategoryModel webCategory && webCategory.Data != null)
-            {
-                IsSysCategory = webCategory.Data.IsSystem;
-                EditName = webCategory.Data.Name;
-                EditIconFile = webCategory.Data.IconFile;
-                EditColor = string.IsNullOrWhiteSpace(webCategory.Data.Color) ? "#00FFAB" : webCategory.Data.Color;
-                EditIsUrlMatch = webCategory.Data.IsUrlMatch;
-
-                if (!string.IsNullOrWhiteSpace(webCategory.Data.UrlPatterns))
+                catch (Exception ex)
                 {
-                    try
+                    Logger.Error($"Failed to load directories: {ex.Message}", ex);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(category.Data.UrlPatterns))
+            {
+                try
+                {
+                    var patterns = JsonSerializer.Deserialize<List<string>>(category.Data.UrlPatterns, ClientJsonContext.Default.ListString);
+                    if (patterns != null)
                     {
-                        var patterns = JsonSerializer.Deserialize<List<string>>(webCategory.Data.UrlPatterns, ClientJsonContext.Default.ListString);
-                        if (patterns != null)
+                        foreach (var pattern in patterns)
                         {
-                            foreach (var pattern in patterns)
+                            if (!string.IsNullOrWhiteSpace(pattern))
                             {
-                                if (!string.IsNullOrWhiteSpace(pattern))
-                                {
-                                    EditUrlPatterns.Add(pattern);
-                                    _originalUrlPatterns.Add(pattern);
-                                }
+                                EditUrlPatterns.Add(pattern);
+                                _originalUrlPatterns.Add(pattern);
                             }
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Logger.Error($"Failed to load URL patterns: {ex.Message}", ex);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Failed to load URL patterns: {ex.Message}", ex);
                 }
             }
         }
         else
         {
             EditName = "";
-            EditIconFile = "avares://ShiJian/Resources/Emoji/(1).png";
+            EditIconFile = CategoryIconCatalog.DefaultIconKey;
             EditColor = "#00FFAB";
             EditIsDirectoryMatch = false;
             EditIsUrlMatch = false;
@@ -943,15 +782,46 @@ public class CategoryPageViewModel : CategoryPageModel
     {
         try
         {
-            if (ShowType.Id == 0 && SelectedAppCategoryItem != null)
+            var selected = obj as CategoryModel ?? SelectedAppCategoryItem;
+            if (selected?.Data != null)
             {
-                _navigationService.NavigateTo(nameof(CategoryAppListPage), SelectedAppCategoryItem);
+                _navigationService.NavigateTo(nameof(CategorySummaryPage),
+                    CategorySummaryNavigationContext.Create(CategorySummaryKind.Unified, selected.Data.ID, selected.Data.Name));
                 SelectedAppCategoryItem = null;
             }
-            else if (ShowType.Id == 1 && SelectedWebCategoryItem != null)
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+        }
+    }
+
+    private void OnGotoAppList(object obj)
+    {
+        try
+        {
+            var selected = obj as CategoryModel ?? SelectedAppCategoryItem;
+            if (selected != null)
             {
-                _navigationService.NavigateTo(nameof(CategoryWebSiteListPage), SelectedWebCategoryItem.Data);
-                SelectedWebCategoryItem = null;
+                _navigationService.NavigateTo(nameof(CategoryAppListPage), selected);
+                SelectedAppCategoryItem = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+        }
+    }
+
+    private void OnGotoWebList(object obj)
+    {
+        try
+        {
+            var selected = obj as CategoryModel ?? SelectedAppCategoryItem;
+            if (selected?.Data != null)
+            {
+                _navigationService.NavigateTo(nameof(CategoryWebSiteListPage), selected.Data);
+                SelectedAppCategoryItem = null;
             }
         }
         catch (Exception ex)
@@ -966,8 +836,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
         if (IsEntityBrowseMode)
         {
-            var alreadyLoaded = ShowType.Id == 0 ? _appEntitiesLoaded : _webEntitiesLoaded;
-            if (alreadyLoaded)
+            if (_entitiesLoaded)
                 ApplyEntityFilterAndSort();
             else
                 _ = ExecuteAsync(LoadDataCoreAsync);
@@ -982,25 +851,19 @@ public class CategoryPageViewModel : CategoryPageModel
     {
         if (IsEntityBrowseMode)
         {
-            if (ShowType.Id == 0)
-                await LoadAppEntitiesAsync(cancellationToken);
-            else
-                await LoadWebEntitiesAsync(cancellationToken);
+            await LoadEntitiesAsync(cancellationToken);
             return;
         }
 
-        if (ShowType.Id == 0)
-            await LoadAppCategoryCardsAsync(cancellationToken);
-        else
-            await LoadWebCategoryCardsAsync(cancellationToken);
+        await LoadCategoryCardsAsync(cancellationToken);
         _categoryStatsDirty = false;
     }
 
     /// <summary>
-    /// 应用分类卡片：数量走按分类的应用列表，时长走「分类 × 小时」矩阵（一次请求拿全今天的），
-    /// 本地按行求和即可，不需要为每个分类单独问一次服务端。
+    /// 统一分类卡片：一次并发获取全部分类、每个分类的应用数与网站数、及今日实体时长，
+    /// 合并聚合在同一张卡片上。
     /// </summary>
-    private async Task LoadAppCategoryCardsAsync(CancellationToken cancellationToken)
+    private async Task LoadCategoryCardsAsync(CancellationToken cancellationToken)
     {
         Data.Clear();
         var today = DateTime.Now.Date;
@@ -1008,27 +871,29 @@ public class CategoryPageViewModel : CategoryPageModel
         var categories = await _categoryService.GetCategoriesAsync(cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
 
-        // 数量仍是「每个分类一次」，但改成并发，不再串行排队
-        var countTasks = categories.Select(m => _appDataService.GetAppCountByCategoryIDAsync(m.ID)).ToArray();
-        // 时长走统一实体表：浏览器内被统计的网站时长已经从浏览器里扣掉了，
-        // 否则分类页的「应用时长」会把同一分钟算两遍
+        var appCountTasks = categories.Select(m => _appDataService.GetAppCountByCategoryIDAsync(m.ID)).ToArray();
+        var siteCountTasks = categories.Select(m => _webDataService.GetWebSitesCountAsync(m.ID)).ToArray();
         var entityTask = _entityDataService.GetEntityListAsync(today, today, false, cancellationToken);
 
-        var counts = await Task.WhenAll(countTasks);
+        var appCounts = await Task.WhenAll(appCountTasks);
+        var siteCounts = await Task.WhenAll(siteCountTasks);
         var entity = await entityTask;
         cancellationToken.ThrowIfCancellationRequested();
 
-        var durationByCategory = SumEntityByCategory(entity, "app");
+        var durationByCategory = SumEntityByCategory(entity);
 
         var cards = new List<CategoryModel>(categories.Count);
         for (var i = 0; i < categories.Count; i++)
+        {
+            var cat = categories[i];
             cards.Add(new CategoryModel
             {
-                Data = categories[i],
-                Count = counts[i],
-                IsMatchFlag = categories[i].IsDirectoryMatch,
-                MatchTip = ResourceStrings.DirectoryMatch
+                Data = cat,
+                Count = appCounts[i] + siteCounts[i],
+                IsMatchFlag = cat.IsDirectoryMatch || cat.IsUrlMatch,
+                MatchTip = FormatMatchTip(cat.IsDirectoryMatch, cat.IsUrlMatch)
             });
+        }
 
         CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
 
@@ -1038,50 +903,16 @@ public class CategoryPageViewModel : CategoryPageModel
         RebuildCategoryBuckets();
     }
 
-    private async Task LoadWebCategoryCardsAsync(CancellationToken cancellationToken)
-    {
-        HasDirectoryMatchCategory = false;
-        WebCategoryData.Clear();
-
-        var today = DateTime.Now.Date;
-        var webCategories = await _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var countTasks = webCategories.Select(m => _webDataService.GetWebSitesCountAsync(m.ID)).ToArray();
-        // 网站分类页固定用「站点独立成行」的口径：打开「网页并入浏览器」也不该让网站分类集体归零
-        var entityTask = _entityDataService.GetEntityListAsync(today, today, false, cancellationToken);
-
-        var counts = await Task.WhenAll(countTasks);
-        var entity = await entityTask;
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var durationByCategory = SumEntityByCategory(entity, "site");
-
-        var cards = new List<WebCategoryModel>(webCategories.Count);
-        for (var i = 0; i < webCategories.Count; i++)
-            cards.Add(new WebCategoryModel
-            {
-                Data = webCategories[i],
-                Count = counts[i],
-                IsMatchFlag = webCategories[i].IsUrlMatch,
-                MatchTip = ResourceStrings.UrlMatch
-            });
-
-        CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
-
-        foreach (var card in CategoryCardStats.Sort(cards, CurrentSortMode, m => m.Data?.Name)) WebCategoryData.Add(card);
-        RebuildCategoryBuckets();
-    }
-
-    private async Task LoadAppEntitiesAsync(CancellationToken cancellationToken)
+    private async Task LoadEntitiesAsync(CancellationToken cancellationToken)
     {
         var today = DateTime.Now.Date;
         var appsTask = _appDataService.GetAllAppsAsync(cancellationToken);
+        var sitesTask = _webSiteDataService.GetAllWebSitesAsync(cancellationToken);
         var catsTask = _categoryService.GetCategoriesAsync(cancellationToken);
         var groupsTask = _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken);
         var entityTask = _entityDataService.GetEntityListAsync(today, today, false, cancellationToken);
 
-        await Task.WhenAll(appsTask, catsTask, groupsTask, entityTask);
+        await Task.WhenAll(appsTask, sitesTask, catsTask, groupsTask, entityTask);
         cancellationToken.ThrowIfCancellationRequested();
 
         var categories = catsTask.Result;
@@ -1099,41 +930,22 @@ public class CategoryPageViewModel : CategoryPageModel
             groupsTask.Result,
             entityTask.Result,
             ResourceStrings.SystemCategoryUncategorized);
-        _appEntitiesLoaded = true;
-        ApplyEntityFilterAndSort();
-    }
-
-    private async Task LoadWebEntitiesAsync(CancellationToken cancellationToken)
-    {
-        var today = DateTime.Now.Date;
-        var sitesTask = _webSiteDataService.GetAllWebSitesAsync(cancellationToken);
-        var catsTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
-        var groupsTask = _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken);
-        var entityTask = _entityDataService.GetEntityListAsync(today, today, false, cancellationToken);
-
-        await Task.WhenAll(sitesTask, catsTask, groupsTask, entityTask);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        var categories = catsTask.Result;
-        if (WebCategoryData.Count == 0 && categories.Count > 0)
-        {
-            foreach (var c in categories)
-                WebCategoryData.Add(new WebCategoryModel { Data = c });
-            RebuildCategoryBuckets();
-        }
-
         _allWebEntityRows = CategoryEntityViewHelper.BuildSiteRows(
             sitesTask.Result,
             categories,
             groupsTask.Result,
             entityTask.Result,
             ResourceStrings.SystemCategoryUncategorized);
-        _webEntitiesLoaded = true;
+        _entitiesLoaded = true;
         ApplyEntityFilterAndSort();
     }
 
-    private IReadOnlyList<CategoryEntityRow> CurrentSourceEntities =>
-        ShowType.Id == 0 ? _allAppEntityRows : _allWebEntityRows;
+    private IReadOnlyList<CategoryEntityRow> CurrentSourceEntities => EntityTypeMode?.Id switch
+    {
+        1 => _allAppEntityRows,
+        2 => _allWebEntityRows,
+        _ => _allAppEntityRows.Concat(_allWebEntityRows).ToList()
+    };
 
     private void ApplyEntityFilterAndSort()
     {
@@ -1157,43 +969,24 @@ public class CategoryPageViewModel : CategoryPageModel
         NotifyEntityListState();
     }
 
-    /// <summary>打开分类选择浮层前刷新可选分类清单（与当前应用/网站页签对应）</summary>
+    /// <summary>打开分类选择浮层前刷新统一共享分类清单</summary>
     public void PrepareTagPicker(CategoryEntityRow row)
     {
         _tagTargetRow = row;
         TagPickerOptions.Clear();
 
-        if (!row.IsSite)
+        foreach (var cat in Data)
         {
-            foreach (var cat in Data)
+            if (cat.Data == null) continue;
+            TagPickerOptions.Add(new CategoryTagOption
             {
-                if (cat.Data == null) continue;
-                TagPickerOptions.Add(new CategoryTagOption
-                {
-                    Id = cat.Data.ID,
-                    Name = cat.Data.Name ?? ResourceStrings.SystemCategoryUncategorized,
-                    Color = string.IsNullOrWhiteSpace(cat.Data.Color) ? "#8A8A8A" : cat.Data.Color!,
-                    Icon = cat.Data.IconFile,
-                    IsSystem = cat.Data.IsSystem,
-                    IsSelected = cat.Data.ID == row.CategoryId
-                });
-            }
-        }
-        else
-        {
-            foreach (var cat in WebCategoryData)
-            {
-                if (cat.Data == null) continue;
-                TagPickerOptions.Add(new CategoryTagOption
-                {
-                    Id = cat.Data.ID,
-                    Name = cat.Data.Name ?? ResourceStrings.SystemCategoryUncategorized,
-                    Color = string.IsNullOrWhiteSpace(cat.Data.Color) ? "#8A8A8A" : cat.Data.Color!,
-                    Icon = cat.Data.IconFile,
-                    IsSystem = cat.Data.IsSystem,
-                    IsSelected = cat.Data.ID == row.CategoryId
-                });
-            }
+                Id = cat.Data.ID,
+                Name = cat.Data.Name ?? ResourceStrings.SystemCategoryUncategorized,
+                Color = string.IsNullOrWhiteSpace(cat.Data.Color) ? "#8A8A8A" : cat.Data.Color!,
+                Icon = cat.Data.IconFile,
+                IsSystem = cat.Data.IsSystem,
+                IsSelected = cat.Data.ID == row.CategoryId
+            });
         }
     }
 
@@ -1254,17 +1047,15 @@ public class CategoryPageViewModel : CategoryPageModel
     }
 
     /// <summary>
-    /// 实体行按分类求和。`side` 取 `app`（应用分类）或 `site`（网站分类）：
-    /// 两套分类命名空间各自自增，ID 相同也不代表同一个分类。
+    /// 实体行按统一分类求和（同时累计应用与网站时长）。
     /// </summary>
-    private static Dictionary<int, double> SumEntityByCategory(EntityListModel? entity, string side)
+    private static Dictionary<int, double> SumEntityByCategory(EntityListModel? entity)
     {
         var result = new Dictionary<int, double>();
         if (entity == null) return result;
 
         foreach (var row in entity.Rows)
         {
-            if (side == "site" ? row.CategoryKind != "site" : row.CategoryKind == "site") continue;
             if (row.CategoryId <= 0 || row.Seconds <= 0) continue;
 
             result[row.CategoryId] = result.TryGetValue(row.CategoryId, out var current)
@@ -1281,12 +1072,10 @@ public class CategoryPageViewModel : CategoryPageModel
         Data?.Clear();
         ActiveAppCategories?.Clear();
         EmptyAppCategories?.Clear();
-        WebCategoryData?.Clear();
-        ActiveWebCategories?.Clear();
-        EmptyWebCategories?.Clear();
         FilteredEntities?.Clear();
         TagPickerOptions?.Clear();
         EditDirectories?.Clear();
+        EditUrlPatterns?.Clear();
         base.Dispose();
     }
 }

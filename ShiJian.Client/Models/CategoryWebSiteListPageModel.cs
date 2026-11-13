@@ -1,13 +1,14 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ShiJian.Client.Controls.Select;
+using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Web;
 
 namespace ShiJian.Client.Models;
 
 public class CategoryWebSiteListPageModel : ModelBase
 {
-    private WebSiteCategoryModel? _category;
+    private CategoryModel? _category;
     private ObservableCollection<WebSiteModel> _categoryWebSiteList = new();
     private bool _chooseVisibility;
     private string _searchInput = string.Empty;
@@ -54,7 +55,7 @@ public class CategoryWebSiteListPageModel : ModelBase
         }
     }
 
-    public WebSiteCategoryModel? Category
+    public CategoryModel? Category
     {
         get => _category;
         set

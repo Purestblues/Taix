@@ -66,7 +66,7 @@ public class UIServicer : IUIServicer, IDialogService
         IEnumerable<string>? existingNames = null,
         IEnumerable<string>? existingColors = null)
     {
-        const string defaultIcon = "avares://ShiJian/Resources/Emoji/(1).png";
+        const string defaultIcon = ShiJian.Client.Librarys.Image.CategoryIconCatalog.DefaultIconKey;
         const int maxNameLength = 10;
 
         var existingNameSet = existingNames?.ToHashSet(StringComparer.OrdinalIgnoreCase) ?? new HashSet<string>();

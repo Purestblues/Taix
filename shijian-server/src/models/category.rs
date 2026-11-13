@@ -19,6 +19,14 @@ pub struct CategoryModel {
     pub directories: Option<String>,
     #[serde(default)]
     #[sqlx(default)]
+    #[sqlx(rename = "IsUrlMatch")]
+    pub is_url_match: bool,
+    #[serde(default)]
+    #[sqlx(default)]
+    #[sqlx(rename = "UrlPatterns")]
+    pub url_patterns: Option<String>,
+    #[serde(default)]
+    #[sqlx(default)]
     #[sqlx(rename = "IsSystem")]
     pub is_system: bool,
 }

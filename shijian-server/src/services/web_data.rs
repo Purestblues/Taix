@@ -42,14 +42,13 @@ struct CompiledUrlMatchRule {
     regex_set: Arc<RegexSet>,
 }
 
-async fn invalidate_web_category_cache() {
+pub(crate) async fn invalidate_web_category_caches() {
     let mut cache = web_category_cache().write().await;
     *cache = None;
-}
-
-async fn invalidate_url_match_cache() {
-    let mut cache = url_match_cache().write().await;
-    *cache = None;
+    let mut url_cache = url_match_cache().write().await;
+    *url_cache = None;
+    let mut sys_cache = system_category_id_cache().write().await;
+    *sys_cache = None;
 }
 
 /// 查询 WebSiteModels 并计算应排除的 SiteId 列表
@@ -275,7 +274,7 @@ impl WebDataService {
         let cols = format!("s.Duration AS site_duration,\n{}", WEB_SITE_JOIN_COLS_SQL);
         let sql = format!(
             "SELECT {cols} FROM WebSiteModels s \
-             LEFT JOIN WebSiteCategoryModels c ON s.CategoryID = c.ID {where}",
+             LEFT JOIN CategoryModels c ON s.CategoryID = c.ID {where}",
             cols = cols,
             where = if category_id.is_some() {
                 "WHERE s.CategoryID = ?"
@@ -315,11 +314,11 @@ impl WebDataService {
         }
 
         let mut cats: Vec<WebSiteCategoryModel> =
-            sqlx::query_as("SELECT * FROM WebSiteCategoryModels WHERE IsSystem = 0")
+            sqlx::query_as("SELECT ID, Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem FROM CategoryModels WHERE IsSystem = 0")
                 .fetch_all(pool).await?;
 
         let system: Option<WebSiteCategoryModel> =
-            sqlx::query_as("SELECT * FROM WebSiteCategoryModels WHERE IsSystem = 1 LIMIT 1")
+            sqlx::query_as("SELECT ID, Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem FROM CategoryModels WHERE IsSystem = 1 LIMIT 1")
                 .fetch_optional(pool).await?;
 
         let result = if let Some(sys) = system {
@@ -338,12 +337,11 @@ impl WebDataService {
 
     pub async fn create_web_site_category(pool: &SqlitePool, data: WebSiteCategoryModel) -> Result<WebSiteCategoryModel, AppError> {
         info!("create_web_site_category: name={}", data.name);
-        let id = sqlx::query("INSERT INTO WebSiteCategoryModels (Name, IconFile, Color, IsUrlMatch, UrlPatterns) VALUES (?, ?, ?, ?, ?)")
+        let id = sqlx::query("INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsUrlMatch, UrlPatterns) VALUES (?, ?, ?, 0, '[]', ?, ?)")
             .bind(&data.name).bind(&data.icon_file).bind(&data.color)
             .bind(data.is_url_match).bind(&data.url_patterns)
             .execute(pool).await?.last_insert_rowid();
-        invalidate_web_category_cache().await;
-        invalidate_url_match_cache().await;
+        crate::services::category::invalidate_category_cache().await;
         Ok(WebSiteCategoryModel {
             id,
             name: data.name,
@@ -357,64 +355,22 @@ impl WebDataService {
 
     pub async fn update_web_site_category(pool: &SqlitePool, id: i64, data: WebSiteCategoryModel) -> Result<(), AppError> {
         info!("update_web_site_category: id={}", id);
-        let existing: Option<WebSiteCategoryModel> = sqlx::query_as("SELECT * FROM WebSiteCategoryModels WHERE ID = ?")
+        let existing: Option<WebSiteCategoryModel> = sqlx::query_as("SELECT ID, Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem FROM CategoryModels WHERE ID = ?")
             .bind(id).fetch_optional(pool).await?;
         if existing.is_none() {
             return Err(AppError::Business("分类不存在".to_string()));
         }
-        sqlx::query("UPDATE WebSiteCategoryModels SET Name = ?, IconFile = ?, Color = ?, IsUrlMatch = ?, UrlPatterns = ? WHERE ID = ?")
+        sqlx::query("UPDATE CategoryModels SET Name = ?, IconFile = ?, Color = ?, IsUrlMatch = ?, UrlPatterns = ? WHERE ID = ?")
             .bind(&data.name).bind(&data.icon_file).bind(&data.color)
             .bind(data.is_url_match).bind(&data.url_patterns).bind(id)
             .execute(pool).await?;
-        invalidate_web_category_cache().await;
-        invalidate_url_match_cache().await;
+        crate::services::category::invalidate_category_cache().await;
         Ok(())
     }
 
     pub async fn delete_web_site_category(pool: &SqlitePool, id: i64) -> Result<(), AppError> {
         info!("delete_web_site_category: id={}", id);
-
-        let mut tx = pool.begin().await?;
-
-        let existing: Option<WebSiteCategoryModel> = sqlx::query_as("SELECT * FROM WebSiteCategoryModels WHERE ID = ?")
-            .bind(id).fetch_optional(&mut *tx).await?;
-
-        let Some(existing) = existing else {
-            return Err(AppError::Business("分类不存在".to_string()));
-        };
-
-        if existing.is_system {
-            return Err(AppError::Business("系统分类不能删除".to_string()));
-        }
-
-        let site_count: i64 =
-            sqlx::query_scalar("SELECT COUNT(*) FROM WebSiteModels WHERE CategoryID = ?")
-                .bind(id)
-                .fetch_one(&mut *tx)
-                .await?;
-
-        if site_count > 0 {
-            let system_category_id: i64 =
-                sqlx::query_scalar("SELECT ID FROM WebSiteCategoryModels WHERE IsSystem = 1 LIMIT 1")
-                    .fetch_one(&mut *tx)
-                    .await?;
-
-            sqlx::query("UPDATE WebSiteModels SET CategoryID = ? WHERE CategoryID = ?")
-                .bind(system_category_id)
-                .bind(id)
-                .execute(&mut *tx)
-                .await?;
-        }
-
-        sqlx::query("DELETE FROM WebSiteCategoryModels WHERE ID = ?")
-            .bind(id)
-            .execute(&mut *tx)
-            .await?;
-
-        tx.commit().await?;
-        invalidate_web_category_cache().await;
-        invalidate_url_match_cache().await;
-        Ok(())
+        crate::services::category::CategoryService::delete_category(pool, id).await
     }
 
     pub async fn get_web_site(pool: &SqlitePool, id: i64) -> Result<Option<WebSiteModel>, AppError> {
@@ -442,7 +398,7 @@ impl WebDataService {
     pub async fn update_web_sites_category(pool: &SqlitePool, req: UpdateSitesCategoryRequest) -> Result<(), AppError> {
         info!("update_web_sites_category: site_ids={:?} category_id={}", req.site_ids, req.category_id);
         let category_id = if req.category_id > 0 {
-            let cat_exists: Option<(i64,)> = sqlx::query_as("SELECT ID FROM WebSiteCategoryModels WHERE ID = ?")
+            let cat_exists: Option<(i64,)> = sqlx::query_as("SELECT ID FROM CategoryModels WHERE ID = ?")
                 .bind(req.category_id)
                 .fetch_optional(pool)
                 .await?;
@@ -458,7 +414,7 @@ impl WebDataService {
         let category_id = if category_id > 0 {
             category_id
         } else {
-            let system_id: Option<(i64,)> = sqlx::query_as("SELECT ID FROM WebSiteCategoryModels WHERE IsSystem = 1 LIMIT 1")
+            let system_id: Option<(i64,)> = sqlx::query_as("SELECT ID FROM CategoryModels WHERE IsSystem = 1 LIMIT 1")
                 .fetch_optional(pool)
                 .await?;
             match system_id {
@@ -487,7 +443,7 @@ impl WebDataService {
 
     pub async fn get_unset_category_web_sites(pool: &SqlitePool, config_service: &ConfigService) -> Result<Vec<WebSiteModel>, AppError> {
         debug!("get_unset_category_web_sites");
-        let system_category_id: Option<(i64,)> = sqlx::query_as("SELECT ID FROM WebSiteCategoryModels WHERE IsSystem = 1 LIMIT 1")
+        let system_category_id: Option<(i64,)> = sqlx::query_as("SELECT ID FROM CategoryModels WHERE IsSystem = 1 LIMIT 1")
             .fetch_optional(pool).await?;
         let category_id = match system_category_id {
             Some((id,)) => id,
@@ -497,7 +453,7 @@ impl WebDataService {
         let cols = format!("s.Duration AS site_duration,\n{}", WEB_SITE_JOIN_COLS_SQL);
         let sql = format!(
             "SELECT {cols} FROM WebSiteModels s \
-             LEFT JOIN WebSiteCategoryModels c ON s.CategoryID = c.ID \
+             LEFT JOIN CategoryModels c ON s.CategoryID = c.ID \
              WHERE s.CategoryID = ?",
             cols = cols
         );
@@ -577,7 +533,7 @@ impl WebDataService {
             r#"SELECT {cols}, SUM(wbl.Duration) AS site_duration
             FROM WebBrowseLogModels wbl
             LEFT JOIN WebSiteModels s ON wbl.SiteId = s.ID
-            LEFT JOIN WebSiteCategoryModels c ON s.CategoryID = c.ID
+            LEFT JOIN CategoryModels c ON s.CategoryID = c.ID
             WHERE wbl.LogTime >= ? AND wbl.LogTime < ? AND wbl.SiteId != 0
             GROUP BY wbl.SiteId
             ORDER BY site_duration DESC"#,
@@ -630,7 +586,7 @@ impl WebDataService {
             sqlx::query_as(
                 r#"SELECT wsc.ID, wsc.Name, SUM(wbl.Duration) as total FROM WebBrowseLogModels wbl
                 JOIN WebSiteModels ws ON wbl.SiteId = ws.ID
-                JOIN WebSiteCategoryModels wsc ON ws.CategoryID = wsc.ID
+                JOIN CategoryModels wsc ON ws.CategoryID = wsc.ID
                 WHERE wbl.LogTime >= ? AND wbl.LogTime <= ?
                 GROUP BY wsc.ID, wsc.Name"#
             ).bind(utc_start).bind(utc_end).fetch_all(pool).await?
@@ -639,7 +595,7 @@ impl WebDataService {
             let sql = format!(
                 r#"SELECT wsc.ID, wsc.Name, SUM(wbl.Duration) as total FROM WebBrowseLogModels wbl
                 JOIN WebSiteModels ws ON wbl.SiteId = ws.ID
-                JOIN WebSiteCategoryModels wsc ON ws.CategoryID = wsc.ID
+                JOIN CategoryModels wsc ON ws.CategoryID = wsc.ID
                 WHERE wbl.LogTime >= ? AND wbl.LogTime <= ? AND wbl.SiteId NOT IN ({})
                 GROUP BY wsc.ID, wsc.Name"#,
                 placeholders
@@ -992,7 +948,7 @@ impl WebDataService {
             FROM WebBrowseLogModels wbl
             JOIN WebUrlModels wu ON wbl.UrlId = wu.ID
             JOIN WebSiteModels ws ON wbl.SiteId = ws.ID
-            LEFT JOIN WebSiteCategoryModels wsc ON ws.CategoryID = wsc.ID
+            LEFT JOIN CategoryModels wsc ON ws.CategoryID = wsc.ID
             WHERE wbl.LogTime >= ? AND wbl.LogTime <= ?"#
         );
         if site_id > 0 {
@@ -1090,7 +1046,7 @@ impl WebDataService {
             r#"SELECT {cols}, SUM(wbl.Duration) AS site_duration
             FROM WebBrowseLogModels wbl
             LEFT JOIN WebSiteModels s ON wbl.SiteId = s.ID
-            LEFT JOIN WebSiteCategoryModels c ON s.CategoryID = c.ID
+            LEFT JOIN CategoryModels c ON s.CategoryID = c.ID
             WHERE wbl.LogTime >= ? AND wbl.LogTime <= ?
             GROUP BY wbl.SiteId"#,
             cols = WEB_SITE_JOIN_COLS_SQL
@@ -1149,7 +1105,7 @@ impl WebDataService {
             FROM WebBrowseLogModels wbl
             JOIN WebUrlModels wu ON wbl.UrlId = wu.ID
             JOIN WebSiteModels ws ON wbl.SiteId = ws.ID
-            LEFT JOIN WebSiteCategoryModels wsc ON ws.CategoryID = wsc.ID
+            LEFT JOIN CategoryModels wsc ON ws.CategoryID = wsc.ID
             WHERE wbl.LogTime >= ? AND wbl.LogTime <= ?
             ORDER BY wbl.LogTime DESC
             "#
@@ -1228,7 +1184,7 @@ impl WebDataService {
 
         let mut to_update: Vec<(i64, i64)> = Vec::new();
         let system_category_id: i64 = sqlx::query_scalar(
-            "SELECT ID FROM WebSiteCategoryModels WHERE IsSystem = 1 LIMIT 1"
+            "SELECT ID FROM CategoryModels WHERE IsSystem = 1 LIMIT 1"
         )
         .fetch_optional(pool)
         .await?
@@ -1671,7 +1627,7 @@ async fn load_system_category_id(pool: &SqlitePool) -> Result<i64, AppError> {
         }
     }
 
-    let id: i64 = sqlx::query_scalar("SELECT ID FROM WebSiteCategoryModels WHERE IsSystem = 1 LIMIT 1")
+    let id: i64 = sqlx::query_scalar("SELECT ID FROM CategoryModels WHERE IsSystem = 1 LIMIT 1")
         .fetch_optional(pool)
         .await?
         .unwrap_or(0);

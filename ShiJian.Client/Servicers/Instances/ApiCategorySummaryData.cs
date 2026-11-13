@@ -30,6 +30,7 @@ public class ApiCategorySummaryData : ICategorySummaryData
         {
             CategorySummaryKind.App => _apiClient.GetAppCategorySummaryAsync(categoryId, start, end, prevStart, prevEnd, cancellationToken),
             CategorySummaryKind.Web => _apiClient.GetWebCategorySummaryAsync(categoryId, start, end, prevStart, prevEnd, cancellationToken),
+            CategorySummaryKind.Unified => _apiClient.GetCategorySummaryAsync(categoryId, start, end, prevStart, prevEnd, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
     }
@@ -45,6 +46,7 @@ public class ApiCategorySummaryData : ICategorySummaryData
         {
             CategorySummaryKind.App => _apiClient.GetAppCategoryMembersAsync(categoryId, start, end, cancellationToken),
             CategorySummaryKind.Web => _apiClient.GetWebCategoryMembersAsync(categoryId, start, end, cancellationToken),
+            CategorySummaryKind.Unified => _apiClient.GetCategoryMembersAsync(categoryId, start, end, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(kind)),
         };
     }

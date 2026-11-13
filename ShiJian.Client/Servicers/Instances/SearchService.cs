@@ -93,9 +93,9 @@ public class SearchService : ISearchService
             "搜索合并组");
         await Task.WhenAll(corpusTask, groupsTask).ConfigureAwait(false);
 
-        var (apps, sites, appCategories, webCategories) = await corpusTask;
+        var (apps, sites, categories, _) = await corpusTask;
         var groups = await groupsTask;
-        return SearchCore(keyword, apps, sites, appCategories, webCategories, groups);
+        return SearchCore(keyword, apps, sites, categories, Array.Empty<WebSiteCategoryModel>(), groups);
     }
 
     public static IReadOnlyList<SearchResultItem> SearchCore(
@@ -330,53 +330,36 @@ public class SearchService : ISearchService
 
         await Task.WhenAll(entityTask, corpusTask, appCategoryTodayTask, webCategoryTodayTask).ConfigureAwait(false);
 
-        var (apps, sites, appCategories, webCategories) = await corpusTask;
+        var (apps, sites, categories, _) = await corpusTask;
         var appCategoryToday = await appCategoryTodayTask;
         var webCategoryToday = await webCategoryTodayTask;
         var entityList = await entityTask;
 
-        // ColumnDataModel.Values 聚合为 categoryId -> totalSeconds
-        var appCatSeconds = SumByCategory(appCategoryToday);
-        var webCatSeconds = SumByCategory(webCategoryToday);
+        // ColumnDataModel.Values 聚合为 categoryId -> totalSeconds（应用 + 网站合并）
+        var catSeconds = SumByCategory(appCategoryToday);
+        foreach (var kv in SumByCategory(webCategoryToday))
+        {
+            catSeconds[kv.Key] = catSeconds.TryGetValue(kv.Key, out var cur) ? cur + kv.Value : kv.Value;
+        }
 
         var result = new List<SearchResultItem>(max + 16);
 
-        // 分类区段
-        var categoryCount = appCategories.Count + webCategories.Count;
-        if (categoryCount > 0)
+        // 统一分类区段（N8）
+        if (categories.Count > 0)
         {
             result.Add(MakeHeader(ResolveResourceString("SearchSectionCategories", "浏览分类")));
 
-            if (appCategories.Count > 0)
-            {
-                // 按今日时长降序，无数据放尾部并按名称排序
-                var sortedAppCats = appCategories
-                    .OrderByDescending(c => appCatSeconds.GetValueOrDefault(c.ID, 0))
-                    .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                result.Add(BuildCategoryCard(
-                    type: SearchResultType.CategoryApp,
-                    title: ResolveResourceString("SearchTypeApp", "应用"),
-                    sorted: sortedAppCats,
-                    nameOf: c => c.Name ?? string.Empty,
-                    iconOf: c => c.IconFile,
-                    secondsOf: c => appCatSeconds.GetValueOrDefault(c.ID, 0)));
-            }
-
-            if (webCategories.Count > 0)
-            {
-                var sortedWebCats = webCategories
-                    .OrderByDescending(c => webCatSeconds.GetValueOrDefault(c.ID, 0))
-                    .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-                result.Add(BuildCategoryCard(
-                    type: SearchResultType.CategoryWeb,
-                    title: ResolveResourceString("SearchTypeWeb", "网站"),
-                    sorted: sortedWebCats,
-                    nameOf: c => c.Name ?? string.Empty,
-                    iconOf: c => c.IconFile,
-                    secondsOf: c => webCatSeconds.GetValueOrDefault(c.ID, 0)));
-            }
+            var sortedCats = categories
+                .OrderByDescending(c => catSeconds.GetValueOrDefault(c.ID, 0))
+                .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            result.Add(BuildCategoryCard(
+                type: SearchResultType.CategoryApp,
+                title: ResolveResourceString("BrowseByCategory", "分类"),
+                sorted: sortedCats,
+                nameOf: c => c.Name ?? string.Empty,
+                iconOf: c => c.IconFile,
+                secondsOf: c => catSeconds.GetValueOrDefault(c.ID, 0)));
         }
 
         // 今日活跃区段：优先消费服务端统一实体行（已包含合并组与浏览器并入规则）
@@ -601,12 +584,12 @@ public class SearchService : ISearchService
             case SearchResultType.CategoryApp when item.PayloadModel is CategoryModel appCat:
                 _navigationService.NavigateTo(
                     nameof(CategorySummaryPage),
-                    CategorySummaryNavigationContext.Create(CategorySummaryKind.App, appCat.ID, appCat.Name));
+                    CategorySummaryNavigationContext.Create(CategorySummaryKind.Unified, appCat.ID, appCat.Name));
                 break;
             case SearchResultType.CategoryWeb when item.PayloadModel is WebSiteCategoryModel webCat:
                 _navigationService.NavigateTo(
                     nameof(CategorySummaryPage),
-                    CategorySummaryNavigationContext.Create(CategorySummaryKind.Web, webCat.ID, webCat.Name));
+                    CategorySummaryNavigationContext.Create(CategorySummaryKind.Unified, webCat.ID, webCat.Name));
                 break;
         }
     }
@@ -654,12 +637,9 @@ public class SearchService : ISearchService
                 _cachedAppCategories = await SafeAsync<IReadOnlyCollection<CategoryModel>>(
                     async () => await _categorys.GetCategoriesAsync(cancellationToken),
                     Array.Empty<CategoryModel>(),
-                    "应用分类列表").ConfigureAwait(false);
+                    "统一分类列表").ConfigureAwait(false);
 
-                _cachedWebCategories = await SafeAsync<IReadOnlyCollection<WebSiteCategoryModel>>(
-                    async () => await _webData.GetWebSiteCategoriesAsync(cancellationToken),
-                    Array.Empty<WebSiteCategoryModel>(),
-                    "网站分类列表").ConfigureAwait(false);
+                _cachedWebCategories = Array.Empty<WebSiteCategoryModel>();
 
                 _cacheTime = DateTime.UtcNow;
             }

@@ -257,7 +257,7 @@ public partial class DataPageViewModel : DataPageModel
                 break;
             case ClockLegendItem { CategoryData: Shared.Models.CategoryModel category }:
                 _navigationService.NavigateTo(nameof(CategorySummaryPage),
-                    CategorySummaryNavigationContext.Create(CategorySummaryKind.App, category.ID, category.Name));
+                    CategorySummaryNavigationContext.Create(CategorySummaryKind.Unified, category.ID, category.Name));
                 break;
         }
     }
@@ -465,13 +465,11 @@ public partial class DataPageViewModel : DataPageModel
 
         var hoursTask = _entityData.GetEntityHoursAsync(rangeStart, rangeEnd, "month", false, ct);
         var categoriesTask = _categoryService.GetCategoriesAsync(ct);
-        var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(ct);
-        await Task.WhenAll(hoursTask, categoriesTask, webCategoriesTask);
+        await Task.WhenAll(hoursTask, categoriesTask);
         ct.ThrowIfCancellationRequested();
 
         var entityHours = await hoursTask;
         var categoryMap = (await categoriesTask).ToDictionary(c => c.ID);
-        var webCategoryMap = (await webCategoriesTask).ToDictionary(c => c.ID);
         var rows = entityHours?.Rows ?? [];
 
         for (var i = 0; i < 12; i++)
@@ -496,21 +494,9 @@ public partial class DataPageViewModel : DataPageModel
                 var startFraction = slotFraction + slotWidth * cursor;
                 cursor += share;
 
-                var isSite = row.Kind == "site" || row.CategoryKind == "site";
-                string categoryColor;
-                object? categoryData;
-                if (isSite)
-                {
-                    webCategoryMap.TryGetValue(row.CategoryId, out var webCat);
-                    categoryColor = ResolveCategoryColor(webCat?.Color, webCat?.IsSystem ?? false, webCat != null, isDark);
-                    categoryData = webCat;
-                }
-                else
-                {
-                    categoryMap.TryGetValue(row.CategoryId, out var catModel);
-                    categoryColor = ResolveCategoryColor(catModel, isDark);
-                    categoryData = catModel;
-                }
+                categoryMap.TryGetValue(row.CategoryId, out var catModel);
+                var categoryColor = ResolveCategoryColor(catModel, isDark);
+                object? categoryData = catModel;
 
                 segments.Add(new ClockSegment
                 {
@@ -676,14 +662,13 @@ public partial class DataPageViewModel : DataPageModel
         var prevHoursTask = _entityData.GetEntityHoursAsync(prevStart, prevEnd, bucketMode, false, ct);
         var summaryTask = _entityData.GetEntitySummaryAsync(start, end, false, ct);
         var prevSummaryTask = _entityData.GetEntitySummaryAsync(prevStart, prevEnd, false, ct);
-        var appCategoriesTask = _categoryService.GetCategoriesAsync(ct);
-        var siteCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(ct);
+        var categoriesTask = _categoryService.GetCategoriesAsync(ct);
         var spansTask = GetSpansAsync(start, end, isWeb: false, ct);
 
         try
         {
             await Task.WhenAll(currentHoursTask, prevHoursTask, summaryTask, prevSummaryTask,
-                appCategoriesTask, siteCategoriesTask, spansTask);
+                categoriesTask, spansTask);
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
         {
@@ -698,8 +683,7 @@ public partial class DataPageViewModel : DataPageModel
         var prevHours = await prevHoursTask;
         var summary = await summaryTask;
         var prevSummary = await prevSummaryTask;
-        var appCategories = await appCategoriesTask;
-        var siteCategories = await siteCategoriesTask;
+        var categories = await categoriesTask;
         var spans = await spansTask;
         var periodSpans = spans.Select(s => (s.Start, s.End)).ToList();
 
@@ -781,8 +765,7 @@ public partial class DataPageViewModel : DataPageModel
 
         var unifiedCategories = ChartDataMapper.BuildUnifiedCategorySeries(
             currentHours,
-            ChartDataMapper.ToVisualMap(appCategories, ResourceStrings.Uncategorized),
-            ChartDataMapper.ToVisualMap(siteCategories, ResourceStrings.Uncategorized),
+            ChartDataMapper.ToVisualMap(categories, ResourceStrings.Uncategorized),
             ResourceStrings.Uncategorized);
         var (categorySeries, categoryTotalText) = BuildUnifiedCategoryShare(unifiedCategories);
 

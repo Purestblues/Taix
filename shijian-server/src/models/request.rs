@@ -63,6 +63,10 @@ pub struct CreateCategoryRequest {
     #[serde(default)]
     pub is_directory_match: bool,
     pub directories: Option<String>,
+    #[serde(default)]
+    pub is_url_match: bool,
+    #[serde(default)]
+    pub url_patterns: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,6 +79,10 @@ pub struct UpdateCategoryRequest {
     #[serde(default)]
     pub is_directory_match: bool,
     pub directories: Option<String>,
+    #[serde(default)]
+    pub is_url_match: bool,
+    #[serde(default)]
+    pub url_patterns: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

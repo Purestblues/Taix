@@ -226,4 +226,36 @@ public class ChartDataMapperTests
 
         Assert.Equal(new[] { 15d, 35d, 30d, 0d }, totals);
     }
+
+    [Fact]
+    public void BuildUnifiedCategorySeries_WithUnifiedVisualMap_MergesAppAndSiteIntoSingleSeries()
+    {
+        var hours = new ShiJian.Client.Shared.Models.Entity.EntityHoursModel
+        {
+            BucketCount = 2,
+            Rows =
+            [
+                new() { Key = "app:1", Kind = "app", CategoryId = 10, Values = [100, 20] },
+                new() { Key = "site:1", Kind = "site", CategoryId = 10, Values = [30, 50] },
+                new() { Key = "site:2", Kind = "site", CategoryId = 0, Values = [10, 5] }
+            ]
+        };
+
+        var unifiedVisuals = ChartDataMapper.ToVisualMap(
+            new[]
+            {
+                new CategoryModel { ID = 10, Name = "开发", Color = "#22c55e", IsSystem = false },
+                new CategoryModel { ID = 99, Name = "未分类", Color = "#999999", IsSystem = true }
+            },
+            "未分类");
+
+        var result = ChartDataMapper.BuildUnifiedCategorySeries(
+            hours, unifiedVisuals, "未分类", ["10", "11"]);
+
+        Assert.Equal(new[] { "开发", "未分类" }, result.ConvertAll(x => x.Name));
+        Assert.Equal(200, result[0].Value);
+        Assert.Equal(new[] { 130d, 70d }, result[0].Values);
+        Assert.Equal(15, result[1].Value);
+        Assert.Equal(new[] { 10d, 5d }, result[1].Values);
+    }
 }

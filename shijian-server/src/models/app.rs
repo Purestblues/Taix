@@ -50,6 +50,8 @@ pub struct AppJoinCols {
     pub cat_color: Option<String>,
     pub cat_is_directory_match: Option<bool>,
     pub cat_directories: Option<String>,
+    pub cat_is_url_match: Option<bool>,
+    pub cat_url_patterns: Option<String>,
     pub cat_is_system: Option<bool>,
 }
 
@@ -73,6 +75,8 @@ impl AppJoinCols {
                 color: self.cat_color.clone(),
                 is_directory_match: self.cat_is_directory_match.unwrap_or(false),
                 directories: self.cat_directories.clone(),
+                is_url_match: self.cat_is_url_match.unwrap_or(false),
+                url_patterns: self.cat_url_patterns.clone(),
                 is_system: self.cat_is_system.unwrap_or(false),
             }),
         })
@@ -85,5 +89,6 @@ a.ID AS app_id, a.Name AS app_name, a.Alias AS app_alias, a.Description AS app_d
 a.File AS app_file, a.CategoryID AS app_category_id, a.IconFile AS app_icon_file, a.TotalTime AS app_total_time,
 a.Publisher AS app_publisher,
 c.ID AS cat_id, c.Name AS cat_name, c.IconFile AS cat_icon_file, c.Color AS cat_color,
-c.IsDirectoryMatch AS cat_is_directory_match, c.Directories AS cat_directories, c.IsSystem AS cat_is_system
+c.IsDirectoryMatch AS cat_is_directory_match, c.Directories AS cat_directories,
+c.IsUrlMatch AS cat_is_url_match, c.UrlPatterns AS cat_url_patterns, c.IsSystem AS cat_is_system
 "#;

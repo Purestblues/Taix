@@ -14,6 +14,7 @@ using ShiJian.Client.Foundation.Rx;
 using ShiJian.Client.Models;
 using ShiJian.Client.Shared.Librarys;
 using ShiJian.Client.Servicers.Interfaces;
+using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Web;
 using ShiJian.Client.Shared.Servicers.Interfaces;
 using ShiJian.Client.Views;
@@ -25,6 +26,7 @@ public class CategoryWebSiteListPageViewModel : CategoryWebSiteListPageModel
     private readonly INavigationDataService _navigationData;
     private readonly INavigationService _navigationService;
     private readonly IToastService _toastService;
+    private readonly ICategorys _categoryService;
     private readonly IWebData _webDataService;
     private readonly IAppEventService _appEventService;
 
@@ -35,15 +37,31 @@ public class CategoryWebSiteListPageViewModel : CategoryWebSiteListPageModel
         INavigationDataService navigationData,
         INavigationService navigationService,
         IToastService toastService,
+        ICategorys categoryService,
         IWebData webData,
         IAppEventService appEventService)
     {
         _navigationData = navigationData;
         _navigationService = navigationService;
         _toastService = toastService;
+        _categoryService = categoryService;
         _webDataService = webData;
         _appEventService = appEventService;
-        Category = _navigationData.Data as WebSiteCategoryModel ?? new WebSiteCategoryModel();
+        Category = _navigationData.Data switch
+        {
+            CategoryModel unified => unified,
+            WebSiteCategoryModel legacy => new CategoryModel
+            {
+                ID = legacy.ID,
+                Name = legacy.Name,
+                IconFile = legacy.IconFile,
+                Color = legacy.Color,
+                IsSystem = legacy.IsSystem,
+                IsUrlMatch = legacy.IsUrlMatch,
+                UrlPatterns = legacy.UrlPatterns
+            },
+            _ => new CategoryModel()
+        };
 
         ShowChooseCommand = AsyncRelayCommand.CreateFromTask<object>(OnShowChooseAsync).DisposeWith(Disposables);
         ChoosedCommand = AsyncRelayCommand.Create<object>(OnChoosed).DisposeWith(Disposables);
@@ -124,13 +142,13 @@ public class CategoryWebSiteListPageViewModel : CategoryWebSiteListPageModel
     {
         if (SelectedItem != null)
         {
-            var categories = await _webDataService.GetWebSiteCategoriesAsync();
+            var categories = await _categoryService.GetCategoriesAsync();
             var systemCategory = categories.FirstOrDefault(c => c.IsSystem);
             var categoryId = systemCategory?.ID ?? 0;
 
             await _webDataService.UpdateWebSitesCategoryAsync(new[] { SelectedItem.ID }, categoryId);
             
-            var removedSite = SelectedItem with { CategoryID = categoryId, Category = systemCategory };
+            var removedSite = SelectedItem with { CategoryID = categoryId, Category = ToWebSiteCategoryModel(systemCategory) };
             _appEventService.PublishWebSiteChanged(removedSite, AppChangeType.WebSiteCategory);
             
             CategoryWebSiteList.Remove(SelectedItem);
@@ -229,27 +247,43 @@ public class CategoryWebSiteListPageViewModel : CategoryWebSiteListPageModel
 
         if (toRemove.Count > 0)
         {
-            var categories = await _webDataService.GetWebSiteCategoriesAsync();
+            var categories = await _categoryService.GetCategoriesAsync();
             var systemCategory = categories.FirstOrDefault(c => c.IsSystem);
             var removeCategoryId = systemCategory?.ID ?? 0;
             await _webDataService.UpdateWebSitesCategoryAsync(toRemove.ToArray(), removeCategoryId);
             
+            var legacySystem = ToWebSiteCategoryModel(systemCategory);
             foreach (var siteId in toRemove)
             {
                 var site = _webSiteOptionsTemp.FirstOrDefault(m => m.WebSite.ID == siteId)?.WebSite;
                 if (site != null)
-                    _appEventService.PublishWebSiteChanged(site with { CategoryID = removeCategoryId, Category = systemCategory }, AppChangeType.WebSiteCategory);
+                    _appEventService.PublishWebSiteChanged(site with { CategoryID = removeCategoryId, Category = legacySystem }, AppChangeType.WebSiteCategory);
             }
         }
 
-        if (toAdd.Count > 0)
+        if (toAdd.Count > 0 && Category != null)
         {
             await _webDataService.UpdateWebSitesCategoryAsync(toAdd.ToArray(), Category.ID);
             
+            var legacyCategory = ToWebSiteCategoryModel(Category);
             foreach (var site in addSites)
-                _appEventService.PublishWebSiteChanged(site with { CategoryID = Category.ID, Category = Category }, AppChangeType.WebSiteCategory);
+                _appEventService.PublishWebSiteChanged(site with { CategoryID = Category.ID, Category = legacyCategory }, AppChangeType.WebSiteCategory);
         }
     }
+
+    private static WebSiteCategoryModel? ToWebSiteCategoryModel(CategoryModel? category) =>
+        category == null
+            ? null
+            : new WebSiteCategoryModel
+            {
+                ID = category.ID,
+                Name = category.Name,
+                IconFile = category.IconFile,
+                Color = category.Color,
+                IsSystem = category.IsSystem,
+                IsUrlMatch = category.IsUrlMatch,
+                UrlPatterns = category.UrlPatterns
+            };
 
     private async Task OnShowChooseAsync(object obj)
     {

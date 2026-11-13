@@ -200,7 +200,9 @@ public class ShiJianApiClient : IShiJianApiClient
             IconFile = category.IconFile,
             Color = category.Color,
             IsDirectoryMatch = category.IsDirectoryMatch,
-            Directories = category.Directories
+            Directories = category.Directories,
+            IsUrlMatch = category.IsUrlMatch,
+            UrlPatterns = category.UrlPatterns
         });
     }
 
@@ -213,7 +215,9 @@ public class ShiJianApiClient : IShiJianApiClient
             IconFile = category.IconFile,
             Color = category.Color,
             IsDirectoryMatch = category.IsDirectoryMatch,
-            Directories = category.Directories
+            Directories = category.Directories,
+            IsUrlMatch = category.IsUrlMatch,
+            UrlPatterns = category.UrlPatterns
         });
     }
 
@@ -226,6 +230,11 @@ public class ShiJianApiClient : IShiJianApiClient
     {
         return PostAsync<int, ApplyMatchRequest>("api/category/apply-directory-match", new ApplyMatchRequest { Patterns = patterns });
     }
+
+    public Task<CategorySummaryModel> GetCategorySummaryAsync(int categoryId, DateTime start, DateTime end, DateTime? prevStart = null, DateTime? prevEnd = null, CancellationToken cancellationToken = default) =>
+        GetAsync<CategorySummaryModel>(
+            TzQuery(SummaryQuery($"api/category/{categoryId}/summary", start, end, prevStart, prevEnd)),
+            cancellationToken);
 
     public Task<CategorySummaryModel> GetAppCategorySummaryAsync(int categoryId, DateTime start, DateTime end, DateTime? prevStart = null, DateTime? prevEnd = null, CancellationToken cancellationToken = default) =>
         GetAsync<CategorySummaryModel>(
@@ -246,6 +255,11 @@ public class ShiJianApiClient : IShiJianApiClient
         }
         return basePath + s;
     }
+
+    public Task<List<CategoryMemberModel>> GetCategoryMembersAsync(int categoryId, DateTime start, DateTime end, CancellationToken cancellationToken = default) =>
+        GetAsync<List<CategoryMemberModel>>(
+            TzQuery(SummaryQuery($"api/category/{categoryId}/members", start, end, null, null)),
+            cancellationToken);
 
     public Task<List<CategoryMemberModel>> GetAppCategoryMembersAsync(int categoryId, DateTime start, DateTime end, CancellationToken cancellationToken = default) =>
         GetAsync<List<CategoryMemberModel>>(

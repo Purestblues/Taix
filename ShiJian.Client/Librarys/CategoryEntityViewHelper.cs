@@ -144,6 +144,22 @@ public static class CategoryEntityViewHelper
 
     public static List<CategoryEntityRow> BuildSiteRows(
         IReadOnlyCollection<WebSiteModel> sites,
+        IReadOnlyList<CategoryModel> categories,
+        IReadOnlyList<AppMergeGroup> groups,
+        EntityListModel? todayEntities,
+        string fallbackUncategorizedName = "未分类")
+    {
+        var categoryMap = categories.GroupBy(c => c.ID).ToDictionary(g => g.Key, g => g.First());
+        var systemCategory = categories.FirstOrDefault(c => c.IsSystem);
+        return BuildSiteRowsCore(
+            sites,
+            catId => ResolveCategory(catId, categoryMap, systemCategory, fallbackUncategorizedName),
+            groups,
+            todayEntities);
+    }
+
+    public static List<CategoryEntityRow> BuildSiteRows(
+        IReadOnlyCollection<WebSiteModel> sites,
         IReadOnlyList<WebSiteCategoryModel> categories,
         IReadOnlyList<AppMergeGroup> groups,
         EntityListModel? todayEntities,
@@ -151,6 +167,19 @@ public static class CategoryEntityViewHelper
     {
         var categoryMap = categories.GroupBy(c => c.ID).ToDictionary(g => g.Key, g => g.First());
         var systemCategory = categories.FirstOrDefault(c => c.IsSystem);
+        return BuildSiteRowsCore(
+            sites,
+            catId => ResolveCategory(catId, categoryMap, systemCategory, fallbackUncategorizedName),
+            groups,
+            todayEntities);
+    }
+
+    private static List<CategoryEntityRow> BuildSiteRowsCore(
+        IReadOnlyCollection<WebSiteModel> sites,
+        Func<int, (int Id, string Name, string Color, bool IsUncategorized)> resolveCategory,
+        IReadOnlyList<AppMergeGroup> groups,
+        EntityListModel? todayEntities)
+    {
         var todayById = BuildTodaySecondsMap(todayEntities, isSite: true);
         var siteById = sites.GroupBy(s => s.ID).ToDictionary(g => g.Key, g => g.First());
 
@@ -185,8 +214,7 @@ public static class CategoryEntityViewHelper
                 : members.Sum(m => todayById.GetValueOrDefault(m.ID));
 
             var totalSec = members.Sum(m => m.Duration);
-            var (catId, catName, catColor, isUncat) = ResolveCategory(
-                primary.CategoryID, categoryMap, systemCategory, fallbackUncategorizedName);
+            var (catId, catName, catColor, isUncat) = resolveCategory(primary.CategoryID);
 
             rows.Add(new CategoryEntityRow
             {
@@ -213,8 +241,7 @@ public static class CategoryEntityViewHelper
         foreach (var site in sites)
         {
             if (consumedSiteIds.Contains(site.ID)) continue;
-            var (catId, catName, catColor, isUncat) = ResolveCategory(
-                site.CategoryID, categoryMap, systemCategory, fallbackUncategorizedName);
+            var (catId, catName, catColor, isUncat) = resolveCategory(site.CategoryID);
 
             rows.Add(new CategoryEntityRow
             {

@@ -30,4 +30,6 @@ pub struct CategoryMemberModel {
     pub name: String,
     pub icon_file: Option<String>,
     pub seconds: i64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
 }

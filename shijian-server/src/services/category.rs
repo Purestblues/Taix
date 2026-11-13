@@ -17,11 +17,12 @@ fn dir_match_cache() -> &'static RwLock<Option<Vec<(i64, Vec<String>)>>> {
     DIR_MATCH_CACHE.get_or_init(|| RwLock::new(None))
 }
 
-async fn invalidate_category_cache() {
+pub(crate) async fn invalidate_category_cache() {
     let mut cache = category_cache().write().await;
     *cache = None;
     let mut dir_cache = dir_match_cache().write().await;
     *dir_cache = None;
+    crate::services::web_data::invalidate_web_category_caches().await;
 }
 
 pub struct CategoryService;
@@ -97,8 +98,8 @@ impl CategoryService {
         info!("create_category: name={}", req.name);
         let id = sqlx::query(
             r#"
-            INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsUrlMatch, UrlPatterns)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&req.name)
@@ -106,6 +107,8 @@ impl CategoryService {
         .bind(&req.color)
         .bind(req.is_directory_match)
         .bind(&req.directories)
+        .bind(req.is_url_match)
+        .bind(&req.url_patterns)
         .execute(pool)
         .await?
         .last_insert_rowid();
@@ -119,6 +122,8 @@ impl CategoryService {
             color: req.color,
             is_directory_match: req.is_directory_match,
             directories: req.directories,
+            is_url_match: req.is_url_match,
+            url_patterns: req.url_patterns,
             is_system: false,
         })
     }
@@ -147,6 +152,13 @@ impl CategoryService {
                     "系统分类不能修改目录匹配规则".to_string(),
                 ));
             }
+            let req_urls = req.url_patterns.as_deref().filter(|s| !s.is_empty() && *s != "[]");
+            let existing_urls = existing.url_patterns.as_deref().filter(|s| !s.is_empty() && *s != "[]");
+            if req.is_url_match != existing.is_url_match || req_urls != existing_urls {
+                return Err(AppError::Business(
+                    "系统分类不能修改 URL 匹配规则".to_string(),
+                ));
+            }
 
             sqlx::query(
                 "UPDATE CategoryModels SET Name = ?, IconFile = ?, Color = ? WHERE ID = ?",
@@ -161,7 +173,7 @@ impl CategoryService {
             sqlx::query(
                 r#"
                 UPDATE CategoryModels
-                SET Name = ?, IconFile = ?, Color = ?, IsDirectoryMatch = ?, Directories = ?
+                SET Name = ?, IconFile = ?, Color = ?, IsDirectoryMatch = ?, Directories = ?, IsUrlMatch = ?, UrlPatterns = ?
                 WHERE ID = ?
                 "#,
             )
@@ -170,6 +182,8 @@ impl CategoryService {
             .bind(&req.color)
             .bind(req.is_directory_match)
             .bind(&req.directories)
+            .bind(req.is_url_match)
+            .bind(&req.url_patterns)
             .bind(id)
             .execute(pool)
             .await?;
@@ -219,6 +233,8 @@ impl CategoryService {
             color: Some(crate::db::DEFAULT_COLOR.to_string()),
             is_directory_match: false,
             directories: Some("[]".to_string()),
+            is_url_match: false,
+            url_patterns: Some("[]".to_string()),
             is_system: true,
         })
     }
@@ -248,17 +264,33 @@ impl CategoryService {
                 .fetch_one(&mut *tx)
                 .await?;
 
-        if app_count > 0 {
+        let site_count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM WebSiteModels WHERE CategoryID = ?")
+                .bind(id)
+                .fetch_one(&mut *tx)
+                .await?;
+
+        if app_count > 0 || site_count > 0 {
             let system_category_id: i64 =
                 sqlx::query_scalar("SELECT ID FROM CategoryModels WHERE IsSystem = 1 LIMIT 1")
                     .fetch_one(&mut *tx)
                     .await?;
 
-            sqlx::query("UPDATE AppModels SET CategoryID = ? WHERE CategoryID = ?")
-                .bind(system_category_id)
-                .bind(id)
-                .execute(&mut *tx)
-                .await?;
+            if app_count > 0 {
+                sqlx::query("UPDATE AppModels SET CategoryID = ? WHERE CategoryID = ?")
+                    .bind(system_category_id)
+                    .bind(id)
+                    .execute(&mut *tx)
+                    .await?;
+            }
+
+            if site_count > 0 {
+                sqlx::query("UPDATE WebSiteModels SET CategoryID = ? WHERE CategoryID = ?")
+                    .bind(system_category_id)
+                    .bind(id)
+                    .execute(&mut *tx)
+                    .await?;
+            }
         }
 
         sqlx::query("DELETE FROM CategoryModels WHERE ID = ?")

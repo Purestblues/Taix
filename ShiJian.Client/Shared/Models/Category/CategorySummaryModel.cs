@@ -38,4 +38,6 @@ public record CategoryMemberModel
     public string? IconFile { get; init; }
 
     public long Seconds { get; init; }
+
+    public string? Kind { get; init; }
 }

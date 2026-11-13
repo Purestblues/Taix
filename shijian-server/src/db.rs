@@ -6,7 +6,7 @@ use std::str::FromStr;
 use tracing::{info, warn};
 
 pub(crate) const DEFAULT_CATEGORY: &str = "未分类";
-pub(crate) const DEFAULT_ICON: &str = "avares://ShiJian/Resources/Icons/shijian.ico";
+pub(crate) const DEFAULT_ICON: &str = "svg:inbox";
 pub(crate) const DEFAULT_COLOR: &str = "#e4e3df";
 
 /// 初始化数据库连接并执行迁移
