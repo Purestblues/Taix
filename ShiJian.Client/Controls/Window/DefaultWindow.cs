@@ -15,6 +15,7 @@ using ShiJian.Client.Controls.Base;
 using ShiJian.Client.Controls.Input;
 using ShiJian.Client.Foundation;
 using ShiJian.Client.Foundation.Rx;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Models;
 using ShiJian.Client.Servicers.Interfaces;
 
@@ -307,6 +308,10 @@ public class DefaultWindow : Avalonia.Controls.Window
         WindowDecorations = WindowDecorations.Full;
     }
 
+    private const double ToastHiddenOffsetY = -44;
+    private const double ToastExitOffsetY = -32;
+    private const int ToastDisplayDurationMs = 2000;
+
     private static void OnIsShowToastChanged(AvaloniaPropertyChangedEventArgs e)
     {
         var that = e.Sender as DefaultWindow;
@@ -315,52 +320,71 @@ public class DefaultWindow : Avalonia.Controls.Window
             if (that.IsShowToast)
                 _ = that.ShowToastAsync();
             else
-                that.HideToast();
+                _ = that.HideToastAsync();
         }
+    }
+
+    private (CancellationTokenSource Cts, CancellationToken Token) ResetToastCts()
+    {
+        var previous = _toastCancellationTokenSource;
+        var next = new CancellationTokenSource();
+        _toastCancellationTokenSource = next;
+
+        if (previous != null)
+        {
+            previous.Cancel();
+            previous.Dispose();
+        }
+
+        return (next, next.Token);
     }
 
     private async Task ShowToastAsync()
     {
-        if (ToastGrid == null)
+        if (ToastBorder == null)
             return;
 
-        if (_toastCancellationTokenSource != null)
-        {
-            if (!_toastCancellationTokenSource.TryReset())
-            {
-                _toastCancellationTokenSource.Dispose();
-                _toastCancellationTokenSource = new CancellationTokenSource();
-            }
-        }
-        else
-        {
-            _toastCancellationTokenSource = new CancellationTokenSource();
-        }
+        var (cts, token) = ResetToastCts();
 
-        ToastGrid.IsVisible = true;
-        DialogBorder.IsVisible = false;
-        if (!IsShowInputModal) InputModalBorder.IsVisible = false;
+        // 连续触发通知时从当前位置顺滑过渡，而不是生硬跳回起点
+        var wasVisible = ToastBorder.IsVisible && ToastBorder.Opacity > 0.05;
+        var fromY = wasVisible ? SlideMotion.GetTranslateY(ToastBorder) : ToastHiddenOffsetY;
+        var fromOpacity = wasVisible ? ToastBorder.Opacity : 0;
+
         ToastBorder.IsVisible = true;
-        ToastBorder.RenderTransform = TransformOperations.Parse("translateY(0px)");
-        Masklayer.Opacity = 0.6;
-        ToastGrid.PointerPressed += ToastGrid_MouseLeftButtonDown;
 
         try
         {
-            await Task.Delay(3000, _toastCancellationTokenSource.Token);
+            await SlideMotion.AnimateYAndOpacityAsync(
+                ToastBorder,
+                fromY,
+                0,
+                fromOpacity,
+                1,
+                MotionTokens.M,
+                MotionTokens.Enter(),
+                resetTransformOnComplete: false,
+                cancellationToken: token);
+
+            if (token.IsCancellationRequested)
+                return;
+
+            await Task.Delay(ToastDisplayDurationMs, token);
+
+            if (!token.IsCancellationRequested && ReferenceEquals(_toastCancellationTokenSource, cts))
+            {
+                IsShowToast = false;
+            }
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException)
         {
         }
-
-        IsShowToast = false;
     }
 
     public Task<bool> ShowConfirmDialogAsync(string title, string message)
     {
         IsShowConfirmDialog = true;
         ToastGrid.IsVisible = true;
-        ToastBorder.IsVisible = false;
         DialogBorder.IsVisible = true;
         InputModalBorder.IsVisible = false;
 
@@ -382,7 +406,6 @@ public class DefaultWindow : Avalonia.Controls.Window
         IsShowActionDialog = true;
         ActionDialogResult = -1;
         ToastGrid.IsVisible = true;
-        ToastBorder.IsVisible = false;
         DialogBorder.IsVisible = false;
         InputModalBorder.IsVisible = false;
         ActionDialogBorder.IsVisible = true;
@@ -427,18 +450,16 @@ public class DefaultWindow : Avalonia.Controls.Window
         });
     }
 
-    private void ToastGrid_MouseLeftButtonDown(object? sender, PointerPressedEventArgs e)
+    private void ToastBorder_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        e.Handled = true;
         IsShowToast = false;
-        _toastCancellationTokenSource?.Cancel();
-        ToastGrid.PointerPressed -= ToastGrid_MouseLeftButtonDown;
     }
 
     public Task<string?> ShowInputModalAsync(string title, string message, string value, Func<string, bool> validate)
     {
         IsShowInputModal = true;
         ToastGrid.IsVisible = true;
-        ToastBorder.IsVisible = false;
         DialogBorder.IsVisible = false;
         InputModalBorder.IsVisible = true;
 
@@ -461,22 +482,42 @@ public class DefaultWindow : Avalonia.Controls.Window
     }
 
 
-    private void HideToast()
+    private async Task HideToastAsync()
     {
-        if (ToastGrid == null)
+        var (cts, token) = ResetToastCts();
+
+        if (ToastBorder == null || !ToastBorder.IsVisible)
             return;
 
-        ToastBorder.RenderTransform = TransformOperations.Parse("translateY(-150px)");
-        // 如果 InputModal 正在显示，不重置遮罩层
-        if (!IsShowInputModal)
+        var fromY = SlideMotion.GetTranslateY(ToastBorder);
+        var fromOpacity = ToastBorder.Opacity;
+
+        try
         {
-            Masklayer.Opacity = 0;
-            ToastGrid.IsVisible = false;
+            await SlideMotion.AnimateYAndOpacityAsync(
+                ToastBorder,
+                fromY,
+                ToastExitOffsetY,
+                fromOpacity,
+                0,
+                MotionTokens.S,
+                MotionTokens.Leave(),
+                resetTransformOnComplete: false,
+                cancellationToken: token);
         }
-        else
+        catch (OperationCanceledException)
         {
-            // InputModal 显示中，只隐藏 Toast，保持遮罩
+            return;
+        }
+
+        if (!token.IsCancellationRequested && ReferenceEquals(_toastCancellationTokenSource, cts))
+        {
             ToastBorder.IsVisible = false;
+            ToastBorder.Opacity = 0;
+            if (ToastBorder.RenderTransform is TranslateTransform transform)
+            {
+                transform.Y = ToastHiddenOffsetY;
+            }
         }
     }
 
@@ -528,7 +569,11 @@ public class DefaultWindow : Avalonia.Controls.Window
     {
         base.OnApplyTemplate(e);
         titleBar = e.NameScope.Find<Grid>("TitleBar");
+        if (ToastBorder != null)
+            ToastBorder.PointerPressed -= ToastBorder_PointerPressed;
         ToastBorder = e.NameScope.Find<Border>("ToastBorder");
+        if (ToastBorder != null)
+            ToastBorder.PointerPressed += ToastBorder_PointerPressed;
         Masklayer = e.NameScope.Find<Border>("Masklayer");
         ToastGrid = e.NameScope.Find<Grid>("ToastGrid");
         DialogBorder = e.NameScope.Find<Border>("DialogBorder");
@@ -635,6 +680,9 @@ public class DefaultWindow : Avalonia.Controls.Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _toastCancellationTokenSource?.Cancel();
+        _toastCancellationTokenSource?.Dispose();
+        _toastCancellationTokenSource = null;
         _windowStateSubscription.Dispose();
         base.OnClosed(e);
         IsWindowClosed = true;

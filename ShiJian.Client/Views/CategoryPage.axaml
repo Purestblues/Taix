@@ -516,7 +516,7 @@
                                     <ControlTemplate>
                                         <Border x:Name="EntityCardBorder"
                                                 Width="198"
-                                                Height="142"
+                                                Height="156"
                                                 Margin="4"
                                                 Padding="12,10"
                                                 CornerRadius="8"
@@ -570,13 +570,13 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="models:CategoryEntityRow">
-                                <Grid RowDefinitions="Auto,Auto,*,Auto">
+                                <Grid RowDefinitions="Auto,Auto,Auto,*">
                                     <!-- 顶部：图标 + 类型/合并角标 -->
                                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
-                                        <Border Width="34" Height="34" CornerRadius="8"
+                                        <Border Width="32" Height="32" CornerRadius="8"
                                                 Background="{DynamicResource NavHoverGlassBrush}"
                                                 HorizontalAlignment="Left" VerticalAlignment="Top">
-                                            <base:Img Width="24" Height="24" DecodeWidth="24" Radius="6"
+                                            <base:Img Width="22" Height="22" DecodeWidth="24" Radius="6"
                                                       URL="{Binding Icon}"
                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
@@ -598,7 +598,7 @@
                                     </Grid>
 
                                     <!-- 中部：名称与副标题 -->
-                                    <StackPanel Grid.Row="1" Margin="0,8,0,0" Spacing="1">
+                                    <StackPanel Grid.Row="1" Margin="0,6,0,0" Spacing="2">
                                         <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
                                                    Foreground="{DynamicResource StandardTextBrush}"
                                                    TextTrimming="CharacterEllipsis"
@@ -610,7 +610,7 @@
                                     </StackPanel>
 
                                     <!-- 时长信息 -->
-                                    <Grid Grid.Row="2" Margin="0,4,0,0" ColumnDefinitions="Auto,*,Auto"
+                                    <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="Auto,*,Auto"
                                           VerticalAlignment="Center">
                                         <TextBlock Grid.Column="0" FontSize="11"
                                                    Foreground="{DynamicResource StandardTextBrush}">
@@ -629,7 +629,8 @@
                                     <!-- 底部：快速打标签胶囊按钮，点击就地弹出共享分类选择器，不触发卡片导航 -->
                                     <Button Classes="tagPill"
                                             Grid.Row="3"
-                                            Margin="0,6,0,0"
+                                            Margin="0,8,0,0"
+                                            VerticalAlignment="Bottom"
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Stretch"
                                             Tag="{Binding}"

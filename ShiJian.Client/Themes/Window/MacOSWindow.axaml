@@ -159,35 +159,41 @@
                             <ContentPresenter Content="{TemplateBinding Content}" />
                         </VisualLayerManager>
 
-                        <Grid ZIndex="999" x:Name="ToastGrid" IsVisible="False">
                         <Border
-                            Padding="16,14"
-                            CornerRadius="{StaticResource RadiusLarge}"
-                            MaxWidth="340"
+                            Padding="16,10"
+                            Margin="0,12,0,0"
+                            CornerRadius="20"
+                            MinWidth="160"
+                            MaxWidth="380"
                             x:Name="ToastBorder"
+                            IsVisible="False"
+                            Opacity="0"
+                            Cursor="Hand"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
+                            BorderThickness="1"
                             Background="{DynamicResource WindowContentBackground}"
+                            BoxShadow="{DynamicResource Elevation2}"
                             HorizontalAlignment="Center"
-                            VerticalAlignment="Top" ZIndex="99999">
+                            VerticalAlignment="Top"
+                            ZIndex="1005">
                             <Border.RenderTransform>
-                                <TransformGroup>
-                                    <TranslateTransform Y="-150" />
-                                </TransformGroup>
+                                <TranslateTransform Y="-44" />
                             </Border.RenderTransform>
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="20" Color="Black" Opacity="0.12" OffsetX="0" OffsetY="6" />
-                            </Border.Effect>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="30" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                                 <base:Icon IconType="{TemplateBinding ToastIcon}"
-                                           VerticalAlignment="Top" Margin="0,0,10,0" x:Name="ToastIcon" />
+                                           VerticalAlignment="Center"
+                                           FontSize="15"
+                                           x:Name="ToastIcon" />
                                 <TextBlock x:Name="ToastText" Grid.Column="1"
-                                           Text="{TemplateBinding ToastContent}" VerticalAlignment="Top"
+                                           Text="{TemplateBinding ToastContent}"
+                                           VerticalAlignment="Center"
+                                           FontSize="13"
+                                           FontWeight="Medium"
                                            TextWrapping="WrapWithOverflow" />
                             </Grid>
                         </Border>
+
+                        <Grid ZIndex="999" x:Name="ToastGrid" IsVisible="False">
 
                         <Border
                             Padding="24,20"

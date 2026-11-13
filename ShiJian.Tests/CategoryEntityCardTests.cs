@@ -1,10 +1,13 @@
 using Avalonia;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Headless.XUnit;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Models;
 using Xunit;
 
@@ -80,7 +83,7 @@ public class CategoryEntityCardTests
             panel.Children.Add(new Border
             {
                 Width = 198,
-                Height = 142,
+                Height = 156,
                 Margin = new Thickness(4),
                 DataContext = item
             });
@@ -106,5 +109,110 @@ public class CategoryEntityCardTests
         {
             window.Close();
         }
+    }
+
+    [AvaloniaFact]
+    public void EntityCardLayout_DoesNotClipDurationRowWithin156Height()
+    {
+        var todayText = new TextBlock { Text = "今日 1h29m", FontSize = 11 };
+        var statsGrid = new Grid
+        {
+            Margin = new Thickness(0, 6, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { todayText }
+        };
+        Grid.SetRow(statsGrid, 2);
+
+        var header = new Border { Height = 32 };
+        Grid.SetRow(header, 0);
+
+        var titleStack = new StackPanel
+        {
+            Margin = new Thickness(0, 6, 0, 0),
+            Spacing = 2,
+            Children =
+            {
+                new TextBlock { Text = "Antigravity", FontSize = 13 },
+                new TextBlock { Text = "Antigravity", FontSize = 11 }
+            }
+        };
+        Grid.SetRow(titleStack, 1);
+
+        var tagPill = new Button
+        {
+            Margin = new Thickness(0, 8, 0, 0),
+            Height = 28,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Content = new TextBlock { Text = "AI", FontSize = 11 }
+        };
+        Grid.SetRow(tagPill, 3);
+
+        var rootGrid = new Grid
+        {
+            RowDefinitions = RowDefinitions.Parse("Auto,Auto,Auto,*"),
+            Children = { header, titleStack, statsGrid, tagPill }
+        };
+
+        var card = new Border
+        {
+            Width = 198,
+            Height = 156,
+            Padding = new Thickness(12, 10),
+            BorderThickness = new Thickness(1),
+            Child = rootGrid
+        };
+
+        var window = new Window { Width = 300, Height = 260, Content = card };
+        window.Show();
+        Dispatcher.UIThread.RunJobs();
+
+        try
+        {
+            Assert.True(statsGrid.Bounds.Height >= todayText.DesiredSize.Height);
+            Assert.True(statsGrid.Bounds.Bottom <= tagPill.Bounds.Y);
+            Assert.True(tagPill.Bounds.Bottom <= rootGrid.Bounds.Height + 0.5);
+        }
+        finally
+        {
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async System.Threading.Tasks.Task SlideMotion_AnimateYAndOpacityAsync_AppliesTargetState()
+    {
+        var banner = new Border
+        {
+            Width = 220,
+            Height = 40,
+            Opacity = 0,
+            RenderTransform = new TranslateTransform { Y = -44 }
+        };
+
+        await SlideMotion.AnimateYAndOpacityAsync(
+            banner,
+            fromY: -44,
+            toY: 0,
+            fromOpacity: 0,
+            toOpacity: 1,
+            duration: TimeSpan.Zero,
+            easing: new CubicEaseOut(),
+            resetTransformOnComplete: false);
+
+        Assert.Equal(1d, banner.Opacity);
+        Assert.Equal(0d, SlideMotion.GetTranslateY(banner));
+
+        await SlideMotion.AnimateYAndOpacityAsync(
+            banner,
+            fromY: 0,
+            toY: -32,
+            fromOpacity: 1,
+            toOpacity: 0,
+            duration: TimeSpan.Zero,
+            easing: new CubicEaseIn(),
+            resetTransformOnComplete: false);
+
+        Assert.Equal(0d, banner.Opacity);
+        Assert.Equal(-32d, SlideMotion.GetTranslateY(banner));
     }
 }

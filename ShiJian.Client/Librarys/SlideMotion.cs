@@ -46,13 +46,7 @@ public static class SlideMotion
             return;
         }
 
-        var transform = target.RenderTransform as TranslateTransform;
-        if (transform == null)
-        {
-            transform = new TranslateTransform();
-            target.RenderTransform = transform;
-        }
-
+        var transform = GetOrCreateTranslateTransform(target);
         transform.Y = fromY;
 
         try
@@ -72,6 +66,74 @@ public static class SlideMotion
         finally
         {
             Reset(target);
+        }
+    }
+
+    /// <summary>
+    /// 逐帧同时插值 Y 位移与透明度（用于顶部横幅通知滑入/滑出等连续动效）。
+    /// </summary>
+    public static async Task AnimateYAndOpacityAsync(
+        Control target,
+        double fromY,
+        double toY,
+        double fromOpacity,
+        double toOpacity,
+        TimeSpan duration,
+        IEasing easing,
+        bool resetTransformOnComplete = false,
+        CancellationToken cancellationToken = default)
+    {
+        var topLevel = TopLevel.GetTopLevel(target);
+        if (!Motion.IsEnabled || topLevel == null || duration <= TimeSpan.Zero)
+        {
+            ApplyYAndOpacity(target, toY, toOpacity, resetTransformOnComplete);
+            return;
+        }
+
+        var transform = GetOrCreateTranslateTransform(target);
+        transform.Y = fromY;
+        target.Opacity = fromOpacity;
+
+        await AnimateAsync(topLevel, duration, easing, progress =>
+        {
+            if (TopLevel.GetTopLevel(target) == null) return;
+            transform.Y = fromY + (toY - fromY) * progress;
+            target.Opacity = fromOpacity + (toOpacity - fromOpacity) * progress;
+        }, cancellationToken);
+
+        if (!cancellationToken.IsCancellationRequested && TopLevel.GetTopLevel(target) != null)
+        {
+            ApplyYAndOpacity(target, toY, toOpacity, resetTransformOnComplete);
+        }
+    }
+
+    public static double GetTranslateY(Control target)
+        => target.RenderTransform is TranslateTransform transform ? transform.Y : 0d;
+
+    private static TranslateTransform GetOrCreateTranslateTransform(Control target)
+    {
+        if (target.RenderTransform is TranslateTransform existing)
+            return existing;
+
+        var transform = new TranslateTransform();
+        target.RenderTransform = transform;
+        return transform;
+    }
+
+    private static void ApplyYAndOpacity(
+        Control target,
+        double y,
+        double opacity,
+        bool resetTransformOnComplete)
+    {
+        target.Opacity = opacity;
+        if (resetTransformOnComplete)
+        {
+            Reset(target);
+        }
+        else
+        {
+            GetOrCreateTranslateTransform(target).Y = y;
         }
     }
 
