@@ -187,8 +187,24 @@
                         </base:View>
                     </Grid>
 
-                    <!-- A：关键指标卡 -->
-                    <Grid Grid.Row="1" ColumnDefinitions="*,8,*,8,*,8,*" Margin="0,0,0,12">
+                    <!-- A：关键指标卡（含实体接口不可用提示） -->
+                    <StackPanel Grid.Row="1">
+                        <Border IsVisible="{Binding HasEntityError}"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource ThemeBrush}"
+                                BorderThickness="1"
+                                CornerRadius="8"
+                                Padding="14,10" Margin="0,0,0,10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding EntityErrorText}" FontSize="12" TextWrapping="Wrap"
+                                           Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Margin="12,0,0,0" Padding="10,0" Height="28"
+                                        Content="{DynamicResource Retry}"
+                                        Command="{Binding RefreshCommand}" />
+                            </Grid>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,8,*,8,*,8,*" Margin="0,0,0,12">
                         <Border Grid.Column="0" Classes="statCard">
                             <StackPanel Spacing="3">
                                 <StackPanel Orientation="Horizontal" Spacing="5">
@@ -286,7 +302,8 @@
                                            IsVisible="{Binding CurrentInsight.Card4.HasSub}" />
                             </StackPanel>
                         </Border>
-                    </Grid>
+                        </Grid>
+                    </StackPanel>
 
                     <!-- 主图：环形时钟 + 图例 / 榜单 -->
                     <TabControl Grid.Row="2"

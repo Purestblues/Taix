@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -11,6 +12,7 @@ using ShiJian.Client.Events;
 using ShiJian.Client.Foundation;
 using ShiJian.Client.Foundation.Rx;
 using ShiJian.Client.Librarys;
+using ShiJian.Client.Logging;
 using ShiJian.Client.Models;
 using ShiJian.Client.Models.Navigation;
 using ShiJian.Client.Servicers;
@@ -19,6 +21,7 @@ using ShiJian.Client.Shared.Librarys;
 using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Config;
 using ShiJian.Client.Shared.Models.Data;
+using ShiJian.Client.Shared.Models.Entity;
 using ShiJian.Client.Shared.Models.Web;
 using ShiJian.Client.Shared.Servicers.Interfaces;
 using ShiJian.Client.Views;
@@ -28,36 +31,37 @@ namespace ShiJian.Client.ViewModels;
 public partial class ChartPageViewModel : ChartPageModel
 {
     private readonly ConfigModel _config;
-    private readonly IData _dataService;
+    private readonly IEntityData _entityData;
+    private readonly IAppData _appDataService;
     private readonly IWebData _webDataService;
     private readonly ICategorys _categoryService;
     private readonly INavigationService _navigationService;
     private readonly IStateService _stateService;
     private readonly IAppEventService _appEventService;
-    private readonly IAppMergeService _appMergeService;
+    private EntityHoursModel? _cachedEntityHours;
     private int _appCount;
     private double _totalTime;
 
     public ChartPageViewModel(
-        IData data,
+        IEntityData entityData,
+        IAppData appData,
         ICategorys categories,
         INavigationService navigationService,
         IWebData webData,
         IAppConfig appConfig,
         IStateService stateService,
-        IAppEventService appEventService,
-        IAppMergeService appMergeService)
+        IAppEventService appEventService)
     {
-        _dataService = data;
+        _entityData = entityData;
+        _appDataService = appData;
         _categoryService = categories;
         _navigationService = navigationService;
         _webDataService = webData;
         _stateService = stateService;
         _config = appConfig.GetConfig();
         _appEventService = appEventService;
-        _appMergeService = appMergeService;
 
-        ToDetailCommand = AsyncRelayCommand.Create<object>(OnToDetail).DisposeWith(Disposables);
+        ToDetailCommand = AsyncRelayCommand.CreateFromTask<object>(OnToDetailAsync).DisposeWith(Disposables);
         RefreshCommand = AsyncRelayCommand.CreateFromTask<object>(OnRefreshAsync).DisposeWith(Disposables);
 
         Initialize();
@@ -178,18 +182,43 @@ public partial class ChartPageViewModel : ChartPageModel
         _ = ExecuteAsync(LoadDataAsync);
     }
 
-    private void OnToDetail(object obj)
+    private async Task OnToDetailAsync(object obj)
     {
         if (obj is not ChartsDataModel chartData) return;
 
         var date = TabbarSelectedIndex switch { 0 => Date, 1 => WeekDate, 2 => MonthDate, 3 => YearDate, _ => DateTime.Now };
 
-        if (chartData.Data is WebSiteModel webSite)
-            _navigationService.NavigateTo(nameof(WebSiteDetailPage), WebSiteDetailNavigationContext.Create(webSite, TabbarSelectedIndex, date));
-        else if (chartData.Data is DailyLogModel { AppModel: not null } daily)
-            _navigationService.NavigateTo(nameof(DetailPage), DetailNavigationContext.Create(daily.AppModel, TabbarSelectedIndex, date));
-        else if (chartData.Data is HoursLogModel { AppModel: not null } hours)
-            _navigationService.NavigateTo(nameof(DetailPage), DetailNavigationContext.Create(hours.AppModel, 0, Date));
+        try
+        {
+            if (chartData.Data is EntityModel entity)
+            {
+                if (entity.Kind == "site")
+                {
+                    var site = await _webDataService.GetWebSiteAsync(entity.EntityId);
+                    if (site != null)
+                        _navigationService.NavigateTo(nameof(WebSiteDetailPage),
+                            WebSiteDetailNavigationContext.Create(site, TabbarSelectedIndex, date));
+                    return;
+                }
+
+                var app = await _appDataService.GetAppAsync(entity.EntityId);
+                if (app != null)
+                    _navigationService.NavigateTo(nameof(DetailPage),
+                        DetailNavigationContext.Create(app, TabbarSelectedIndex, date));
+                return;
+            }
+
+            if (chartData.Data is WebSiteModel webSite)
+                _navigationService.NavigateTo(nameof(WebSiteDetailPage), WebSiteDetailNavigationContext.Create(webSite, TabbarSelectedIndex, date));
+            else if (chartData.Data is DailyLogModel { AppModel: not null } daily)
+                _navigationService.NavigateTo(nameof(DetailPage), DetailNavigationContext.Create(daily.AppModel, TabbarSelectedIndex, date));
+            else if (chartData.Data is HoursLogModel { AppModel: not null } hours)
+                _navigationService.NavigateTo(nameof(DetailPage), DetailNavigationContext.Create(hours.AppModel, 0, Date));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error("打开详情页失败", ex);
+        }
     }
 
     private async Task LoadDataAsync(CancellationToken cancellationToken)
@@ -213,227 +242,194 @@ public partial class ChartPageViewModel : ChartPageModel
                 await LoadYearDataAsync(cancellationToken);
                 break;
         }
-
-
     }
 
-    private async Task LoadDayDataAsync(CancellationToken cancellationToken)
+    private Task LoadDayDataAsync(CancellationToken cancellationToken)
     {
-        if (ShowType.Id == 0)
-        {
-            var chartData = await BuildCategoryChartDataAsync(
-                ct => _dataService.GetCategoryHoursDataAsync(Date, ct),
-                ct => _dataService.GetRangeTotalDataAsync(Date, Date, ct),
-                null,
-                cancellationToken);
-
-            var totalUse = chartData.data.Sum(m => m.Values.Sum());
-            _totalTime = totalUse;
-            Data = chartData.data;
-            RadarData = chartData.categoryData;
-            ColumnSelectedIndex = -1;
-            WebColSelectedIndex = -1;
-            TotalHours = Time.ToHoursString(totalUse);
-
-            await LoadTopDataAsync(cancellationToken);
-        }
-        else
-        {
-            ColumnSelectedIndex = -1;
-            WebColSelectedIndex = -1;
-            await LoadWebDataAsync(Date, Date, cancellationToken);
-        }
+        var start = Date.Date;
+        var prev = start.AddDays(-1);
+        return LoadPeriodDataAsync(start, start, prev, prev, "hour", null, cancellationToken);
     }
 
-    private async Task LoadWeekDataAsync(CancellationToken cancellationToken)
+    private Task LoadWeekDataAsync(CancellationToken cancellationToken)
     {
-        ColumnSelectedIndex = -1;
-        WebColSelectedIndex = -1;
-        DataMaximum = 0;
         var culture = SystemLanguage.CurrentCultureInfo;
         var weekDateArr = GetWeekRange(WeekDate);
+        var prevWeek = GetWeekRange(WeekDate.AddDays(-7));
         var toText = Application.Current?.Resources["To"] as string ?? "To";
         WeekDateStr = $"{weekDateArr.Start.ToString("d", culture)} {toText} {weekDateArr.End.ToString("d", culture)}";
 
-        if (ShowType.Id == 0)
-        {
-            string[] weekNames = [ResourceStrings.Monday, ResourceStrings.Tuesday, ResourceStrings.Wednesday, ResourceStrings.Thursday, ResourceStrings.Friday, ResourceStrings.Saturday, ResourceStrings.Sunday];
-
-            var chartData = await BuildCategoryChartDataAsync(
-                ct => _dataService.GetCategoryRangeDataAsync(weekDateArr.Start, weekDateArr.End, ct),
-                ct => _dataService.GetRangeTotalDataAsync(weekDateArr.Start, weekDateArr.End, ct),
-                weekNames,
-                cancellationToken);
-
-            var totalUse = chartData.data.Sum(m => m.Values.Sum());
-            _totalTime = totalUse;
-            Data = chartData.data;
-            RadarData = chartData.categoryData;
-            TotalHours = Time.ToHoursString(totalUse);
-
-            await LoadTopDataAsync(cancellationToken);
-        }
-        else
-        {
-            await LoadWebDataAsync(weekDateArr.Start, weekDateArr.End, cancellationToken);
-        }
+        string[] weekNames =
+        [
+            ResourceStrings.Monday, ResourceStrings.Tuesday, ResourceStrings.Wednesday,
+            ResourceStrings.Thursday, ResourceStrings.Friday, ResourceStrings.Saturday, ResourceStrings.Sunday
+        ];
+        return LoadPeriodDataAsync(weekDateArr.Start, weekDateArr.End, prevWeek.Start, prevWeek.End,
+            "day", weekNames, cancellationToken);
     }
 
-    private async Task LoadMonthlyDataAsync(CancellationToken cancellationToken)
+    private Task LoadMonthlyDataAsync(CancellationToken cancellationToken)
     {
-        ColumnSelectedIndex = -1;
-        WebColSelectedIndex = -1;
-        DataMaximum = 0;
         var dateArr = Time.GetMonthDate(MonthDate);
-
-        if (ShowType.Id == 0)
-        {
-            var chartData = await BuildCategoryChartDataAsync(
-                ct => _dataService.GetCategoryRangeDataAsync(dateArr[0], dateArr[1], ct),
-                ct => _dataService.GetRangeTotalDataAsync(dateArr[0], dateArr[1], ct),
-                null,
-                cancellationToken);
-
-            var totalUse = chartData.data.Sum(m => m.Values.Sum());
-            _totalTime = totalUse;
-            Data = chartData.data;
-            RadarData = chartData.categoryData;
-            TotalHours = Time.ToHoursString(totalUse);
-
-            await LoadTopDataAsync(cancellationToken);
-        }
-        else
-        {
-            await LoadWebDataAsync(dateArr[0], dateArr[1], cancellationToken);
-        }
+        var prevArr = Time.GetMonthDate(MonthDate.AddMonths(-1));
+        return LoadPeriodDataAsync(dateArr[0], dateArr[1], prevArr[0], prevArr[1],
+            "day", null, cancellationToken);
     }
 
-    private async Task LoadYearDataAsync(CancellationToken cancellationToken)
+    private Task LoadYearDataAsync(CancellationToken cancellationToken)
     {
-        ColumnSelectedIndex = -1;
-        WebColSelectedIndex = -1;
-        DataMaximum = 0;
+        var yearArr = Time.GetYearDate(YearDate);
+        var prevArr = Time.GetYearDate(YearDate.AddYears(-1));
         var names = new string[12];
         for (var i = 0; i < 12; i++)
             names[i] = Application.Current?.Resources[$"{i + 1}Month"] as string ?? $"{i + 1}";
 
-        if (ShowType.Id == 0)
-        {
-            var chartData = await BuildCategoryChartDataAsync(
-                ct => _dataService.GetCategoryYearDataAsync(YearDate, ct),
-                ct => _dataService.GetMonthTotalDataAsync(YearDate, ct),
-                names,
-                cancellationToken);
+        return LoadPeriodDataAsync(yearArr[0], yearArr[1], prevArr[0], prevArr[1],
+            "month", names, cancellationToken);
+    }
 
-            var totalUse = chartData.data.Sum(m => m.Values.Sum());
+    private async Task LoadPeriodDataAsync(
+        DateTime start, DateTime end, DateTime prevStart, DateTime prevEnd,
+        string buckets, string[]? columnNames, CancellationToken cancellationToken)
+    {
+        ColumnSelectedIndex = -1;
+        WebColSelectedIndex = -1;
+        DataMaximum = 0;
+        HasEntityError = false;
+        EntityErrorText = string.Empty;
+
+        var isWeb = ShowType.Id == 1;
+        // 统计页始终按「站点独立成行」口径取实体：应用侧已扣掉归属浏览器的站点时长，
+        // 网站侧与「应用」页签相加恰好守恒，不会把同一分钟算两遍。
+        var hoursTask = _entityData.GetEntityHoursAsync(start, end, buckets, false, cancellationToken);
+        var listTask = _entityData.GetEntityListAsync(start, end, false, cancellationToken);
+        var summaryTask = _entityData.GetEntitySummaryAsync(start, end, false, cancellationToken);
+        var prevSummaryTask = _entityData.GetEntitySummaryAsync(prevStart, prevEnd, false, cancellationToken);
+
+        EntityHoursModel? entityHours;
+        EntityListModel? entityList;
+        EntitySummaryModel? summary;
+        EntitySummaryModel? prevSummary;
+        try
+        {
+            await Task.WhenAll(hoursTask, listTask, summaryTask, prevSummaryTask);
+            entityHours = await hoursTask;
+            entityList = await listTask;
+            summary = await summaryTask;
+            prevSummary = await prevSummaryTask;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+        {
+            HasEntityError = true;
+            EntityErrorText = ChartDataMapper.FormatEntityLoadError(ex);
+            Logger.Warn($"统计页实体数据加载失败：{ex.Message}");
+            return;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        _cachedEntityHours = entityHours;
+
+        if (!isWeb)
+        {
+            var categories = await _categoryService.GetCategoriesAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var categoryMap = categories.ToDictionary(c => c.ID);
+            var columns = ChartDataMapper.AggregateColumnsByCategory(entityHours, isWeb: false);
+            var categoryData = new List<ChartsDataModel>(columns.Count);
+            foreach (var col in columns)
+            {
+                if (!categoryMap.TryGetValue(col.CategoryID, out var category))
+                    category = new CategoryModel { Name = ResourceStrings.Uncategorized, Color = "#ccc", IconFile = "" };
+
+                categoryData.Add(new ChartsDataModel
+                {
+                    Name = category.Name,
+                    Icon = category.IconFile,
+                    Values = col.Values,
+                    Color = ChartColorHelper.Resolve(category.Color, category.IsSystem),
+                    ColumnNames = columnNames ?? []
+                });
+            }
+            categoryData = categoryData.OrderByDescending(c => c.Values.Sum()).ToList();
+
+            var totalUse = categoryData.Sum(m => m.Values.Sum());
             _totalTime = totalUse;
-            Data = chartData.data;
-            RadarData = chartData.categoryData;
+            Data = categoryData;
+            RadarData = categoryData;
             TotalHours = Time.ToHoursString(totalUse);
 
-            await LoadTopDataAsync(cancellationToken);
+            var appRows = (entityList?.Rows ?? []).Where(r => r.Kind != "site").Take(5).ToList();
+            TopData = ChartDataMapper.MapFromEntities(appRows, includeBadges: false);
+            TopHours = TopData.Count > 0 ? Time.ToHoursString(TopData[0].Value) : "0";
+
+            _appCount = summary?.AppCount ?? (entityList?.Rows.Count(r => r.Kind != "site") ?? 0);
+            AppCount = _appCount.ToString();
+            var topEntity = summary?.TopApp ?? appRows.FirstOrDefault();
+            Top1App = topEntity != null
+                ? new AppModel { ID = topEntity.EntityId, Description = topEntity.Name, IconFile = topEntity.Icon ?? string.Empty }
+                : null!;
         }
         else
         {
-            var yearArr = Time.GetYearDate(YearDate);
-            await LoadWebDataAsync(yearArr[0], yearArr[1], cancellationToken);
-        }
-    }
+            var webCategories = await _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
 
-    private async Task<(List<ChartsDataModel> data, List<ChartsDataModel> categoryData)> BuildCategoryChartDataAsync(
-        Func<CancellationToken, Task<IReadOnlyList<ColumnDataModel>>> getCategoryDataAsync,
-        Func<CancellationToken, Task<double[]>> getTotalDataAsync,
-        string[]? columnNames,
-        CancellationToken cancellationToken)
-    {
-        var list = await getCategoryDataAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
+            var webCategoryMap = webCategories.ToDictionary(c => c.ID);
+            var columns = ChartDataMapper.AggregateColumnsByCategory(entityHours, isWeb: true);
 
-        var categoryData = new List<ChartsDataModel>();
-        foreach (var item in list)
-        {
-            var category = await _categoryService.GetCategoryAsync(item.CategoryID, cancellationToken);
-            category ??= new CategoryModel { Name = "Unknown", Color = "#ccc", IconFile = "" };
-            categoryData.Add(new ChartsDataModel
+            var statsData = new List<ChartsDataModel>(columns.Count);
+            var pieData = new List<ChartsDataModel>(columns.Count);
+            foreach (var col in columns)
             {
-                Name = category.Name,
-                Icon = category.IconFile,
-                Values = item.Values,
-                Color = ChartColorHelper.Resolve(category.Color, category.IsSystem),
-                ColumnNames = columnNames
-            });
+                if (!webCategoryMap.TryGetValue(col.CategoryID, out var category))
+                    category = new WebSiteCategoryModel { Name = ResourceStrings.Uncategorized, Color = "#999999", IconFile = "" };
+
+                var resolvedColor = ChartColorHelper.Resolve(category.Color, category.IsSystem);
+                var catName = category.Name ?? ResourceStrings.Uncategorized;
+                var sum = col.Values?.Sum() ?? 0;
+
+                statsData.Add(new ChartsDataModel
+                {
+                    Name = catName,
+                    Icon = category.IconFile ?? string.Empty,
+                    Values = col.Values ?? [],
+                    Color = resolvedColor,
+                    ColumnNames = columnNames ?? []
+                });
+
+                if (sum > 0)
+                {
+                    pieData.Add(new ChartsDataModel
+                    {
+                        Name = catName,
+                        Value = sum,
+                        Color = resolvedColor,
+                        PopupText = catName + " " + Time.ToString((int)sum),
+                        Icon = category.IconFile ?? string.Empty
+                    });
+                }
+            }
+
+            WebBrowseStatisticsData = statsData.OrderByDescending(m => m.Values.Sum()).ToList();
+            WebCategoriesPieData = pieData.OrderByDescending(m => m.Value).ToList();
+
+            var siteRows = (entityList?.Rows ?? []).Where(r => r.Kind == "site").Take(10).ToList();
+            WebSitesTopData = ChartDataMapper.MapFromEntities(siteRows, includeBadges: false);
+
+            WebTotalTime = summary?.SiteSeconds ?? siteRows.Sum(r => (double)r.Seconds);
+            WebSiteCount = summary?.SiteCount ?? (entityList?.Rows.Count(r => r.Kind == "site") ?? 0);
+            WebPageCount = summary?.WebPageCount ?? 0;
+            WebTotalTimeText = Time.ToHoursString(WebTotalTime);
         }
 
-        // 按分类总时长降序排序
-        categoryData = categoryData.OrderByDescending(c => c.Values.Sum()).ToList();
-
-        return (categoryData, categoryData);
+        ApplyDiffData(prevSummary);
     }
 
-    private async Task LoadTopDataAsync(CancellationToken cancellationToken)
+    private void ApplyDiffData(EntitySummaryModel? prevSummary)
     {
-        var dateStart = Date.Date;
-        var dateEnd = Date.Date;
-        if (TabbarSelectedIndex == 1)
-        {
-            var weekDateArr = GetWeekRange(WeekDate);
-            dateStart = weekDateArr.Start;
-            dateEnd = weekDateArr.End;
-        }
-        else if (TabbarSelectedIndex == 2)
-        {
-            var dateArr = Time.GetMonthDate(MonthDate);
-            dateStart = dateArr[0];
-            dateEnd = dateArr[1];
-        }
-        else if (TabbarSelectedIndex == 3)
-        {
-            var dateArr = Time.GetYearDate(YearDate);
-            dateStart = dateArr[0];
-            dateEnd = dateArr[1];
-        }
-
-        var list = await _dataService.GetDateRangelogListAsync(dateStart, dateEnd, 5, -1, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        // N6：榜单按合并组折叠子成员（视图期映射，不改原始数据）
-        var mergeGroups = await _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken);
-        TopData = ChartDataMapper.MapFromDailyLogs(mergeGroups.Count > 0 ? _appMergeService.Apply(list ?? []) : list ?? []);
-        _appMergeService.Decorate(TopData);
-        TopHours = TopData.Count > 0 ? Time.ToHoursString(TopData[0].Value) : "0";
-
-        _appCount = await _dataService.GetDateRangeAppCountAsync(dateStart, dateEnd, cancellationToken);
-        AppCount = _appCount.ToString();
-        Top1App = TopData.Count > 0 && TopData[0].Data is DailyLogModel { AppModel: not null } model ? model.AppModel : null;
-
-        await LoadDiffDataAsync(dateStart, dateEnd, cancellationToken);
-    }
-
-    private async Task LoadDiffDataAsync(DateTime dateStart, DateTime dateEnd, CancellationToken cancellationToken)
-    {
-        var lastStart = dateStart.AddDays(-1);
-        var lastEnd = dateEnd.AddDays(-1);
-        if (TabbarSelectedIndex == 1)
-        {
-            var weekDateArr = GetWeekRange(WeekDate.AddDays(-7));
-            lastStart = weekDateArr.Start;
-            lastEnd = weekDateArr.End;
-        }
-        else if (TabbarSelectedIndex == 2)
-        {
-            var dateArr = Time.GetMonthDate(MonthDate.AddMonths(-1));
-            lastStart = dateArr[0];
-            lastEnd = dateArr[1];
-        }
-        else if (TabbarSelectedIndex == 3)
-        {
-            var dateArr = Time.GetYearDate(YearDate.AddYears(-1));
-            lastStart = dateArr[0];
-            lastEnd = dateArr[1];
-        }
-
-        var lastAppCount = await _dataService.GetDateRangeAppCountAsync(lastStart, lastEnd, cancellationToken);
-        var lastTotalTime = (await _dataService.GetRangeTotalDataAsync(lastStart, lastEnd, cancellationToken)).Sum();
-        cancellationToken.ThrowIfCancellationRequested();
+        var lastAppCount = prevSummary?.AppCount ?? 0;
+        double lastTotalTime = prevSummary?.AppNetSeconds ?? 0;
 
         var diffTotalTime = lastTotalTime == 0
             ? (_totalTime > 0 ? 100 : 0)
@@ -447,213 +443,73 @@ public partial class ChartPageViewModel : ChartPageModel
         DiffAppCountType = diffAppCount > 0 ? "1" : diffAppCount < 0 ? "-1" : "0";
         DiffAppCountValue = DiffAppCountType == "0" ? string.Empty : Math.Abs(diffAppCount).ToString();
 
-        LastWebTotalTime = await _webDataService.GetBrowseDurationTotalAsync(lastStart, lastEnd, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        LastWebSiteCount = await _webDataService.GetBrowseSitesTotalAsync(lastStart, lastEnd, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        LastWebPageCount = await _webDataService.GetBrowsePagesTotalAsync(lastStart, lastEnd, cancellationToken);
+        LastWebTotalTime = prevSummary?.SiteSeconds ?? 0;
+        LastWebSiteCount = prevSummary?.SiteCount ?? 0;
+        LastWebPageCount = prevSummary?.WebPageCount ?? 0;
     }
 
-    private async Task LoadSelectedColDataAsync(CancellationToken cancellationToken = default)
+    private Task LoadSelectedColDataAsync(CancellationToken cancellationToken = default)
     {
-        var culture = SystemLanguage.CurrentCultureInfo;
         if (ColumnSelectedIndex < 0)
         {
             DayHoursSelectedTime = string.Empty;
-            return;
+            DayHoursData = [];
+            return Task.CompletedTask;
         }
 
-        List<ChartsDataModel> chartsDatas;
-        if (TabbarSelectedIndex == 0)
-        {
-            var time = new DateTime(Date.Year, Date.Month, Date.Day, ColumnSelectedIndex, 0, 0);
-            var format = $"{culture.DateTimeFormat.ShortDatePattern} HH";
-            DayHoursSelectedTime = time.ToString(format, culture);
-            var hoursModelList = await _dataService.GetTimeRangelogListAsync(time, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            chartsDatas = ChartDataMapper.MapFromHoursLogs(hoursModelList, true);
-        }
-        else
-        {
-            DateTime start, end;
-            if (TabbarSelectedIndex == 1)
-            {
-                var weekDateArr = GetWeekRange(WeekDate);
-                var time = weekDateArr.Start.AddDays(ColumnSelectedIndex);
-                DayHoursSelectedTime = time.ToString("d", culture);
-                start = end = time;
-            }
-            else if (TabbarSelectedIndex == 2)
-            {
-                var dateArr = Time.GetMonthDate(MonthDate);
-                var time = dateArr[0].AddDays(ColumnSelectedIndex);
-                DayHoursSelectedTime = time.ToString("d", culture);
-                start = end = time;
-            }
-            else
-            {
-                start = new DateTime(YearDate.Year, ColumnSelectedIndex + 1, 1);
-                end = new DateTime(start.Year, start.Month, DateTime.DaysInMonth(start.Year, start.Month), 23, 59, 59);
-                DayHoursSelectedTime = start.ToString(culture.DateTimeFormat.YearMonthPattern, culture);
-            }
-            var daysModelList = await _dataService.GetDateRangelogListAsync(start, end, cancellationToken: cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            chartsDatas = ChartDataMapper.MapFromDailyLogs(daysModelList, includeBadges: true);
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        DayHoursData = chartsDatas;
+        DayHoursSelectedTime = FormatSelectedColumnTime(ColumnSelectedIndex);
+        DayHoursData = SliceBucketEntities(_cachedEntityHours, ColumnSelectedIndex, isWeb: false);
+        return Task.CompletedTask;
     }
 
-    #region 网页数据
-
-    private async Task LoadWebDataAsync(DateTime start, DateTime end, CancellationToken cancellationToken)
-    {
-        var categories = await _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-
-        await LoadCategoriesStatisticsAsync(start, end, categories, cancellationToken);
-        await LoadWebSitesTopDataAsync(start, end, cancellationToken);
-        await LoadWebBrowseDataStatisticsAsync(start, end, categories, cancellationToken);
-
-        cancellationToken.ThrowIfCancellationRequested();
-        WebTotalTime = await _webDataService.GetBrowseDurationTotalAsync(start, end, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        WebSiteCount = await _webDataService.GetBrowseSitesTotalAsync(start, end, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        WebPageCount = await _webDataService.GetBrowsePagesTotalAsync(start, end, cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        WebTotalTimeText = Time.ToHoursString(WebTotalTime);
-    }
-
-    private async Task LoadCategoriesStatisticsAsync(DateTime start, DateTime end, IReadOnlyList<WebSiteCategoryModel> categories, CancellationToken cancellationToken)
-    {
-        var chartsDatas = new List<ChartsDataModel>();
-        var data = await _webDataService.GetCategoriesStatisticsAsync(start, end, cancellationToken);
-        var categoryDict = categories.ToDictionary(c => c.ID);
-        foreach (var item in data)
-        {
-            if (!categoryDict.TryGetValue(item.ID, out var category))
-            {
-                category = new WebSiteCategoryModel { Name = "Unknown", Color = "#ccc", IconFile = "" };
-            }
-#pragma warning disable CS8601
-            chartsDatas.Add(new ChartsDataModel
-            {
-                Name = item.Name,
-                Value = item.Value,
-                Data = item,
-                Color = ChartColorHelper.Resolve(category.Color, category.IsSystem),
-                PopupText = item.Name + " " + Time.ToString((int)item.Value),
-                Icon = category.IconFile
-            });
-#pragma warning restore CS8601
-        }
-        cancellationToken.ThrowIfCancellationRequested();
-        WebCategoriesPieData = chartsDatas.OrderByDescending(m => m.Value).ToList();
-    }
-
-    private async Task LoadWebBrowseDataStatisticsAsync(DateTime start, DateTime end, IReadOnlyList<WebSiteCategoryModel> categories, CancellationToken cancellationToken)
-    {
-        var chartData = new List<ChartsDataModel>();
-        var data = await _webDataService.GetBrowseDataByCategoryStatisticsAsync(start, end, cancellationToken);
-        var categoryDict = categories.ToDictionary(c => c.ID);
-        var emptyCategory = new WebSiteCategoryModel
-        {
-            ID = 0,
-            Name = "Unknown",
-            IconFile = "",
-            Color = "#999999"
-        };
-
-        string[]? colNames = null;
-        if (TabbarSelectedIndex == 1)
-        {
-            colNames = [ResourceStrings.Monday, ResourceStrings.Tuesday, ResourceStrings.Wednesday, ResourceStrings.Thursday, ResourceStrings.Friday, ResourceStrings.Saturday, ResourceStrings.Sunday];
-        }
-        else if (TabbarSelectedIndex == 3)
-        {
-            colNames = new string[12];
-            for (var i = 0; i < 12; i++) colNames[i] = i + 1 + ResourceStrings.Month;
-        }
-
-        foreach (var item in data)
-        {
-            if (!categoryDict.TryGetValue(item.CategoryID, out var category))
-                category = emptyCategory;
-            if (category != null)
-            {
-#pragma warning disable CS8601
-                chartData.Add(new ChartsDataModel
-                {
-                    Name = category.Name,
-                    Icon = category.IconFile,
-                    Values = item.Values,
-                    Color = ChartColorHelper.Resolve(category.Color, category.IsSystem),
-                    ColumnNames = colNames
-                });
-#pragma warning restore CS8601
-            }
-        }
-        cancellationToken.ThrowIfCancellationRequested();
-        WebBrowseStatisticsData = chartData.OrderByDescending(m => m.Values.Sum()).ToList();
-    }
-
-    private async Task LoadWebSitesTopDataAsync(DateTime start, DateTime end, CancellationToken cancellationToken)
-    {
-        var data = await _webDataService.GetDateRangeWebSiteListAsync(start, end, 10, cancellationToken: cancellationToken);
-        cancellationToken.ThrowIfCancellationRequested();
-        WebSitesTopData = ChartDataMapper.MapFromWebSites(data);
-    }
-
-    private async Task LoadWebSitesColSelectedDataAsync(CancellationToken cancellationToken = default)
+    private Task LoadWebSitesColSelectedDataAsync(CancellationToken cancellationToken = default)
     {
         if (WebColSelectedIndex < 0)
         {
             WebSitesColSelectedTimeText = string.Empty;
             WebSitesColSelectedData = [];
-            return;
+            return Task.CompletedTask;
         }
 
-        var culture = SystemLanguage.CurrentCultureInfo;
-        DateTime startTime, endTime;
-        bool isTime = false;
-
-        if (TabbarSelectedIndex == 0)
-        {
-            var format = $"{culture.DateTimeFormat.ShortDatePattern} HH";
-            var time = new DateTime(Date.Year, Date.Month, Date.Day, WebColSelectedIndex, 0, 0);
-            WebSitesColSelectedTimeText = time.ToString(format, culture);
-            isTime = true;
-            startTime = endTime = time;
-        }
-        else if (TabbarSelectedIndex == 1)
-        {
-            var weekDateArr = GetWeekRange(WeekDate);
-            var time = weekDateArr.Start.AddDays(WebColSelectedIndex);
-            WebSitesColSelectedTimeText = time.ToString("d", culture);
-            startTime = endTime = time;
-        }
-        else if (TabbarSelectedIndex == 2)
-        {
-            var dateArr = Time.GetMonthDate(MonthDate);
-            var time = dateArr[0].AddDays(WebColSelectedIndex);
-            WebSitesColSelectedTimeText = time.ToString("d", culture);
-            startTime = endTime = time;
-        }
-        else
-        {
-            startTime = new DateTime(YearDate.Year, WebColSelectedIndex + 1, 1);
-            endTime = new DateTime(startTime.Year, startTime.Month, DateTime.DaysInMonth(startTime.Year, startTime.Month), 23, 59, 59);
-            WebSitesColSelectedTimeText = startTime.ToString(culture.DateTimeFormat.YearMonthPattern);
-        }
-
-        var chartData = ChartDataMapper.MapFromWebSites(await _webDataService.GetDateRangeWebSiteListAsync(startTime, endTime, 0, -1, isTime, cancellationToken), includeBadges: true);
-        cancellationToken.ThrowIfCancellationRequested();
-        WebSitesColSelectedData = chartData;
+        WebSitesColSelectedTimeText = FormatSelectedColumnTime(WebColSelectedIndex);
+        WebSitesColSelectedData = SliceBucketEntities(_cachedEntityHours, WebColSelectedIndex, isWeb: true);
+        return Task.CompletedTask;
     }
 
-    #endregion
+    private string FormatSelectedColumnTime(int index)
+    {
+        var culture = SystemLanguage.CurrentCultureInfo;
+        if (TabbarSelectedIndex == 0)
+        {
+            var time = new DateTime(Date.Year, Date.Month, Date.Day, Math.Clamp(index, 0, 23), 0, 0);
+            return time.ToString($"{culture.DateTimeFormat.ShortDatePattern} HH", culture);
+        }
+        if (TabbarSelectedIndex == 1)
+        {
+            var weekDateArr = GetWeekRange(WeekDate);
+            return weekDateArr.Start.AddDays(index).ToString("d", culture);
+        }
+        if (TabbarSelectedIndex == 2)
+        {
+            var dateArr = Time.GetMonthDate(MonthDate);
+            return dateArr[0].AddDays(index).ToString("d", culture);
+        }
+        var monthStart = new DateTime(YearDate.Year, Math.Clamp(index + 1, 1, 12), 1);
+        return monthStart.ToString(culture.DateTimeFormat.YearMonthPattern, culture);
+    }
+
+    private static List<ChartsDataModel> SliceBucketEntities(EntityHoursModel? hours, int bucketIndex, bool isWeb)
+    {
+        if (hours == null || bucketIndex < 0) return [];
+
+        var entities = hours.Rows
+            .Where(r => (isWeb ? r.Kind == "site" : r.Kind != "site")
+                        && bucketIndex < r.Values.Length
+                        && r.Values[bucketIndex] > 0)
+            .Select(r => r.ToEntityModel((int)r.Values[bucketIndex]));
+
+        return ChartDataMapper.MapFromEntities(entities, includeBadges: true);
+    }
 
     private static (DateTime Start, DateTime End) GetWeekRange(DateTime date)
     {

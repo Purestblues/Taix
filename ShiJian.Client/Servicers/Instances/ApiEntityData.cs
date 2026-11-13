@@ -21,6 +21,14 @@ public class ApiEntityData : IEntityData
         CancellationToken cancellationToken = default) =>
         _apiClient.GetEntityListAsync(start, end, browserMerged, cancellationToken);
 
+    public Task<EntityHoursModel?> GetEntityHoursAsync(DateTime start, DateTime end, string buckets, bool browserMerged,
+        CancellationToken cancellationToken = default) =>
+        _apiClient.GetEntityHoursAsync(start, end, buckets, browserMerged, cancellationToken);
+
+    public Task<EntitySummaryModel?> GetEntitySummaryAsync(DateTime start, DateTime end, bool browserMerged,
+        CancellationToken cancellationToken = default) =>
+        _apiClient.GetEntitySummaryAsync(start, end, browserMerged, cancellationToken);
+
     public async Task<IReadOnlyList<BrowserOptionModel>> GetBrowsersAsync(CancellationToken cancellationToken = default) =>
         await _apiClient.GetEntityBrowsersAsync(cancellationToken);
 

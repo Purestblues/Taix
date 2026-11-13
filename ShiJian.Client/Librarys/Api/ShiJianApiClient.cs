@@ -416,6 +416,21 @@ public class ShiJianApiClient : IShiJianApiClient
                     $"&browserMerged={(browserMerged ? "true" : "false")}"),
             cancellationToken);
 
+    public Task<EntityHoursModel> GetEntityHoursAsync(DateTime start, DateTime end, string buckets, bool browserMerged, CancellationToken cancellationToken = default) =>
+        GetAsync<EntityHoursModel>(
+            TzQuery($"api/entity/hours?start={Uri.EscapeDataString(start.ToString("yyyy-MM-ddTHH:mm:ss"))}" +
+                    $"&end={Uri.EscapeDataString(end.ToString("yyyy-MM-ddTHH:mm:ss"))}" +
+                    $"&buckets={Uri.EscapeDataString(buckets)}" +
+                    $"&browserMerged={(browserMerged ? "true" : "false")}"),
+            cancellationToken);
+
+    public Task<EntitySummaryModel> GetEntitySummaryAsync(DateTime start, DateTime end, bool browserMerged, CancellationToken cancellationToken = default) =>
+        GetAsync<EntitySummaryModel>(
+            TzQuery($"api/entity/summary?start={Uri.EscapeDataString(start.ToString("yyyy-MM-ddTHH:mm:ss"))}" +
+                    $"&end={Uri.EscapeDataString(end.ToString("yyyy-MM-ddTHH:mm:ss"))}" +
+                    $"&browserMerged={(browserMerged ? "true" : "false")}"),
+            cancellationToken);
+
     public Task<List<BrowserOptionModel>> GetEntityBrowsersAsync(CancellationToken cancellationToken = default) =>
         GetAsync<List<BrowserOptionModel>>("api/entity/browsers", cancellationToken);
 

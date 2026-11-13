@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
@@ -101,4 +102,77 @@ public class MergeGroupListModel
 {
     public List<MergeGroupModel> Groups { get; set; } = [];
     public List<string> Suppressed { get; set; } = [];
+}
+
+/// <summary>`/api/entity/hours` 的一行：一个实体在时间轴上的时长分布</summary>
+public class EntityHoursRow
+{
+    public string Key { get; set; } = string.Empty;
+    public string Kind { get; set; } = "app";
+    public string Name { get; set; } = string.Empty;
+    public string? Icon { get; set; }
+    public int CategoryId { get; set; }
+    public string CategoryKind { get; set; } = "app";
+    public string? CategoryName { get; set; }
+    public string? CategoryColor { get; set; }
+    public bool IsBrowser { get; set; }
+    public double[] Values { get; set; } = [];
+    public List<EntityMemberModel> Members { get; set; } = [];
+
+    [JsonIgnore]
+    public int EntityId
+    {
+        get
+        {
+            var index = Key.IndexOf(':');
+            return index >= 0 && int.TryParse(Key[(index + 1)..], out var id) ? id : 0;
+        }
+    }
+
+    public EntityModel ToEntityModel(int seconds) => new()
+    {
+        Key = Key,
+        Kind = Kind,
+        Name = Name,
+        Icon = Icon,
+        Seconds = seconds,
+        CategoryId = CategoryId,
+        CategoryKind = CategoryKind,
+        CategoryName = CategoryName,
+        CategoryColor = CategoryColor,
+        IsBrowser = IsBrowser,
+        Members = Members
+    };
+}
+
+public class EntityHoursModel
+{
+    public List<string> Labels { get; set; } = [];
+    public List<EntityHoursRow> Rows { get; set; } = [];
+    public bool BrowserMerged { get; set; }
+    public int BucketCount { get; set; }
+}
+
+/// <summary>`/api/entity/summary`：指标卡所需的区间聚合统计</summary>
+public class EntitySummaryModel
+{
+    public long TotalSeconds { get; set; }
+    public long AppSeconds { get; set; }
+    public long AppNetSeconds { get; set; }
+    public long SiteSeconds { get; set; }
+    public int AppCount { get; set; }
+    public int SiteCount { get; set; }
+    public long SessionCount { get; set; }
+    public long AverageSessionSeconds { get; set; }
+    public long LongestSessionSeconds { get; set; }
+    public DateTime? LongestSessionStart { get; set; }
+    public DateTime? FirstSessionStart { get; set; }
+    public DateTime? LastSessionEnd { get; set; }
+    public long WebPageCount { get; set; }
+    public long WebRecordCount { get; set; }
+    public long LongestBrowseSeconds { get; set; }
+    public DateTime? FirstBrowseStart { get; set; }
+    public DateTime? LastBrowseEnd { get; set; }
+    public EntityModel? TopApp { get; set; }
+    public EntityModel? TopSite { get; set; }
 }

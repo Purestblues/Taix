@@ -302,9 +302,7 @@ public partial class IndexPageViewModel : IndexPageModel
         {
             // 实体接口是新东西：服务端没升级时这里是 404，不能表现成「今天没用电脑」
             HasEntityError = true;
-            EntityErrorText = ex is HttpRequestException { StatusCode: HttpStatusCode.NotFound }
-                ? ResourceStrings.ServerOutdated
-                : ResourceStrings.EntityLoadFailed;
+            EntityErrorText = ChartDataMapper.FormatEntityLoadError(ex);
             Logger.Warn($"实体表加载失败：{ex.Message}");
             return;
         }
@@ -357,49 +355,8 @@ public partial class IndexPageViewModel : IndexPageModel
     }
 
     /// <summary>实体行 → 榜单/卡片模型；分类徽章与合并成员说明都挂在这里</summary>
-    private static ChartsDataModel ToChartRow(EntityModel entity)
-    {
-        var categoryColor = entity.CategoryColor == null
-            ? null
-            : ChartColorHelper.Resolve(entity.CategoryColor, false);
-
-        var model = new ChartsDataModel
-        {
-            Data = entity,
-            Name = entity.Name,
-            Value = entity.Seconds,
-            Tag = Time.ToString(entity.Seconds),
-            Icon = entity.Icon ?? string.Empty,
-            FallbackText = entity.Name,
-            CategoryName = entity.CategoryName,
-            CategoryColor = categoryColor,
-            Color = categoryColor ?? string.Empty
-        };
-
-        if (entity.Members.Count > 0)
-        {
-            var memberText = string.Join(" / ", entity.Members.Select(member => member.Name));
-            model.PopupText = entity.Kind == "other"
-                ? string.Empty
-                : string.Format(ResourceStrings.MergedItems, entity.Members.Count) + "：" + memberText;
-        }
-
-        model.BadgeList = [];
-        if (!string.IsNullOrWhiteSpace(entity.CategoryName) && entity.CategoryId > 0)
-        {
-            model.BadgeList.Add(new ChartBadgeModel
-            {
-                Name = entity.CategoryName!,
-                Color = ChartColorHelper.WithAlpha(categoryColor, 0x2E),
-                TextColor = categoryColor!,
-                CategoryId = entity.CategoryId,
-                IsWebCategory = entity.CategoryKind == "site",
-                Type = ChartBadgeType.Category
-            });
-        }
-
-        return model;
-    }
+    private static ChartsDataModel ToChartRow(EntityModel entity) =>
+        ChartDataMapper.MapFromEntity(entity, includeBadges: true);
 
     private void ApplyChartSeries()
     {

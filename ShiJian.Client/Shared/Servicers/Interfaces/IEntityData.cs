@@ -16,6 +16,12 @@ public interface IEntityData
     Task<EntityListModel?> GetEntityListAsync(DateTime start, DateTime end, bool browserMerged,
         CancellationToken cancellationToken = default);
 
+    Task<EntityHoursModel?> GetEntityHoursAsync(DateTime start, DateTime end, string buckets, bool browserMerged,
+        CancellationToken cancellationToken = default);
+
+    Task<EntitySummaryModel?> GetEntitySummaryAsync(DateTime start, DateTime end, bool browserMerged,
+        CancellationToken cancellationToken = default);
+
     /// <summary>设置页「默认浏览器」的候选（浏览日志里出现过的 + 应用侧识别到的）</summary>
     Task<IReadOnlyList<BrowserOptionModel>> GetBrowsersAsync(CancellationToken cancellationToken = default);
 

@@ -1,4 +1,9 @@
+using System;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using ShiJian.Client;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Servicers.Instances;
 using ShiJian.Client.Shared.Models.Config;
 using ShiJian.Client.Shared.Models.Entity;
@@ -75,5 +80,84 @@ public class EntityModelTests
         var changes = ApiAppConfig.DetectChanges(oldConfig, newConfig);
 
         Assert.Contains("General.DefaultBrowser", changes);
+    }
+
+    [Fact]
+    public void AggregateColumnsByCategory_SplitsAppAndSiteSidesAndIncludesBalanceRow()
+    {
+        var hours = new EntityHoursModel
+        {
+            BucketCount = 3,
+            Rows =
+            [
+                new EntityHoursRow
+                {
+                    Key = "app:1",
+                    Kind = "app",
+                    CategoryId = 10,
+                    Values = [100, 200, 0]
+                },
+                new EntityHoursRow
+                {
+                    Key = "other:2",
+                    Kind = "other",
+                    CategoryId = 10,
+                    IsBrowser = true,
+                    Values = [50, 0, 30]
+                },
+                new EntityHoursRow
+                {
+                    Key = "site:5",
+                    Kind = "site",
+                    CategoryId = 10, // 同 ID 但在网站分类命名空间，不能混进应用侧
+                    Values = [40, 60, 10]
+                }
+            ]
+        };
+
+        var appColumns = ChartDataMapper.AggregateColumnsByCategory(hours, isWeb: false);
+        var siteColumns = ChartDataMapper.AggregateColumnsByCategory(hours, isWeb: true);
+
+        Assert.Single(appColumns);
+        Assert.Equal(10, appColumns[0].CategoryID);
+        Assert.Equal([150d, 200d, 30d], appColumns[0].Values);
+
+        Assert.Single(siteColumns);
+        Assert.Equal(10, siteColumns[0].CategoryID);
+        Assert.Equal([40d, 60d, 10d], siteColumns[0].Values);
+    }
+
+    [Fact]
+    public void MapFromEntity_HidesMemberPopupOnOtherRowAndMapsBadges()
+    {
+        var other = new EntityModel
+        {
+            Key = "other:3",
+            Kind = "other",
+            Name = "浏览器内其他页面",
+            Seconds = 900,
+            CategoryId = 2,
+            CategoryKind = "app",
+            CategoryName = "浏览器",
+            CategoryColor = "#4285F4",
+            Members = [new EntityMemberModel { Key = "site:1", Name = "example.com", Seconds = 300 }]
+        };
+
+        var mapped = ChartDataMapper.MapFromEntity(other, includeBadges: true);
+
+        Assert.Equal(string.Empty, mapped.PopupText);
+        Assert.Single(mapped.BadgeList);
+        Assert.Equal(2, mapped.BadgeList[0].CategoryId);
+        Assert.False(mapped.BadgeList[0].IsWebCategory);
+    }
+
+    [Fact]
+    public void FormatEntityLoadError_DistinguishesNotFoundFromGeneralError()
+    {
+        var notFound = new HttpRequestException("404", null, HttpStatusCode.NotFound);
+        var serverErr = new InvalidOperationException("boom");
+
+        Assert.Equal(ResourceStrings.ServerOutdated, ChartDataMapper.FormatEntityLoadError(notFound));
+        Assert.Equal(ResourceStrings.EntityLoadFailed, ChartDataMapper.FormatEntityLoadError(serverErr));
     }
 }

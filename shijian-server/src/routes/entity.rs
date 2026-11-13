@@ -9,7 +9,7 @@ use sqlx::SqlitePool;
 use std::sync::Arc;
 
 use crate::models::entity::{
-    BrowserOptionModel, EntityHoursModel, EntityListModel, MergeGroupListModel,
+    BrowserOptionModel, EntityHoursModel, EntityListModel, EntitySummaryModel, MergeGroupListModel,
 };
 use crate::response::ApiResponse;
 use crate::services::config::ConfigService;
@@ -40,6 +40,16 @@ struct EntityHoursQuery {
     timezone: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EntitySummaryQuery {
+    start: NaiveDateTime,
+    end: NaiveDateTime,
+    #[serde(default)]
+    browser_merged: bool,
+    timezone: String,
+}
+
 fn default_buckets() -> String {
     "day".to_string()
 }
@@ -61,6 +71,7 @@ pub fn router() -> Router<SqlitePool> {
     Router::new()
         .route("/api/entity/list", get(get_entity_list))
         .route("/api/entity/hours", get(get_entity_hours))
+        .route("/api/entity/summary", get(get_entity_summary))
         .route("/api/entity/browsers", get(get_browsers))
         .route("/api/entity/merge-groups", get(get_merge_groups))
         .route("/api/entity/merge-groups/dissolve", post(dissolve_group))
@@ -105,6 +116,30 @@ async fn get_entity_hours(
         q.end.date(),
         &q.timezone,
         &q.buckets,
+        q.browser_merged,
+    )
+    .await
+    {
+        Ok(data) => Json(ApiResponse::ok(data)),
+        Err(e) => Json(ApiResponse {
+            code: 500,
+            message: e.to_string(),
+            data: None,
+        }),
+    }
+}
+
+async fn get_entity_summary(
+    State(pool): State<SqlitePool>,
+    Extension(config_service): Extension<Arc<ConfigService>>,
+    Query(q): Query<EntitySummaryQuery>,
+) -> Json<ApiResponse<EntitySummaryModel>> {
+    match EntityService::summary(
+        &pool,
+        &config_service,
+        q.start.date(),
+        q.end.date(),
+        &q.timezone,
         q.browser_merged,
     )
     .await

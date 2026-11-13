@@ -18,7 +18,7 @@ use crate::error::AppError;
 use crate::models::app::AppJoinCols;
 use crate::models::entity::{
     BrowserOptionModel, EntityHoursModel, EntityHoursRow, EntityListModel, EntityMemberModel,
-    EntityModel, MergeGroupListModel, MergeGroupModel,
+    EntityModel, EntitySummaryModel, MergeGroupListModel, MergeGroupModel,
 };
 use crate::models::web::WebSiteJoinCols;
 use crate::services::app_merge::{self, MergeCandidate};
@@ -747,6 +747,72 @@ impl EntityService {
             bucket_count: bucket_count as i32,
         })
     }
+
+    /// `/api/entity/summary`：指标卡所需的聚合统计（总额 / 实体数 / 会话数 / 最长单次 / 网页数）
+    pub async fn summary(
+        pool: &SqlitePool,
+        config_service: &ConfigService,
+        start: NaiveDate,
+        end: NaiveDate,
+        tz_id: &str,
+        browser_merged: bool,
+    ) -> Result<EntitySummaryModel, AppError> {
+        let tz = parse_timezone(tz_id);
+        let utc_start = tz_date_to_utc_range(start, &tz).0;
+        let utc_end = tz_date_to_utc_range(end, &tz).1;
+        let excluded = config_service.get_excluded_app_id_set(pool).await;
+
+        let list = Self::list(pool, config_service, start, end, tz_id, browser_merged, None).await?;
+        let app_net_seconds: i64 = list
+            .rows
+            .iter()
+            .filter(|row| row.kind != "site")
+            .map(|row| row.seconds)
+            .sum();
+        let app_count = list.rows.iter().filter(|row| row.kind != "site").count() as i32;
+        let site_count = list.rows.iter().filter(|row| row.kind == "site").count() as i32;
+        let top_app = list.rows.iter().find(|row| row.kind != "site").cloned();
+        let top_site = list.rows.iter().find(|row| row.kind == "site").cloned();
+
+        let (
+            session_count,
+            average_session_seconds,
+            longest_session_seconds,
+            longest_session_start,
+            first_session_start,
+            last_session_end,
+        ) = summarize_app_sessions(pool, utc_start, utc_end, &excluded).await?;
+
+        let (
+            web_page_count,
+            web_record_count,
+            longest_browse_seconds,
+            first_browse_start,
+            last_browse_end,
+        ) = summarize_browse_logs(pool, utc_start, utc_end).await?;
+
+        Ok(EntitySummaryModel {
+            total_seconds: list.total_seconds,
+            app_seconds: list.app_seconds,
+            app_net_seconds,
+            site_seconds: list.site_seconds,
+            app_count,
+            site_count,
+            session_count,
+            average_session_seconds,
+            longest_session_seconds,
+            longest_session_start,
+            first_session_start,
+            last_session_end,
+            web_page_count,
+            web_record_count,
+            longest_browse_seconds,
+            first_browse_start,
+            last_browse_end,
+            top_app,
+            top_site,
+        })
+    }
 }
 
 /// 把本地时间轴切成桶：单日=24 小时 / 区间=每天 / 整年=12 个月
@@ -991,6 +1057,219 @@ async fn load_browse_logs(
             end: row.log_time + Duration::seconds(row.duration),
         })
         .collect())
+}
+
+/// 汇总应用会话（与 `/api/data/sessions` 同口径：修剪微重叠、合并 <=60s 碎片、过滤 <3s；同合并组成员视作同一实体）
+async fn summarize_app_sessions(
+    pool: &SqlitePool,
+    utc_start: DateTime<Utc>,
+    utc_end: DateTime<Utc>,
+    excluded: &HashSet<i64>,
+) -> Result<
+    (
+        i64,
+        i64,
+        i64,
+        Option<DateTime<Utc>>,
+        Option<DateTime<Utc>>,
+        Option<DateTime<Utc>>,
+    ),
+    AppError,
+> {
+    const OVERLAP_TRIM_SECS: i64 = 2;
+    const SAME_ENTITY_MERGE_GAP_SECS: i64 = 60;
+    const MIN_DURATION_SECS: i64 = 3;
+
+    let rows: Vec<SessionRow> = sqlx::query_as(
+        "SELECT AppModelID, StartTime, EndTime FROM AppSessions WHERE EndTime > ? AND StartTime < ? ORDER BY StartTime ASC",
+    )
+    .bind(utc_start)
+    .bind(utc_end)
+    .fetch_all(pool)
+    .await?;
+
+    // 合并组成员的连续会话视作同一个实体
+    let groups = load_groups(pool).await?;
+    let mut app_to_entity: HashMap<i64, i64> = HashMap::new();
+    if !groups.is_empty() {
+        let app_names: Vec<(i64, String)> = sqlx::query_as("SELECT ID, Name FROM AppModels")
+            .fetch_all(pool)
+            .await?;
+        let name_to_id: HashMap<String, i64> =
+            app_names.into_iter().map(|(id, name)| (name, id)).collect();
+        for group in groups.iter().filter(|group| group.kind == "app") {
+            for member in &group.members {
+                if let Some(&app_id) = name_to_id.get(member) {
+                    app_to_entity.insert(app_id, group.id);
+                }
+            }
+        }
+    }
+
+    #[derive(Clone)]
+    struct Span {
+        entity_key: i64,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        duration: i64,
+    }
+
+    let raw: Vec<Span> = rows
+        .into_iter()
+        .filter(|row| !excluded.contains(&row.app_model_id))
+        .filter_map(|row| {
+            let start = row.start_time.max(utc_start);
+            let end = row.end_time.min(utc_end);
+            let duration = (end - start).num_seconds();
+            if duration < MIN_DURATION_SECS {
+                return None;
+            }
+            let entity_key = app_to_entity
+                .get(&row.app_model_id)
+                .copied()
+                .unwrap_or(-row.app_model_id);
+            Some(Span {
+                entity_key,
+                start,
+                end,
+                duration,
+            })
+        })
+        .collect();
+
+    if raw.is_empty() {
+        return Ok((0, 0, 0, None, None, None));
+    }
+
+    let mut linear: Vec<Span> = Vec::with_capacity(raw.len());
+    let mut iter = raw.into_iter();
+    let mut current = iter.next().unwrap();
+    for mut next in iter {
+        let overlap = (current.end - next.start).num_seconds();
+        if overlap > 0 {
+            if overlap <= OVERLAP_TRIM_SECS {
+                next.start = current.end;
+                next.duration = (next.end - next.start).num_seconds();
+                if next.duration <= 0 {
+                    continue;
+                }
+            } else {
+                current.end = next.start;
+                current.duration = (current.end - current.start).num_seconds();
+                if current.duration <= 0 {
+                    current = next;
+                    continue;
+                }
+            }
+        }
+        linear.push(current);
+        current = next;
+    }
+    linear.push(current);
+
+    let mut merged: Vec<Span> = Vec::with_capacity(linear.len());
+    let mut iter = linear.into_iter();
+    let mut current = iter.next().unwrap();
+    for next in iter {
+        if current.entity_key == next.entity_key {
+            let gap = (next.start - current.end).num_seconds();
+            if gap <= SAME_ENTITY_MERGE_GAP_SECS {
+                if next.end > current.end {
+                    current.end = next.end;
+                }
+                current.duration = (current.end - current.start).num_seconds();
+                continue;
+            }
+        }
+        merged.push(current);
+        current = next;
+    }
+    merged.push(current);
+
+    let count = merged.len() as i64;
+    let total: i64 = merged.iter().map(|span| span.duration).sum();
+    let average = if count > 0 { total / count } else { 0 };
+    let first_start = merged.iter().map(|span| span.start).min();
+    let last_end = merged.iter().map(|span| span.end).max();
+    let longest = merged.iter().max_by_key(|span| span.duration);
+    let longest_seconds = longest.map(|span| span.duration).unwrap_or(0);
+    let longest_start = longest.map(|span| span.start);
+
+    Ok((
+        count,
+        average,
+        longest_seconds,
+        longest_start,
+        first_start,
+        last_end,
+    ))
+}
+
+async fn summarize_browse_logs(
+    pool: &SqlitePool,
+    utc_start: DateTime<Utc>,
+    utc_end: DateTime<Utc>,
+) -> Result<(i64, i64, i64, Option<DateTime<Utc>>, Option<DateTime<Utc>>), AppError> {
+    #[derive(sqlx::FromRow)]
+    struct Row {
+        #[sqlx(rename = "UrlId")]
+        url_id: i64,
+        #[sqlx(rename = "LogTime")]
+        log_time: DateTime<Utc>,
+        #[sqlx(rename = "Duration")]
+        duration: i64,
+    }
+
+    let rows: Vec<Row> = sqlx::query_as(
+        r#"
+        SELECT UrlId, LogTime, Duration
+        FROM WebBrowseLogModels
+        WHERE LogTime >= ? AND LogTime < ?
+        "#,
+    )
+    .bind(utc_start - Duration::hours(1))
+    .bind(utc_end)
+    .fetch_all(pool)
+    .await?;
+
+    let mut distinct_urls: HashSet<i64> = HashSet::new();
+    let mut record_count: i64 = 0;
+    let mut longest_seconds: i64 = 0;
+    let mut first_start: Option<DateTime<Utc>> = None;
+    let mut last_end: Option<DateTime<Utc>> = None;
+
+    for row in rows {
+        if row.duration <= 0 {
+            continue;
+        }
+        let start = row.log_time.max(utc_start);
+        let end = (row.log_time + Duration::seconds(row.duration)).min(utc_end);
+        let clipped = (end - start).num_seconds();
+        if clipped <= 0 {
+            continue;
+        }
+        distinct_urls.insert(row.url_id);
+        record_count += 1;
+        if clipped > longest_seconds {
+            longest_seconds = clipped;
+        }
+        first_start = Some(match first_start {
+            Some(prev) => prev.min(start),
+            None => start,
+        });
+        last_end = Some(match last_end {
+            Some(prev) => prev.max(end),
+            None => end,
+        });
+    }
+
+    Ok((
+        distinct_urls.len() as i64,
+        record_count,
+        longest_seconds,
+        first_start,
+        last_end,
+    ))
 }
 
 async fn fill_site_details(
@@ -1713,5 +1992,32 @@ mod tests {
         };
         assert_eq!(other_row_name(&app, 1), "浏览器内其他页面");
         assert_eq!(other_row_name(&app, 3), "Google Chrome · 其他页面");
+    }
+
+    #[tokio::test]
+    async fn summary_aggregates_sessions_and_browse_stats() {
+        let pool = test_pool().await;
+        seed(&pool).await;
+        let config = ConfigService::new(&test_config_dir("summary"));
+        let day = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+
+        let summary = EntityService::summary(&pool, &config, day, day, "Asia/Shanghai", false)
+            .await
+            .expect("entity summary");
+
+        assert_eq!(summary.total_seconds, 3600);
+        assert_eq!(summary.app_seconds, 3600);
+        assert_eq!(summary.app_net_seconds, 1800);
+        assert_eq!(summary.site_seconds, 1800);
+        assert_eq!(summary.app_count, 1);
+        assert_eq!(summary.site_count, 1);
+        assert_eq!(summary.session_count, 1);
+        assert_eq!(summary.average_session_seconds, 3600);
+        assert_eq!(summary.longest_session_seconds, 3600);
+        assert_eq!(summary.web_page_count, 1);
+        assert_eq!(summary.web_record_count, 1);
+        assert_eq!(summary.longest_browse_seconds, 1800);
+        assert!(summary.top_app.is_some());
+        assert!(summary.top_site.is_some());
     }
 }

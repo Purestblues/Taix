@@ -60,6 +60,21 @@
         <!-- ═══ Row 1：统计卡片 + 时间轴 + 图表 ═══ -->
         <ScrollViewer Grid.Row="1">
             <StackPanel>
+                <Border IsVisible="{Binding HasEntityError}"
+                        Background="{DynamicResource CardBgBrush}"
+                        BorderBrush="{DynamicResource ThemeBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="14,10" Margin="0,0,0,12">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Text="{Binding EntityErrorText}" FontSize="12" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Margin="12,0,0,0" Padding="10,0" Height="28"
+                                Content="{DynamicResource Retry}"
+                                Command="{Binding RefreshCommand}" />
+                    </Grid>
+                </Border>
+
                 <TabControl SelectedIndex="{Binding ShowType.Id}"
                             BorderThickness="0"
                             Padding="0"

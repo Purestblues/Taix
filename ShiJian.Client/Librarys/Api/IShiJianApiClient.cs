@@ -88,6 +88,8 @@ public interface IShiJianApiClient
 
     // Entity（N2 统一实体表）
     Task<EntityListModel> GetEntityListAsync(DateTime start, DateTime end, bool browserMerged, CancellationToken cancellationToken = default);
+    Task<EntityHoursModel> GetEntityHoursAsync(DateTime start, DateTime end, string buckets, bool browserMerged, CancellationToken cancellationToken = default);
+    Task<EntitySummaryModel> GetEntitySummaryAsync(DateTime start, DateTime end, bool browserMerged, CancellationToken cancellationToken = default);
     Task<List<BrowserOptionModel>> GetEntityBrowsersAsync(CancellationToken cancellationToken = default);
     Task<MergeGroupListModel> GetEntityMergeGroupsAsync(CancellationToken cancellationToken = default);
     Task DissolveEntityMergeGroupAsync(int groupId);

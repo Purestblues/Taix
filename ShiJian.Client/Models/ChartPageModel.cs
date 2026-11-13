@@ -125,6 +125,8 @@ public partial class ChartPageModel : ModelBase
 
     private string _webTotalTimeText;
     private string _weekDateStr;
+    private bool _hasEntityError;
+    private string _entityErrorText = string.Empty;
 
 
 
@@ -627,6 +629,26 @@ public partial class ChartPageModel : ModelBase
         set
         {
             _webSitesColSelectedTimeText = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool HasEntityError
+    {
+        get => _hasEntityError;
+        set
+        {
+            _hasEntityError = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EntityErrorText
+    {
+        get => _entityErrorText;
+        set
+        {
+            _entityErrorText = value;
             OnPropertyChanged();
         }
     }

@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// 统一实体表的一行（N2）。
@@ -111,4 +112,30 @@ pub struct EntityHoursModel {
     pub rows: Vec<EntityHoursRow>,
     pub browser_merged: bool,
     pub bucket_count: i32,
+}
+
+/// `/api/entity/summary`：指标卡与区间汇总（会话数 / 时长 / 最长单次 / 网站数 / 页面数）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EntitySummaryModel {
+    pub total_seconds: i64,
+    pub app_seconds: i64,
+    /// `Kind != "site"` 之和；`browserMerged=false` 时已扣掉归属浏览器的站点时长
+    pub app_net_seconds: i64,
+    pub site_seconds: i64,
+    pub app_count: i32,
+    pub site_count: i32,
+    pub session_count: i64,
+    pub average_session_seconds: i64,
+    pub longest_session_seconds: i64,
+    pub longest_session_start: Option<DateTime<Utc>>,
+    pub first_session_start: Option<DateTime<Utc>>,
+    pub last_session_end: Option<DateTime<Utc>>,
+    pub web_page_count: i64,
+    pub web_record_count: i64,
+    pub longest_browse_seconds: i64,
+    pub first_browse_start: Option<DateTime<Utc>>,
+    pub last_browse_end: Option<DateTime<Utc>>,
+    pub top_app: Option<EntityModel>,
+    pub top_site: Option<EntityModel>,
 }

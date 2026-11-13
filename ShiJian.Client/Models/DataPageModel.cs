@@ -32,6 +32,8 @@ public partial class DataPageModel : ModelBase
     private DateTime _yearDate;
     private List<ChartsDataModel> _weekData;
     private DateTime _weekDate;
+    private bool _hasEntityError;
+    private string _entityErrorText = string.Empty;
 
     public List<SelectItemModel> PeriodOptions { get; set; } = [];
 
@@ -335,6 +337,26 @@ public partial class DataPageModel : ModelBase
         set
         {
             _yearDate = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool HasEntityError
+    {
+        get => _hasEntityError;
+        set
+        {
+            _hasEntityError = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string EntityErrorText
+    {
+        get => _entityErrorText;
+        set
+        {
+            _entityErrorText = value;
             OnPropertyChanged();
         }
     }
