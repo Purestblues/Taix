@@ -463,6 +463,19 @@
     <system:String x:Key="MergeGroupResetAll">Restore all</system:String>
     <system:String x:Key="MergeGroupDissolved">Dissolved - this group stays split</system:String>
     <system:String x:Key="MergeGroupRestored">Automatic merging restored</system:String>
+    <system:String x:Key="MergeGroupNew">New group</system:String>
+    <system:String x:Key="MergeGroupEditTitle">Edit merge group</system:String>
+    <system:String x:Key="MergeGroupNewTitle">New merge group</system:String>
+    <system:String x:Key="MergeGroupNamePlaceholder">Leave empty to use primary name</system:String>
+    <system:String x:Key="MergeGroupSearchPlaceholder">Search apps or sites…</system:String>
+    <system:String x:Key="MergeGroupPrimary">Primary</system:String>
+    <system:String x:Key="MergeGroupSetPrimary">Set primary</system:String>
+    <system:String x:Key="MergeGroupNeedTwo">Select at least 2 members</system:String>
+    <system:String x:Key="MergeGroupSaved">Merge group saved</system:String>
+    <system:String x:Key="MergeKindMixed">Mixed</system:String>
+    <system:String x:Key="MergeKindManual">Manual</system:String>
+    <system:String x:Key="MergeCandidateApp">App</system:String>
+    <system:String x:Key="MergeCandidateSite">Site</system:String>
     <system:String x:Key="WebListSeparate">Separate</system:String>
     <system:String x:Key="WebListMerged">Into Browser</system:String>
     <system:String x:Key="DefaultBrowser">Default Browser</system:String>
@@ -470,4 +483,21 @@
     <system:String x:Key="BrowserAuto">Auto</system:String>
     <system:String x:Key="ServerOutdated">The overview needs a newer server (it returned 404). Install the latest build or replace shijian-server, then retry.</system:String>
     <system:String x:Key="EntityLoadFailed">Failed to load the unified entity data. Previous results are kept; retry later or check the server log.</system:String>
+
+    <!-- Category page redesign (N5) -->
+    <system:String x:Key="BrowseByCategory">Categories</system:String>
+    <system:String x:Key="BrowseByEntity">Apps</system:String>
+    <system:String x:Key="EmptyCategoriesHeader">Empty ({0})</system:String>
+    <system:String x:Key="FilterAll">All</system:String>
+    <system:String x:Key="FilterUncategorized">Uncategorized</system:String>
+    <system:String x:Key="SortByTodayDuration">Today</system:String>
+    <system:String x:Key="SortByTotalDuration">Total</system:String>
+    <system:String x:Key="SortUncategorizedFirst">Untagged first</system:String>
+    <system:String x:Key="EntitySearchPlaceholder">Search apps, sites or categories…</system:String>
+    <system:String x:Key="EntityTagChanged">Category updated</system:String>
+    <system:String x:Key="TodayPrefix">Today</system:String>
+    <system:String x:Key="TotalPrefix">Total</system:String>
+    <system:String x:Key="EntityEmptyHint">No matching items</system:String>
+    <system:String x:Key="ChangeCategory">Set category</system:String>
+    <system:String x:Key="InsightEntities">Apps &amp; Sites</system:String>
 </ResourceDictionary>

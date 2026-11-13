@@ -9,6 +9,7 @@ using ShiJian.Client.Controls.Select;
 using ShiJian.Client.Controls.Window;
 using ShiJian.Client.Foundation;
 using ShiJian.Client.Foundation.Rx;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Logging;
 using ShiJian.Client.Models;
 using ShiJian.Client.Platform.Abstractions.Primitives;
@@ -26,6 +27,8 @@ public class SettingPageViewModel : SettingPageModel
     private readonly IDialogService _dialogService;
     private readonly UpdateCheckerService _updateCheckerService;
     private readonly IWebData _webDataService;
+    private readonly IAppData _appDataService;
+    private readonly IWebSiteData _webSiteDataService;
     private readonly IAppConfig _appConfig;
     private readonly IData _dataService;
     private readonly IProcessService _processService;
@@ -37,12 +40,16 @@ public class SettingPageViewModel : SettingPageModel
     private bool _isLoadingBrowsers;
     private readonly IToastService _toastService;
     private readonly ConfigModel _config;
+    private List<MergeCandidateRow> _allMergeCandidates = [];
+    private int _editingGroupId;
 
     public SettingPageViewModel(
         IAppConfig appConfig,
         IToastService toastService,
         IData data,
         IWebData webData,
+        IAppData appData,
+        IWebSiteData webSiteData,
         IDialogService dialogService,
         IProcessService processService,
         UpdateCheckerService updateCheckerService,
@@ -53,6 +60,8 @@ public class SettingPageViewModel : SettingPageModel
         _toastService = toastService;
         _dataService = data;
         _webDataService = webData;
+        _appDataService = appData;
+        _webSiteDataService = webSiteData;
         _dialogService = dialogService;
         _processService = processService;
         _updateCheckerService = updateCheckerService;
@@ -66,6 +75,12 @@ public class SettingPageViewModel : SettingPageModel
         CheckUpdate = AsyncRelayCommand.CreateFromTask(OnCheckUpdateAsync).DisposeWith(Disposables);
         DissolveMergeGroupCommand = AsyncRelayCommand.CreateFromTask<object>(OnDissolveMergeGroupAsync).DisposeWith(Disposables);
         ResetMergeGroupsCommand = AsyncRelayCommand.CreateFromTask<object>(OnResetMergeGroupsAsync).DisposeWith(Disposables);
+        OpenCreateMergeGroupCommand = AsyncRelayCommand.CreateFromTask(OnOpenCreateMergeGroupAsync).DisposeWith(Disposables);
+        OpenEditMergeGroupCommand = AsyncRelayCommand.CreateFromTask<object>(OnOpenEditMergeGroupAsync).DisposeWith(Disposables);
+        ToggleMergeCandidateCommand = AsyncRelayCommand.Create<object>(OnToggleMergeCandidate).DisposeWith(Disposables);
+        SetMergePrimaryCommand = AsyncRelayCommand.Create<object>(OnSetMergePrimary).DisposeWith(Disposables);
+        SaveMergeGroupCommand = AsyncRelayCommand.CreateFromTask(OnSaveMergeGroupAsync).DisposeWith(Disposables);
+        CloseMergeEditorCommand = AsyncRelayCommand.Create<object>(_ => { MergeEditorVisible = false; }).DisposeWith(Disposables);
 
         appConfig.ConfigChanged += OnConfigChanged;
 
@@ -73,10 +88,21 @@ public class SettingPageViewModel : SettingPageModel
 
         // 默认浏览器下拉框换项即保存（没有「保存」按钮，和其他设置项一致）
         WhenPropertyChanged(this, x => x.SelectedBrowser, _ => OnSelectedBrowserChangedAsync());
+        WhenPropertyChanged(this, x => x.MergeEditorSearch, _ =>
+        {
+            FilterMergeCandidates();
+            return Task.CompletedTask;
+        });
     }
 
     public ICommand DissolveMergeGroupCommand { get; }
     public ICommand ResetMergeGroupsCommand { get; }
+    public ICommand OpenCreateMergeGroupCommand { get; }
+    public ICommand OpenEditMergeGroupCommand { get; }
+    public ICommand ToggleMergeCandidateCommand { get; }
+    public ICommand SetMergePrimaryCommand { get; }
+    public ICommand SaveMergeGroupCommand { get; }
+    public ICommand CloseMergeEditorCommand { get; }
 
     /// <summary>进设置页时刷新一次（应用表可能在别的页面里改过）</summary>
     public override async Task OnNavigatedToAsync()
@@ -162,20 +188,196 @@ public class SettingPageViewModel : SettingPageModel
             var groups = await _appMergeService.GetGroupsAsync(force: true);
             MergeGroups.Clear();
             foreach (var group in groups)
+            {
+                var kindLabel = group.Kind == "mixed"
+                    ? ResourceStrings.MergeKindMixed
+                    : group.Kind == "site"
+                        ? ResourceStrings.MergeCandidateSite
+                        : group.IsAuto
+                            ? string.Empty
+                            : ResourceStrings.MergeKindManual;
+
                 MergeGroups.Add(new AppMergeGroupRow
                 {
                     Key = group.Key,
                     Name = group.Name,
                     Count = group.MemberNames.Count,
                     MembersText = string.Join(" · ", group.MemberNames),
-                    IsRenamed = group.Name != group.MemberNames.FirstOrDefault()
+                    IsRenamed = group.Name != group.MemberNames.FirstOrDefault(),
+                    Kind = group.Kind,
+                    IsAuto = group.IsAuto,
+                    KindLabel = kindLabel
                 });
+            }
 
             HasMergeGroups = MergeGroups.Count > 0;
         }
         catch (Exception ex)
         {
             Logger.Error($"加载子母程序合并组失败：{ex.Message}", ex);
+        }
+    }
+
+    private async Task OnOpenCreateMergeGroupAsync()
+    {
+        await OpenMergeEditorAsync(null);
+    }
+
+    private async Task OnOpenEditMergeGroupAsync(object obj)
+    {
+        if (obj is not AppMergeGroupRow row) return;
+        var group = _appMergeService.Groups.FirstOrDefault(g => g.Key == row.Key);
+        if (group == null) return;
+        await OpenMergeEditorAsync(group);
+    }
+
+    private async Task OpenMergeEditorAsync(AppMergeGroup? existing)
+    {
+        MergeEditorError = string.Empty;
+        MergeEditorSearch = string.Empty;
+        _editingGroupId = existing != null && int.TryParse(existing.Key, out var gid) ? gid : 0;
+        IsMergeEditorCreate = existing == null;
+        MergeEditorName = existing?.Name ?? string.Empty;
+
+        try
+        {
+            var appsTask = _appDataService.GetAllAppsAsync();
+            var sitesTask = _webSiteDataService.GetAllWebSitesAsync();
+            await Task.WhenAll(appsTask, sitesTask);
+
+            var selectedSet = existing != null
+                ? new HashSet<string>(existing.MemberRefs, StringComparer.OrdinalIgnoreCase)
+                : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var primaryRef = existing?.PrimaryRef ?? string.Empty;
+
+            var candidates = new List<MergeCandidateRow>();
+            foreach (var app in appsTask.Result.Where(a => !string.IsNullOrWhiteSpace(a.Name)).OrderByDescending(a => a.TotalTime))
+            {
+                var r = AppMergePlanner.CanonicalMemberRef(false, app.Name!);
+                candidates.Add(new MergeCandidateRow
+                {
+                    Ref = r,
+                    Name = AppMergePlanner.AppDisplayName(app),
+                    Subtitle = app.Name!,
+                    Icon = app.IconFile,
+                    IsSite = false,
+                    IsSelected = selectedSet.Contains(r),
+                    IsPrimary = string.Equals(r, primaryRef, StringComparison.OrdinalIgnoreCase)
+                });
+            }
+
+            foreach (var site in sitesTask.Result.Where(s => !string.IsNullOrWhiteSpace(s.Domain)).OrderByDescending(s => s.Duration))
+            {
+                var r = AppMergePlanner.CanonicalMemberRef(true, site.Domain!);
+                candidates.Add(new MergeCandidateRow
+                {
+                    Ref = r,
+                    Name = AppMergePlanner.SiteDisplayName(site),
+                    Subtitle = site.Domain!,
+                    Icon = site.IconFile,
+                    IsSite = true,
+                    IsSelected = selectedSet.Contains(r),
+                    IsPrimary = string.Equals(r, primaryRef, StringComparison.OrdinalIgnoreCase)
+                });
+            }
+
+            _allMergeCandidates = candidates;
+            SyncMergeSelectionState();
+            FilterMergeCandidates();
+            MergeEditorVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"打开合并编辑器失败：{ex.Message}", ex);
+            _toastService.Error(ResourceStrings.OperationFailedRetry);
+        }
+    }
+
+    private void OnToggleMergeCandidate(object obj)
+    {
+        if (obj is not MergeCandidateRow row) return;
+        row.IsSelected = !row.IsSelected;
+        if (!row.IsSelected)
+        {
+            row.IsPrimary = false;
+        }
+        SyncMergeSelectionState();
+    }
+
+    private void OnSetMergePrimary(object obj)
+    {
+        if (obj is not MergeCandidateRow target) return;
+        target.IsSelected = true;
+        foreach (var item in _allMergeCandidates)
+        {
+            item.IsPrimary = ReferenceEquals(item, target);
+        }
+        SyncMergeSelectionState();
+    }
+
+    private void SyncMergeSelectionState()
+    {
+        var selected = _allMergeCandidates.Where(c => c.IsSelected).ToList();
+        if (selected.Count > 0 && !selected.Any(c => c.IsPrimary))
+        {
+            selected[0].IsPrimary = true;
+        }
+
+        MergeEditorSelectedMembers.Clear();
+        foreach (var item in selected)
+        {
+            MergeEditorSelectedMembers.Add(item);
+        }
+    }
+
+    private void FilterMergeCandidates()
+    {
+        var keyword = (MergeEditorSearch ?? string.Empty).Trim();
+        var filtered = string.IsNullOrEmpty(keyword)
+            ? _allMergeCandidates
+            : _allMergeCandidates.Where(c =>
+                c.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || c.Subtitle.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        MergeEditorCandidates.Clear();
+        foreach (var item in filtered.Take(120))
+        {
+            MergeEditorCandidates.Add(item);
+        }
+    }
+
+    private async Task OnSaveMergeGroupAsync()
+    {
+        MergeEditorError = string.Empty;
+        var selected = _allMergeCandidates.Where(c => c.IsSelected).ToList();
+        if (selected.Count < 2)
+        {
+            MergeEditorError = ResourceStrings.MergeGroupNeedTwo;
+            return;
+        }
+
+        var primary = selected.FirstOrDefault(c => c.IsPrimary) ?? selected[0];
+        var refs = selected.Select(c => c.Ref).ToList();
+
+        try
+        {
+            if (_editingGroupId > 0)
+            {
+                await _appMergeService.UpdateGroupAsync(_editingGroupId, MergeEditorName, primary.Ref, refs);
+            }
+            else
+            {
+                await _appMergeService.CreateGroupAsync(MergeEditorName, primary.Ref, refs);
+            }
+
+            MergeEditorVisible = false;
+            _toastService.Success(ResourceStrings.MergeGroupSaved);
+            await LoadMergeGroupsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.Warn($"保存合并组失败：{ex.Message}");
+            MergeEditorError = ex.Message;
         }
     }
 

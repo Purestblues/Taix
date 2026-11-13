@@ -4,12 +4,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Logging;
 using ShiJian.Client.Models.Navigation;
 using ShiJian.Client.Servicers.Interfaces;
 using ShiJian.Client.Shared.Librarys;
 using ShiJian.Client.Shared.Models;
 using ShiJian.Client.Shared.Models.Data;
+using ShiJian.Client.Shared.Models.Entity;
 using ShiJian.Client.Shared.Models.Search;
 using ShiJian.Client.Shared.Models.Web;
 using ShiJian.Client.Shared.Servicers.Interfaces;
@@ -32,6 +34,9 @@ public class SearchService : ISearchService
     private readonly IWebData _webData;
     private readonly ICategorys _categorys;
     private readonly INavigationService _navigationService;
+    private readonly IEntityData _entityData;
+    private readonly IAppMergeService _appMergeService;
+    private readonly IAppConfig _appConfig;
 
     private IReadOnlyCollection<AppModel>? _cachedApps;
     private IReadOnlyCollection<WebSiteModel>? _cachedSites;
@@ -49,7 +54,10 @@ public class SearchService : ISearchService
         IData dataService,
         IWebData webData,
         ICategorys categorys,
-        INavigationService navigationService)
+        INavigationService navigationService,
+        IEntityData entityData,
+        IAppMergeService appMergeService,
+        IAppConfig appConfig)
     {
         _appData = appData;
         _webSiteData = webSiteData;
@@ -57,6 +65,9 @@ public class SearchService : ISearchService
         _webData = webData;
         _categorys = categorys;
         _navigationService = navigationService;
+        _entityData = entityData;
+        _appMergeService = appMergeService;
+        _appConfig = appConfig;
 
         // 分类增删改时失效搜索语料缓存，避免全局搜索仍展示已删分类
         _categorys.CategoriesChanged += InvalidateCache;
@@ -75,7 +86,28 @@ public class SearchService : ISearchService
         keyword = keyword?.Trim() ?? string.Empty;
         if (keyword.Length == 0) return Array.Empty<SearchResultItem>();
 
-        var (apps, sites, appCategories, webCategories) = await GetCorpusAsync(cancellationToken).ConfigureAwait(false);
+        var corpusTask = GetCorpusAsync(cancellationToken);
+        var groupsTask = SafeAsync(
+            () => _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken),
+            (IReadOnlyList<AppMergeGroup>)Array.Empty<AppMergeGroup>(),
+            "搜索合并组");
+        await Task.WhenAll(corpusTask, groupsTask).ConfigureAwait(false);
+
+        var (apps, sites, appCategories, webCategories) = await corpusTask;
+        var groups = await groupsTask;
+        return SearchCore(keyword, apps, sites, appCategories, webCategories, groups);
+    }
+
+    public static IReadOnlyList<SearchResultItem> SearchCore(
+        string keyword,
+        IReadOnlyCollection<AppModel> apps,
+        IReadOnlyCollection<WebSiteModel> sites,
+        IReadOnlyCollection<CategoryModel> appCategories,
+        IReadOnlyCollection<WebSiteCategoryModel> webCategories,
+        IReadOnlyList<AppMergeGroup> groups)
+    {
+        keyword = keyword?.Trim() ?? string.Empty;
+        if (keyword.Length == 0) return Array.Empty<SearchResultItem>();
 
         // 别名匹配
         string? aliased = null;
@@ -130,8 +162,98 @@ public class SearchService : ISearchService
             }
         }
 
+        var appById = apps.GroupBy(a => a.ID).ToDictionary(g => g.Key, g => g.First());
+        var siteById = sites.GroupBy(s => s.ID).ToDictionary(g => g.Key, g => g.First());
+        var groupedAppIds = new HashSet<int>();
+        var groupedSiteIds = new HashSet<int>();
+
+        // N2：合并组成员折叠为一条（用组名 + 所有成员字段打分，跳转到母成员详情页）
+        foreach (var group in groups)
+        {
+            var memberApps = group.MemberAppIds
+                .Where(appById.ContainsKey)
+                .Select(id => appById[id])
+                .ToList();
+            var memberSites = group.MemberSiteIds
+                .Where(siteById.ContainsKey)
+                .Select(id => siteById[id])
+                .ToList();
+
+            if (memberApps.Count == 0 && memberSites.Count == 0) continue;
+
+            foreach (var app in memberApps) groupedAppIds.Add(app.ID);
+            foreach (var site in memberSites) groupedSiteIds.Add(site.ID);
+
+            int bestScore = ScoreOne(group.Name ?? string.Empty, keyword);
+            if (aliased != null)
+            {
+                var alt = ScoreOne(group.Name ?? string.Empty, aliased);
+                if (alt > 0) bestScore = Math.Max(bestScore, alt - 5);
+            }
+            foreach (var app in memberApps)
+            {
+                bestScore = Math.Max(bestScore, ScoreApp(app, keyword, aliased));
+            }
+            foreach (var site in memberSites)
+            {
+                bestScore = Math.Max(bestScore, ScoreSite(site, keyword, aliased));
+            }
+
+            if (bestScore <= 0) continue;
+
+            var mergedCount = Math.Max(group.MemberNames.Count, memberApps.Count + memberSites.Count);
+            var mergedBadge = FormatMergedCountText(mergedCount);
+            if (group.PrimarySiteId > 0 && siteById.TryGetValue(group.PrimarySiteId, out var primarySite))
+            {
+                var subtitle = string.IsNullOrEmpty(primarySite.Domain)
+                    ? mergedBadge
+                    : $"{primarySite.Domain} · {mergedBadge}";
+                results.Add((bestScore, new SearchResultItem(
+                    Type: SearchResultType.WebSite,
+                    Id: primarySite.ID,
+                    DisplayName: !string.IsNullOrWhiteSpace(group.Name) ? group.Name : primarySite.GetDisplayName(),
+                    SecondaryText: subtitle,
+                    IconFile: primarySite.IconFile,
+                    PayloadModel: primarySite)));
+            }
+            else
+            {
+                var primaryApp = (group.PrimaryAppId > 0 && appById.TryGetValue(group.PrimaryAppId, out var foundApp))
+                    ? foundApp
+                    : memberApps.FirstOrDefault();
+                if (primaryApp != null)
+                {
+                    var subtitle = string.IsNullOrEmpty(primaryApp.Name)
+                        ? mergedBadge
+                        : $"{primaryApp.Name} · {mergedBadge}";
+                    results.Add((bestScore, new SearchResultItem(
+                        Type: SearchResultType.App,
+                        Id: primaryApp.ID,
+                        DisplayName: !string.IsNullOrWhiteSpace(group.Name) ? group.Name : primaryApp.GetDisplayName(),
+                        SecondaryText: subtitle,
+                        IconFile: primaryApp.IconFile,
+                        PayloadModel: primaryApp)));
+                }
+                else if (memberSites.Count > 0)
+                {
+                    var fallbackSite = memberSites[0];
+                    var subtitle = string.IsNullOrEmpty(fallbackSite.Domain)
+                        ? mergedBadge
+                        : $"{fallbackSite.Domain} · {mergedBadge}";
+                    results.Add((bestScore, new SearchResultItem(
+                        Type: SearchResultType.WebSite,
+                        Id: fallbackSite.ID,
+                        DisplayName: !string.IsNullOrWhiteSpace(group.Name) ? group.Name : fallbackSite.GetDisplayName(),
+                        SecondaryText: subtitle,
+                        IconFile: fallbackSite.IconFile,
+                        PayloadModel: fallbackSite)));
+                }
+            }
+        }
+
         foreach (var app in apps)
         {
+            if (groupedAppIds.Contains(app.ID)) continue;
             var score = ScoreApp(app, keyword, aliased);
             if (score > 0)
             {
@@ -147,6 +269,7 @@ public class SearchService : ISearchService
 
         foreach (var site in sites)
         {
+            if (groupedSiteIds.Contains(site.ID)) continue;
             var score = ScoreSite(site, keyword, aliased);
             if (score > 0)
             {
@@ -168,6 +291,12 @@ public class SearchService : ISearchService
             .ToList();
     }
 
+    private static string FormatMergedCountText(int count)
+    {
+        var fmt = ResolveResourceString("MergedItems", "合并 {0} 项");
+        return fmt.Contains("{0}", StringComparison.Ordinal) ? string.Format(fmt, count) : $"合并 {count} 项";
+    }
+
     private static string ResolveResourceString(string key, string fallback)
     {
         if (Avalonia.Application.Current?.Resources.TryGetResource(key, null, out var res) == true && res is string s)
@@ -179,16 +308,12 @@ public class SearchService : ISearchService
     {
         var today = DateTime.Now.Date;
         var halfMax = Math.Max(1, max / 2);
+        var browserMerged = _appConfig.GetConfig().General.WebBrowserMerged;
 
-        var appsTask = SafeAsync(
-            () => _dataService.GetDateRangelogListAsync(today, today, take: halfMax, cancellationToken: cancellationToken),
-            Enumerable.Empty<DailyLogModel>(),
-            "今日应用列表");
-
-        var sitesTask = SafeAsync(
-            () => _webData.GetDateRangeWebSiteListAsync(today, today, take: halfMax, cancellationToken: cancellationToken),
-            (IReadOnlyList<WebSiteModel>)Array.Empty<WebSiteModel>(),
-            "今日网站列表");
+        var entityTask = SafeAsync<EntityListModel?>(
+            () => _entityData.GetEntityListAsync(today, today, browserMerged, cancellationToken),
+            null,
+            "今日统一实体");
 
         // 分类列表从 corpus 缓存获取
         var corpusTask = GetCorpusAsync(cancellationToken);
@@ -203,11 +328,12 @@ public class SearchService : ISearchService
             Array.Empty<ColumnDataModel>(),
             "今日网站分类时长");
 
-        await Task.WhenAll(appsTask, sitesTask, corpusTask, appCategoryTodayTask, webCategoryTodayTask).ConfigureAwait(false);
+        await Task.WhenAll(entityTask, corpusTask, appCategoryTodayTask, webCategoryTodayTask).ConfigureAwait(false);
 
-        var (_, _, appCategories, webCategories) = await corpusTask;
+        var (apps, sites, appCategories, webCategories) = await corpusTask;
         var appCategoryToday = await appCategoryTodayTask;
         var webCategoryToday = await webCategoryTodayTask;
+        var entityList = await entityTask;
 
         // ColumnDataModel.Values 聚合为 categoryId -> totalSeconds
         var appCatSeconds = SumByCategory(appCategoryToday);
@@ -253,9 +379,31 @@ public class SearchService : ISearchService
             }
         }
 
-        // 今日活跃区段
-        var todayApps = await appsTask;
-        var todaySites = await sitesTask;
+        // 今日活跃区段：优先消费服务端统一实体行（已包含合并组与浏览器并入规则）
+        if (entityList != null)
+        {
+            var appById = apps.GroupBy(a => a.ID).ToDictionary(g => g.Key, g => g.First());
+            var siteById = sites.GroupBy(s => s.ID).ToDictionary(g => g.Key, g => g.First());
+            var entityItems = BuildEntityHighlightItems(entityList.Rows, appById, siteById, max);
+            if (entityItems.Count > 0)
+            {
+                result.Add(MakeHeader(ResolveResourceString("SearchSectionToday", "今日活跃")));
+                result.AddRange(entityItems);
+            }
+            return result;
+        }
+
+        // 兜底：entity 接口不可用时回退旧接口
+        var todayApps = await SafeAsync(
+            () => _dataService.GetDateRangelogListAsync(today, today, take: halfMax, cancellationToken: cancellationToken),
+            Enumerable.Empty<DailyLogModel>(),
+            "今日应用列表").ConfigureAwait(false);
+
+        var todaySites = await SafeAsync(
+            () => _webData.GetDateRangeWebSiteListAsync(today, today, take: halfMax, cancellationToken: cancellationToken),
+            (IReadOnlyList<WebSiteModel>)Array.Empty<WebSiteModel>(),
+            "今日网站列表").ConfigureAwait(false);
+
         var todayHasItems = todayApps.Any(l => l.AppModel != null) || todaySites.Any();
 
         if (todayHasItems)
@@ -294,6 +442,64 @@ public class SearchService : ISearchService
         }
 
         return result;
+    }
+
+    public static List<SearchResultItem> BuildEntityHighlightItems(
+        IEnumerable<EntityModel> rows,
+        IReadOnlyDictionary<int, AppModel> appById,
+        IReadOnlyDictionary<int, WebSiteModel> siteById,
+        int max)
+    {
+        var items = new List<SearchResultItem>(max);
+        foreach (var row in rows)
+        {
+            if (items.Count >= max) break;
+            if (row.Kind == "aggregate" || row.Seconds <= 0) continue;
+
+            var isSite = row.Kind == "site" || row.Key.StartsWith("site:", StringComparison.Ordinal);
+            var id = row.EntityId;
+            if (isSite)
+            {
+                var site = id > 0 && siteById.TryGetValue(id, out var foundSite)
+                    ? foundSite
+                    : new WebSiteModel { ID = id, Title = row.Name, Domain = row.Name, IconFile = row.Icon };
+                var subtitle = site.Domain ?? string.Empty;
+                if (row.Members.Count > 0)
+                {
+                    var badge = FormatMergedCountText(row.Members.Count + 1);
+                    subtitle = string.IsNullOrEmpty(subtitle) ? badge : $"{subtitle} · {badge}";
+                }
+                items.Add(new SearchResultItem(
+                    Type: SearchResultType.WebSite,
+                    Id: id,
+                    DisplayName: row.Name,
+                    SecondaryText: subtitle,
+                    IconFile: row.Icon ?? site.IconFile,
+                    PayloadModel: site,
+                    UsageText: Time.ToString(row.Seconds)));
+            }
+            else
+            {
+                var app = id > 0 && appById.TryGetValue(id, out var foundApp)
+                    ? foundApp
+                    : new AppModel { ID = id, Name = row.Name, Description = row.Name, IconFile = row.Icon };
+                var subtitle = app.Name ?? string.Empty;
+                if (row.Members.Count > 0)
+                {
+                    var badge = FormatMergedCountText(row.Members.Count + 1);
+                    subtitle = string.IsNullOrEmpty(subtitle) ? badge : $"{subtitle} · {badge}";
+                }
+                items.Add(new SearchResultItem(
+                    Type: SearchResultType.App,
+                    Id: id,
+                    DisplayName: row.Name,
+                    SecondaryText: subtitle,
+                    IconFile: row.Icon ?? app.IconFile,
+                    PayloadModel: app,
+                    UsageText: Time.ToString(row.Seconds)));
+            }
+        }
+        return items;
     }
 
     private static Dictionary<int, long> SumByCategory(IReadOnlyList<ColumnDataModel> data)

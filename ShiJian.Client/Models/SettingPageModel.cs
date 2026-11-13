@@ -16,6 +16,13 @@ public class SettingPageModel : ModelBase
     private ObservableCollection<string> _tabbarData = [];
     private ObservableCollection<AppMergeGroupRow> _mergeGroups = [];
     private bool _hasMergeGroups;
+    private bool _mergeEditorVisible;
+    private bool _isMergeEditorCreate = true;
+    private string _mergeEditorName = string.Empty;
+    private string _mergeEditorSearch = string.Empty;
+    private string _mergeEditorError = string.Empty;
+    private ObservableCollection<MergeCandidateRow> _mergeEditorCandidates = [];
+    private ObservableCollection<MergeCandidateRow> _mergeEditorSelectedMembers = [];
     private List<SelectItemModel> _browserOptions = [];
     private SelectItemModel? _selectedBrowser;
     private int _tabbarSelectedIndex;
@@ -150,6 +157,80 @@ public class SettingPageModel : ModelBase
         set
         {
             _exportDataEndMonthDate = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool MergeEditorVisible
+    {
+        get => _mergeEditorVisible;
+        set
+        {
+            _mergeEditorVisible = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsMergeEditorCreate
+    {
+        get => _isMergeEditorCreate;
+        set
+        {
+            _isMergeEditorCreate = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string MergeEditorName
+    {
+        get => _mergeEditorName;
+        set
+        {
+            _mergeEditorName = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string MergeEditorSearch
+    {
+        get => _mergeEditorSearch;
+        set
+        {
+            if (_mergeEditorSearch == value) return;
+            _mergeEditorSearch = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string MergeEditorError
+    {
+        get => _mergeEditorError;
+        set
+        {
+            _mergeEditorError = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasMergeEditorError));
+        }
+    }
+
+    public bool HasMergeEditorError => !string.IsNullOrWhiteSpace(_mergeEditorError);
+
+    public ObservableCollection<MergeCandidateRow> MergeEditorCandidates
+    {
+        get => _mergeEditorCandidates;
+        set
+        {
+            _mergeEditorCandidates = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public ObservableCollection<MergeCandidateRow> MergeEditorSelectedMembers
+    {
+        get => _mergeEditorSelectedMembers;
+        set
+        {
+            _mergeEditorSelectedMembers = value;
             OnPropertyChanged();
         }
     }

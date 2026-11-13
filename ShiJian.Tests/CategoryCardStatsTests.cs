@@ -217,4 +217,33 @@ public class CategoryCardStatsTests
 
         Assert.Equal(0, raised);
     }
+
+    [Fact]
+    public void SplitEmpty_SeparatesZeroCountAndZeroDurationCards()
+    {
+        var activeWithCount = Named(1, "Dev", count: 3, duration: 0);
+        var activeWithDuration = Named(2, "Web", count: 0, duration: 120);
+        var emptyA = Named(3, "EmptyA", count: 0, duration: 0);
+        var emptyB = Named(4, "EmptyB", count: 0, duration: 0);
+
+        var (active, empty) = CategoryCardStats.SplitEmpty([activeWithCount, emptyA, activeWithDuration, emptyB]);
+
+        Assert.Equal([1, 2], active.Select(c => c.Data.ID));
+        Assert.Equal([3, 4], empty.Select(c => c.Data.ID));
+    }
+
+    [Fact]
+    public void SyncCollection_UpdatesAddedRemovedAndMovedCardsWithoutFullReset()
+    {
+        var a = Named(1, "A");
+        var b = Named(2, "B");
+        var c = Named(3, "C");
+        var target = new System.Collections.ObjectModel.ObservableCollection<CategoryModel> { a, b };
+
+        CategoryCardStats.SyncCollection(target, [c, a]);
+
+        Assert.Equal([3, 1], target.Select(m => m.Data.ID));
+        Assert.Same(c, target[0]);
+        Assert.Same(a, target[1]);
+    }
 }

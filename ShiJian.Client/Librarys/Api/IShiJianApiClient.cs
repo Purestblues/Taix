@@ -92,6 +92,8 @@ public interface IShiJianApiClient
     Task<EntitySummaryModel> GetEntitySummaryAsync(DateTime start, DateTime end, bool browserMerged, CancellationToken cancellationToken = default);
     Task<List<BrowserOptionModel>> GetEntityBrowsersAsync(CancellationToken cancellationToken = default);
     Task<MergeGroupListModel> GetEntityMergeGroupsAsync(CancellationToken cancellationToken = default);
+    Task<MergeGroupModel> CreateEntityMergeGroupAsync(string name, string primaryRef, IReadOnlyList<string> members);
+    Task<MergeGroupModel> UpdateEntityMergeGroupAsync(int groupId, string? name = null, string? primaryRef = null, IReadOnlyList<string>? members = null);
     Task DissolveEntityMergeGroupAsync(int groupId);
     Task RenameEntityMergeGroupAsync(int groupId, string name);
     Task RestoreEntityMergeGroupsAsync();

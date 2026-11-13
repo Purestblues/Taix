@@ -22,4 +22,53 @@ public class AppMergeGroupRow
 
     /// <summary>是否被用户改过名（改过名的不显示「恢复」按钮的语义差别，仅作标识）</summary>
     public bool IsRenamed { get; init; }
+
+    public string Kind { get; init; } = "app";
+
+    public bool IsAuto { get; init; } = true;
+
+    public string KindLabel { get; init; } = string.Empty;
+
+    public bool HasKindBadge => !string.IsNullOrEmpty(KindLabel);
+}
+
+/// <summary>设置页手动/跨源合并弹窗里的候选项（应用或网站）</summary>
+public class MergeCandidateRow : ModelBase
+{
+    private bool _isSelected;
+    private bool _isPrimary;
+
+    public string Ref { get; init; } = string.Empty;
+
+    public string Name { get; init; } = string.Empty;
+
+    public string Subtitle { get; init; } = string.Empty;
+
+    public string? Icon { get; init; }
+
+    public bool IsSite { get; init; }
+
+    public string TypeBadge => IsSite ? ResourceStrings.MergeCandidateSite : ResourceStrings.MergeCandidateApp;
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected == value) return;
+            _isSelected = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsPrimary
+    {
+        get => _isPrimary;
+        set
+        {
+            if (_isPrimary == value) return;
+            _isPrimary = value;
+            OnPropertyChanged();
+        }
+    }
 }

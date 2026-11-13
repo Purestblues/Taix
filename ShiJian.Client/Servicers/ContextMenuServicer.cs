@@ -80,14 +80,29 @@ public class ContextMenuServicer : IContextMenuServicer, IDisposable
 
     public async Task<ContextMenu> CreateContextMenuAsync(ContextMenuType type, ChartsDataModel data)
     {
-        var app = GetApp(data);
-        var site = GetSite(data);
+        if (data?.Data is Shared.Models.Entity.EntityModel entity && entity.EntityId > 0)
+        {
+            var isSite = entity.Kind == "site" || entity.Key.StartsWith("site:", StringComparison.Ordinal);
+            if (isSite)
+            {
+                var siteEntity = await _webData.GetWebSiteAsync(entity.EntityId);
+                if (siteEntity != null)
+                    return await BuildWebSiteMenuAsync(new ChartsDataModel { Data = siteEntity });
+            }
+            else
+            {
+                var appEntity = await _appData.GetAppAsync(entity.EntityId);
+                if (appEntity != null)
+                    return await BuildAppMenuAsync(new ChartsDataModel { Data = appEntity });
+            }
+        }
+
         return type switch
         {
-            ContextMenuType.App => await BuildAppMenuAsync(data),
-            ContextMenuType.WebSite => await BuildWebSiteMenuAsync(data),
-            ContextMenuType.AppDetail => await BuildAppDetailMenuAsync(data),
-            ContextMenuType.WebSiteDetail => await BuildWebSiteDetailMenuAsync(data),
+            ContextMenuType.App => await BuildAppMenuAsync(data!),
+            ContextMenuType.WebSite => await BuildWebSiteMenuAsync(data!),
+            ContextMenuType.AppDetail => await BuildAppDetailMenuAsync(data!),
+            ContextMenuType.WebSiteDetail => await BuildWebSiteDetailMenuAsync(data!),
             _ => throw new ArgumentOutOfRangeException(nameof(type))
         };
     }

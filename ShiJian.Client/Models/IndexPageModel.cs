@@ -10,18 +10,16 @@ namespace ShiJian.Client.Models;
 [GeneratePageState]
 public partial class IndexPageModel : ModelBase
 {
-    private List<ChartsDataModel> _appMoreData;
+    private List<ChartsDataModel> _moreData = [];
     private List<ChartsDataModel> _appFrequentUseData;
 
     private int _frequentUseNum;
 
     private int _moreNum;
-    private SelectItemModel _moreType;
 
     private int _tabbarSelectedIndex;
 
     private List<ChartsDataModel> _webFrequentUseData;
-    private List<ChartsDataModel> _webMoreData;
 
     private List<ChartsDataModel> _weekData;
 
@@ -203,26 +201,7 @@ public partial class IndexPageModel : ModelBase
     }
 
     /// <summary>
-    /// 图表展示的是应用还是网站
-    /// </summary>
-    [PageState(LookupFrom = nameof(ChartTypeOptions))]
-    public SelectItemModel ChartType
-    {
-        get => _chartType;
-        set
-        {
-            _chartType = value;
-            OnPropertyChanged();
-        }
-    }
-
-    /// <summary>
-    /// 图表类型选项（0=应用/1=网站）
-    /// </summary>
-    public List<SelectItemModel> ChartTypeOptions { get; set; } = [];
-
-    /// <summary>
-    /// 环形图中心标注（应用 / 网站）
+    /// 环形图中心标注（总计）
     /// </summary>
     [PageState]
     public string ChartDonutCaption
@@ -240,7 +219,6 @@ public partial class IndexPageModel : ModelBase
     #region 图表
 
     private string _chartDonutCaption = string.Empty;
-    private SelectItemModel _chartType;
 
     private List<ChartsDataModel> _hourSeries = [];
     private string[] _hourLabels = [];
@@ -563,20 +541,6 @@ public partial class IndexPageModel : ModelBase
     }
 
     /// <summary>
-    /// 更多展示数据类型（0=应用/1=网页）
-    /// </summary>
-    [PageState(LookupFrom = nameof(MoreTypeOptions))]
-    public SelectItemModel MoreType
-    {
-        get => _moreType;
-        set
-        {
-            _moreType = value;
-            OnPropertyChanged();
-        }
-    }
-
-    /// <summary>
     /// 应用最为频繁数据
     /// </summary>
     [PageState(DataCache = true)]
@@ -591,35 +555,16 @@ public partial class IndexPageModel : ModelBase
     }
 
     /// <summary>
-    /// 应用更多数据
+    /// 统一更多数据（应用 + 网站合并按时长排序）
     /// </summary>
     [PageState(DataCache = true)]
-    public List<ChartsDataModel> AppMoreData
+    public List<ChartsDataModel> MoreData
     {
-        get => _appMoreData;
+        get => _moreData;
         set
         {
-            _appMoreData = value;
+            _moreData = value;
             OnPropertyChanged();
         }
     }
-
-    /// <summary>
-    /// 网页更多数据
-    /// </summary>
-    [PageState(DataCache = true)]
-    public List<ChartsDataModel> WebMoreData
-    {
-        get => _webMoreData;
-        set
-        {
-            _webMoreData = value;
-            OnPropertyChanged();
-        }
-    }
-
-    /// <summary>
-    /// 更多展示数据类型选项（应用/网页）
-    /// </summary>
-    public List<SelectItemModel> MoreTypeOptions { get; set; } = [];
 }

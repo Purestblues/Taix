@@ -106,4 +106,38 @@ public static class CategoryCardStats
             if (current >= 0 && current != i) target.Move(current, i);
         }
     }
+
+    /// <summary>N7-c 尾项：判定空分类（0 应用/网站 且 今日 0 时长）</summary>
+    public static bool IsEmptyCategory(CategoryCardModel card) => card.Count == 0 && !card.HasDuration;
+
+    /// <summary>按活跃 / 空分类拆成两组，保留传入排序顺序</summary>
+    public static (List<T> Active, List<T> Empty) SplitEmpty<T>(IEnumerable<T> cards) where T : CategoryCardModel
+    {
+        var active = new List<T>();
+        var empty = new List<T>();
+        foreach (var card in cards)
+        {
+            if (IsEmptyCategory(card)) empty.Add(card);
+            else active.Add(card);
+        }
+        return (active, empty);
+    }
+
+    /// <summary>把目标集合就地同步到期望列表（增删重排一次到位）</summary>
+    public static void SyncCollection<T>(ObservableCollection<T> target, IReadOnlyList<T> desired)
+    {
+        var desiredSet = new HashSet<T>(desired);
+        for (var i = target.Count - 1; i >= 0; i--)
+        {
+            if (!desiredSet.Contains(target[i])) target.RemoveAt(i);
+        }
+
+        for (var i = 0; i < desired.Count; i++)
+        {
+            var item = desired[i];
+            var idx = target.IndexOf(item);
+            if (idx < 0) target.Insert(i, item);
+            else if (idx != i) target.Move(idx, i);
+        }
+    }
 }

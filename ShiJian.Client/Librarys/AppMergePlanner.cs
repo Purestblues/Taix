@@ -270,6 +270,76 @@ public static class AppMergePlanner
 
     private static int LogAppId(DailyLogModel log) => log.AppModel?.ID ?? log.AppModelID;
 
+    /// <summary>解析服务端合并组成员标识（支持 `app:Name`、`site:domain` 及历史裸 `Name`）</summary>
+    public static (bool IsSite, string Value) ParseMemberRef(string? raw)
+    {
+        var trimmed = (raw ?? string.Empty).Trim();
+        if (trimmed.StartsWith("site:", StringComparison.OrdinalIgnoreCase))
+            return (true, trimmed[5..].Trim());
+        if (trimmed.StartsWith("app:", StringComparison.OrdinalIgnoreCase))
+            return (false, trimmed[4..].Trim());
+        return (false, trimmed);
+    }
+
+    public static string CanonicalMemberRef(bool isSite, string value) =>
+        $"{(isSite ? "site" : "app")}:{value.Trim()}";
+
+    public static string AppDisplayName(AppModel app) =>
+        !string.IsNullOrWhiteSpace(app.Alias) ? app.Alias!
+        : !string.IsNullOrWhiteSpace(app.Description) ? app.Description!
+        : app.Name ?? string.Empty;
+
+    public static string SiteDisplayName(Shared.Models.Web.WebSiteModel site) =>
+        !string.IsNullOrWhiteSpace(site.Alias) ? site.Alias!
+        : !string.IsNullOrWhiteSpace(site.Title) ? site.Title!
+        : site.Domain ?? string.Empty;
+
+    /// <summary>按合并组折叠静态应用列表（如分类详情应用列表、搜索语料）</summary>
+    public static List<AppModel> FoldApps(IReadOnlyList<AppModel> apps, IReadOnlyList<AppMergeGroup> groups)
+    {
+        if (apps.Count == 0 || groups.Count == 0) return [.. apps];
+
+        var byAppId = new Dictionary<int, AppMergeGroup>();
+        foreach (var g in groups)
+        {
+            foreach (var id in g.MemberAppIds)
+            {
+                byAppId.TryAdd(id, g);
+            }
+        }
+
+        if (byAppId.Count == 0) return [.. apps];
+
+        var consumedGroups = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<AppModel>(apps.Count);
+        foreach (var app in apps)
+        {
+            if (!byAppId.TryGetValue(app.ID, out var group))
+            {
+                result.Add(app);
+                continue;
+            }
+
+            if (!consumedGroups.Add(group.Key)) continue;
+
+            var groupMembers = apps.Where(a => group.MemberAppIds.Contains(a.ID)).ToList();
+            if (groupMembers.Count == 0) continue;
+
+            var primary = groupMembers.FirstOrDefault(a => a.ID == group.PrimaryAppId)
+                ?? groupMembers.OrderByDescending(a => a.TotalTime).First();
+            var summedTime = groupMembers.Sum(a => a.TotalTime);
+            var displayName = !string.IsNullOrWhiteSpace(group.Name) ? group.Name : AppDisplayName(primary);
+
+            result.Add(primary with
+            {
+                Alias = displayName,
+                TotalTime = summedTime
+            });
+        }
+
+        return result;
+    }
+
     /// <summary>
     /// 给合并后的榜单行加上「合并 N 项」徽章，并把成员名放进悬停说明。
     /// 徽章 `CategoryId = 0`，点击会被分类徽章的命令忽略。
@@ -315,17 +385,30 @@ public static class AppMergePlanner
 /// <summary>一个合并组：母成员保留原行，其余成员折叠进来</summary>
 public sealed class AppMergeGroup
 {
-    /// <summary>稳定锚点（`安装目录|品牌`），覆盖表按它记录</summary>
+    /// <summary>稳定锚点（服务端组 ID 的字符串形式）</summary>
     public string Key { get; init; } = string.Empty;
 
     /// <summary>组名（品牌，或用户改的名字）</summary>
     public string Name { get; init; } = string.Empty;
 
+    /// <summary>组类型：`app` / `site` / `mixed`</summary>
+    public string Kind { get; init; } = "app";
+
+    public bool IsAuto { get; init; } = true;
+
+    public string PrimaryRef { get; init; } = string.Empty;
+
     public int PrimaryAppId { get; init; }
+
+    public int PrimarySiteId { get; init; }
 
     public IReadOnlyList<int> MemberAppIds { get; init; } = [];
 
+    public IReadOnlyList<int> MemberSiteIds { get; init; } = [];
+
     public IReadOnlyList<string> MemberNames { get; init; } = [];
+
+    public IReadOnlyList<string> MemberRefs { get; init; } = [];
 
     public int TotalTime { get; init; }
 }

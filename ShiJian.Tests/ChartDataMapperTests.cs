@@ -162,4 +162,68 @@ public class ChartDataMapperTests
         Assert.Equal(DateTime.SpecifyKind(stamp, DateTimeKind.Utc).ToLocalTime(), model.DateTime);
         Assert.Equal("hourly", model.Name);
     }
+
+    [Fact]
+    public void BuildUnifiedCategorySeries_SeparatesAppAndSiteIdsAndMergesUncategorized()
+    {
+        var hours = new ShiJian.Client.Shared.Models.Entity.EntityHoursModel
+        {
+            BucketCount = 2,
+            Rows =
+            [
+                // 应用 ID=1（非系统：开发）
+                new() { Key = "app:1", Kind = "app", CategoryId = 1, Values = [100, 50] },
+                // 网站 ID=1（非系统：影音 — 与应用共享 ID=1 但命名空间不同）
+                new() { Key = "site:1", Kind = "site", CategoryKind = "site", CategoryId = 1, Values = [60, 0] },
+                // 未分类应用 + 系统分类网站：应合并进同一「未分类」桶
+                new() { Key = "app:2", Kind = "app", CategoryId = 0, Values = [30, 10] },
+                new() { Key = "site:2", Kind = "site", CategoryKind = "site", CategoryId = 99, Values = [20, 30] },
+                // 时长为 0 的行不应生成孤立 0 秒分类
+                new() { Key = "app:3", Kind = "app", CategoryId = 2, Values = [0, 0] }
+            ]
+        };
+
+        var appVisuals = ChartDataMapper.ToVisualMap(
+            new[]
+            {
+                new CategoryModel { ID = 1, Name = "开发", Color = "#16a34a", IsSystem = false },
+                new CategoryModel { ID = 2, Name = "办公", Color = "#2563eb", IsSystem = false }
+            },
+            "未分类");
+        var siteVisuals = ChartDataMapper.ToVisualMap(
+            new[]
+            {
+                new WebSiteCategoryModel { ID = 1, Name = "影音", Color = "#ea580c", IsSystem = false },
+                new WebSiteCategoryModel { ID = 99, Name = "未分类", Color = "#999999", IsSystem = true }
+            },
+            "未分类");
+
+        var result = ChartDataMapper.BuildUnifiedCategorySeries(
+            hours, appVisuals, siteVisuals, "未分类", ["10", "11"]);
+
+        Assert.Equal(new[] { "开发", "未分类", "影音" }, result.ConvertAll(x => x.Name));
+        Assert.Equal(150, result[0].Value);
+        Assert.Equal(90, result[1].Value);
+        Assert.Equal(60, result[2].Value);
+        Assert.Equal(new[] { 50d, 40d }, result[1].Values);
+        Assert.Equal(300, result[0].Value + result[1].Value + result[2].Value);
+    }
+
+    [Fact]
+    public void SumAllBuckets_SumsAllEntitiesAndPadsExpectedLength()
+    {
+        var hours = new ShiJian.Client.Shared.Models.Entity.EntityHoursModel
+        {
+            BucketCount = 3,
+            Rows =
+            [
+                new() { Key = "app:1", Kind = "app", Values = [10, 20, 0] },
+                new() { Key = "site:1", Kind = "site", Values = [5, 15, 30] }
+            ]
+        };
+
+        var totals = ChartDataMapper.SumAllBuckets(hours, expectedLength: 4);
+
+        Assert.Equal(new[] { 15d, 35d, 30d, 0d }, totals);
+    }
 }

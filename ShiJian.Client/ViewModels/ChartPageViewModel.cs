@@ -89,7 +89,6 @@ public partial class ChartPageViewModel : ChartPageModel
             new() { Id = 3, Name = ResourceStrings.Yearly }
         ];
 
-        ShowType = ShowTypeOptions[0];
         SelectedPeriod = PeriodOptions[0];
         Date = DateTime.Now;
         WeekDate = DateTime.Now;
@@ -102,7 +101,6 @@ public partial class ChartPageViewModel : ChartPageModel
         WhenPropertyChanged(this, x => x.WeekDate, _ => OnWeekDateChangedAsync());
         WhenPropertyChanged(this, x => x.MonthDate, _ => OnMonthDateChangedAsync());
         WhenPropertyChanged(this, x => x.YearDate, _ => OnYearDateChangedAsync());
-        WhenPropertyChanged(this, x => x.ShowType, _ => OnShowTypeChangedAsync());
         ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.ColumnSelectedIndex)
             .ObserveOn(AvaloniaContextScheduler.Instance)
             .Select(_ => RxObservable.FromAsync(async ct => await LoadSelectedColDataAsync(ct)))
@@ -116,12 +114,6 @@ public partial class ChartPageViewModel : ChartPageModel
             if (p != null) TabbarSelectedIndex = p.Id;
             return Task.CompletedTask;
         });
-        ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.WebColSelectedIndex)
-            .ObserveOn(AvaloniaContextScheduler.Instance)
-            .Select(_ => RxObservable.FromAsync(async ct => await LoadWebSitesColSelectedDataAsync(ct)))
-            .Switch()
-            .Subscribe()
-            .DisposeWith(Disposables);
     }
 
     public override Task OnNavigatedToAsync()
@@ -167,8 +159,6 @@ public partial class ChartPageViewModel : ChartPageModel
         await LoadYearDataAsync(ct);
     });
 
-    private Task OnShowTypeChangedAsync() => ExecuteAsync(LoadDataAsync);
-
     private Task OnRefreshAsync(object _) => ExecuteAsync(LoadDataAsync);
 
     public override Task RefreshAsync() => ExecuteAsync(LoadDataAsync);
@@ -178,7 +168,7 @@ public partial class ChartPageViewModel : ChartPageModel
     /// <summary>主题切换后分类色要按新背景重算：重拉当前页面数据（本地服务，开销可忽略）</summary>
     private void OnThemeChanged()
     {
-        if ((Data?.Count ?? 0) == 0 && (WebBrowseStatisticsData?.Count ?? 0) == 0) return;
+        if ((Data?.Count ?? 0) == 0) return;
         _ = ExecuteAsync(LoadDataAsync);
     }
 
@@ -192,7 +182,7 @@ public partial class ChartPageViewModel : ChartPageModel
         {
             if (chartData.Data is EntityModel entity)
             {
-                if (entity.Kind == "site")
+                if (entity.Kind == "site" || entity.Key.StartsWith("site:", StringComparison.Ordinal))
                 {
                     var site = await _webDataService.GetWebSiteAsync(entity.EntityId);
                     if (site != null)
@@ -293,30 +283,33 @@ public partial class ChartPageViewModel : ChartPageModel
         string buckets, string[]? columnNames, CancellationToken cancellationToken)
     {
         ColumnSelectedIndex = -1;
-        WebColSelectedIndex = -1;
         DataMaximum = 0;
         HasEntityError = false;
         EntityErrorText = string.Empty;
 
-        var isWeb = ShowType.Id == 1;
-        // 统计页始终按「站点独立成行」口径取实体：应用侧已扣掉归属浏览器的站点时长，
-        // 网站侧与「应用」页签相加恰好守恒，不会把同一分钟算两遍。
+        // 统计页统一展示应用与网站：取站点独立成行口径并合并聚合所有分类与实体榜单
         var hoursTask = _entityData.GetEntityHoursAsync(start, end, buckets, false, cancellationToken);
         var listTask = _entityData.GetEntityListAsync(start, end, false, cancellationToken);
         var summaryTask = _entityData.GetEntitySummaryAsync(start, end, false, cancellationToken);
         var prevSummaryTask = _entityData.GetEntitySummaryAsync(prevStart, prevEnd, false, cancellationToken);
+        var categoriesTask = _categoryService.GetCategoriesAsync(cancellationToken);
+        var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
 
         EntityHoursModel? entityHours;
         EntityListModel? entityList;
         EntitySummaryModel? summary;
         EntitySummaryModel? prevSummary;
+        IReadOnlyList<CategoryModel> categories;
+        IReadOnlyList<WebSiteCategoryModel> webCategories;
         try
         {
-            await Task.WhenAll(hoursTask, listTask, summaryTask, prevSummaryTask);
+            await Task.WhenAll(hoursTask, listTask, summaryTask, prevSummaryTask, categoriesTask, webCategoriesTask);
             entityHours = await hoursTask;
             entityList = await listTask;
             summary = await summaryTask;
             prevSummary = await prevSummaryTask;
+            categories = await categoriesTask;
+            webCategories = await webCategoriesTask;
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
         {
@@ -329,107 +322,37 @@ public partial class ChartPageViewModel : ChartPageModel
         cancellationToken.ThrowIfCancellationRequested();
         _cachedEntityHours = entityHours;
 
-        if (!isWeb)
-        {
-            var categories = await _categoryService.GetCategoriesAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
+        var categoryData = ChartDataMapper.BuildUnifiedCategorySeries(
+            entityHours,
+            ChartDataMapper.ToVisualMap(categories, ResourceStrings.Uncategorized),
+            ChartDataMapper.ToVisualMap(webCategories, ResourceStrings.Uncategorized),
+            ResourceStrings.Uncategorized,
+            columnNames);
 
-            var categoryMap = categories.ToDictionary(c => c.ID);
-            var columns = ChartDataMapper.AggregateColumnsByCategory(entityHours, isWeb: false);
-            var categoryData = new List<ChartsDataModel>(columns.Count);
-            foreach (var col in columns)
-            {
-                if (!categoryMap.TryGetValue(col.CategoryID, out var category))
-                    category = new CategoryModel { Name = ResourceStrings.Uncategorized, Color = "#ccc", IconFile = "" };
+        var totalUse = categoryData.Sum(m => m.Value);
+        _totalTime = totalUse;
+        Data = categoryData;
+        RadarData = categoryData;
+        TotalHours = Time.ToHoursString(totalUse);
 
-                categoryData.Add(new ChartsDataModel
-                {
-                    Name = category.Name,
-                    Icon = category.IconFile,
-                    Values = col.Values,
-                    Color = ChartColorHelper.Resolve(category.Color, category.IsSystem),
-                    ColumnNames = columnNames ?? []
-                });
-            }
-            categoryData = categoryData.OrderByDescending(c => c.Values.Sum()).ToList();
+        var topRows = (entityList?.Rows ?? []).OrderByDescending(r => r.Seconds).Take(5).ToList();
+        TopData = ChartDataMapper.MapFromEntities(topRows, includeBadges: false);
+        TopHours = TopData.Count > 0 ? Time.ToHoursString(TopData[0].Value) : "0";
 
-            var totalUse = categoryData.Sum(m => m.Values.Sum());
-            _totalTime = totalUse;
-            Data = categoryData;
-            RadarData = categoryData;
-            TotalHours = Time.ToHoursString(totalUse);
-
-            var appRows = (entityList?.Rows ?? []).Where(r => r.Kind != "site").Take(5).ToList();
-            TopData = ChartDataMapper.MapFromEntities(appRows, includeBadges: false);
-            TopHours = TopData.Count > 0 ? Time.ToHoursString(TopData[0].Value) : "0";
-
-            _appCount = summary?.AppCount ?? (entityList?.Rows.Count(r => r.Kind != "site") ?? 0);
-            AppCount = _appCount.ToString();
-            var topEntity = summary?.TopApp ?? appRows.FirstOrDefault();
-            Top1App = topEntity != null
-                ? new AppModel { ID = topEntity.EntityId, Description = topEntity.Name, IconFile = topEntity.Icon ?? string.Empty }
-                : null!;
-        }
-        else
-        {
-            var webCategories = await _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var webCategoryMap = webCategories.ToDictionary(c => c.ID);
-            var columns = ChartDataMapper.AggregateColumnsByCategory(entityHours, isWeb: true);
-
-            var statsData = new List<ChartsDataModel>(columns.Count);
-            var pieData = new List<ChartsDataModel>(columns.Count);
-            foreach (var col in columns)
-            {
-                if (!webCategoryMap.TryGetValue(col.CategoryID, out var category))
-                    category = new WebSiteCategoryModel { Name = ResourceStrings.Uncategorized, Color = "#999999", IconFile = "" };
-
-                var resolvedColor = ChartColorHelper.Resolve(category.Color, category.IsSystem);
-                var catName = category.Name ?? ResourceStrings.Uncategorized;
-                var sum = col.Values?.Sum() ?? 0;
-
-                statsData.Add(new ChartsDataModel
-                {
-                    Name = catName,
-                    Icon = category.IconFile ?? string.Empty,
-                    Values = col.Values ?? [],
-                    Color = resolvedColor,
-                    ColumnNames = columnNames ?? []
-                });
-
-                if (sum > 0)
-                {
-                    pieData.Add(new ChartsDataModel
-                    {
-                        Name = catName,
-                        Value = sum,
-                        Color = resolvedColor,
-                        PopupText = catName + " " + Time.ToString((int)sum),
-                        Icon = category.IconFile ?? string.Empty
-                    });
-                }
-            }
-
-            WebBrowseStatisticsData = statsData.OrderByDescending(m => m.Values.Sum()).ToList();
-            WebCategoriesPieData = pieData.OrderByDescending(m => m.Value).ToList();
-
-            var siteRows = (entityList?.Rows ?? []).Where(r => r.Kind == "site").Take(10).ToList();
-            WebSitesTopData = ChartDataMapper.MapFromEntities(siteRows, includeBadges: false);
-
-            WebTotalTime = summary?.SiteSeconds ?? siteRows.Sum(r => (double)r.Seconds);
-            WebSiteCount = summary?.SiteCount ?? (entityList?.Rows.Count(r => r.Kind == "site") ?? 0);
-            WebPageCount = summary?.WebPageCount ?? 0;
-            WebTotalTimeText = Time.ToHoursString(WebTotalTime);
-        }
+        _appCount = entityList?.Rows.Count ?? ((summary?.AppCount ?? 0) + (summary?.SiteCount ?? 0));
+        AppCount = _appCount.ToString();
+        var topEntity = topRows.FirstOrDefault() ?? summary?.TopApp;
+        Top1App = topEntity != null
+            ? new AppModel { ID = topEntity.EntityId, Description = topEntity.Name, IconFile = topEntity.Icon ?? string.Empty }
+            : null!;
 
         ApplyDiffData(prevSummary);
     }
 
     private void ApplyDiffData(EntitySummaryModel? prevSummary)
     {
-        var lastAppCount = prevSummary?.AppCount ?? 0;
-        double lastTotalTime = prevSummary?.AppNetSeconds ?? 0;
+        var lastAppCount = (prevSummary?.AppCount ?? 0) + (prevSummary?.SiteCount ?? 0);
+        double lastTotalTime = prevSummary?.TotalSeconds ?? 0;
 
         var diffTotalTime = lastTotalTime == 0
             ? (_totalTime > 0 ? 100 : 0)
@@ -442,10 +365,6 @@ public partial class ChartPageViewModel : ChartPageModel
         var diffAppCount = _appCount - lastAppCount;
         DiffAppCountType = diffAppCount > 0 ? "1" : diffAppCount < 0 ? "-1" : "0";
         DiffAppCountValue = DiffAppCountType == "0" ? string.Empty : Math.Abs(diffAppCount).ToString();
-
-        LastWebTotalTime = prevSummary?.SiteSeconds ?? 0;
-        LastWebSiteCount = prevSummary?.SiteCount ?? 0;
-        LastWebPageCount = prevSummary?.WebPageCount ?? 0;
     }
 
     private Task LoadSelectedColDataAsync(CancellationToken cancellationToken = default)
@@ -458,21 +377,7 @@ public partial class ChartPageViewModel : ChartPageModel
         }
 
         DayHoursSelectedTime = FormatSelectedColumnTime(ColumnSelectedIndex);
-        DayHoursData = SliceBucketEntities(_cachedEntityHours, ColumnSelectedIndex, isWeb: false);
-        return Task.CompletedTask;
-    }
-
-    private Task LoadWebSitesColSelectedDataAsync(CancellationToken cancellationToken = default)
-    {
-        if (WebColSelectedIndex < 0)
-        {
-            WebSitesColSelectedTimeText = string.Empty;
-            WebSitesColSelectedData = [];
-            return Task.CompletedTask;
-        }
-
-        WebSitesColSelectedTimeText = FormatSelectedColumnTime(WebColSelectedIndex);
-        WebSitesColSelectedData = SliceBucketEntities(_cachedEntityHours, WebColSelectedIndex, isWeb: true);
+        DayHoursData = SliceBucketEntities(_cachedEntityHours, ColumnSelectedIndex);
         return Task.CompletedTask;
     }
 
@@ -498,14 +403,12 @@ public partial class ChartPageViewModel : ChartPageModel
         return monthStart.ToString(culture.DateTimeFormat.YearMonthPattern, culture);
     }
 
-    private static List<ChartsDataModel> SliceBucketEntities(EntityHoursModel? hours, int bucketIndex, bool isWeb)
+    private static List<ChartsDataModel> SliceBucketEntities(EntityHoursModel? hours, int bucketIndex)
     {
         if (hours == null || bucketIndex < 0) return [];
 
         var entities = hours.Rows
-            .Where(r => (isWeb ? r.Kind == "site" : r.Kind != "site")
-                        && bucketIndex < r.Values.Length
-                        && r.Values[bucketIndex] > 0)
+            .Where(r => bucketIndex < r.Values.Length && r.Values[bucketIndex] > 0)
             .Select(r => r.ToEntityModel((int)r.Values[bucketIndex]));
 
         return ChartDataMapper.MapFromEntities(entities, includeBadges: true);

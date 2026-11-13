@@ -19,17 +19,12 @@
     </UserControl.ContextMenu>
 
     <Grid RowDefinitions="Auto,*" Margin="24">
-        <!-- ═══ Row 0：标题 · 应用/网站 · 日期 · 周期 ═══ -->
+        <!-- ═══ Row 0：标题 · 日期 · 周期 ═══ -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,5,0,20">
-                <StackPanel Grid.Column="0" Orientation="Horizontal"
-                            VerticalAlignment="Center" Spacing="10">
-                    <TextBlock Text="{DynamicResource SideStatistics}"
-                               FontSize="18"
-                               VerticalAlignment="Center" />
-                    <select:TabSwitch IsShowIcon="False"
-                                      SelectedItem="{Binding ShowType,Mode=TwoWay}"
-                                      Options="{Binding ShowTypeOptions}" />
-                </StackPanel>
+                <TextBlock Grid.Column="0"
+                           Text="{DynamicResource SideStatistics}"
+                           FontSize="18"
+                           VerticalAlignment="Center" />
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
                             VerticalAlignment="Center">
@@ -75,21 +70,7 @@
                     </Grid>
                 </Border>
 
-                <TabControl SelectedIndex="{Binding ShowType.Id}"
-                            BorderThickness="0"
-                            Padding="0"
-                            Background="Transparent">
-                    <TabControl.Styles>
-                        <Style Selector="TabItem">
-                            <Setter Property="Template">
-                                <ControlTemplate />
-                            </Setter>
-                        </Style>
-                    </TabControl.Styles>
-
-                    <!-- ═══ TabItem 0：应用 ═══ -->
-                    <TabItem TextElement.Foreground="{DynamicResource DefaultTextBrush}">
-                        <StackPanel>
+                <StackPanel>
                             <!-- 统计卡片 -->
                             <Grid Width="{Binding CardsWidth}" HorizontalAlignment="Left" Margin="0,5,0,15">
                                 <Grid.ColumnDefinitions>
@@ -175,7 +156,7 @@
                                                      Foreground="{DynamicResource SubTextBrush}" />
                                             </TextBlock>
                                             <TextBlock Grid.Row="1" Margin="0,3,0,0"
-                                                       Text="{DynamicResource Usage}"
+                                                       Text="{DynamicResource InsightEntities}"
                                                        Foreground="{DynamicResource SubTextBrush}" />
                                         </Grid>
                                         <Border Grid.Column="2" VerticalAlignment="Bottom">
@@ -318,260 +299,6 @@
                                 </Grid>
                             </WrapPanel>
                         </StackPanel>
-                    </TabItem>
-
-                    <!-- ═══ TabItem 1：网页 ═══ -->
-                    <TabItem TextElement.Foreground="{DynamicResource DefaultTextBrush}">
-                        <StackPanel>
-                            <!-- 统计卡片 -->
-                            <Grid Width="{Binding CardsWidth}" HorizontalAlignment="Left" Margin="0,5,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-
-                                <Border Margin="0,5,0,0" Padding="10" CornerRadius="8"
-                                        Background="{DynamicResource CardBgBrush}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="8">
-                                            <Border.Background>
-                                                <LinearGradientBrush>
-                                                    <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <base:Icon IconType="Stopwatch" Foreground="White" />
-                                        </Border>
-                                        <Grid Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="auto" />
-                                                <RowDefinition Height="auto" />
-                                            </Grid.RowDefinitions>
-                                            <TextBlock>
-                                                <Run Text="{Binding WebTotalTimeText}" FontSize="20"
-                                                     Foreground="{DynamicResource DefaultTextBrush}" />
-                                                <Run Text="{DynamicResource Hour}" FontSize="12"
-                                                     Foreground="{DynamicResource SubTextBrush}" />
-                                            </TextBlock>
-                                            <TextBlock Grid.Row="1" Margin="0,3,0,0" Text="{DynamicResource Browse}"
-                                                       Foreground="{DynamicResource SubTextBrush}" />
-                                        </Grid>
-                                        <Border Grid.Column="2" VerticalAlignment="Bottom">
-                                            <base:DiffValue Value="{Binding WebTotalTime}"
-                                                            LastValue="{Binding LastWebTotalTime}" />
-                                        </Border>
-                                    </Grid>
-                                </Border>
-
-                                <Border Grid.Column="1" Margin="20,5,0,0"
-                                        Background="{DynamicResource CardBgBrush}"
-                                        Padding="10" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="8">
-                                            <Border.Background>
-                                                <LinearGradientBrush>
-                                                    <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <base:Icon IconType="WebSearch" Foreground="White" />
-                                        </Border>
-                                        <Grid Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="auto" />
-                                                <RowDefinition Height="auto" />
-                                            </Grid.RowDefinitions>
-                                            <TextBlock>
-                                                <Run Text="{Binding WebSiteCount}" FontSize="20"
-                                                     Foreground="{DynamicResource DefaultTextBrush}" />
-                                                <Run Text="{DynamicResource Piece}" FontSize="12"
-                                                     Foreground="{DynamicResource SubTextBrush}" />
-                                            </TextBlock>
-                                            <TextBlock Grid.Row="1" Margin="0,3,0,0" Text="{DynamicResource Site}"
-                                                       Foreground="{DynamicResource SubTextBrush}" />
-                                        </Grid>
-                                        <Border Grid.Column="2" VerticalAlignment="Bottom">
-                                            <base:DiffValue Type="Number" Value="{Binding WebSiteCount}"
-                                                            LastValue="{Binding LastWebSiteCount}" />
-                                        </Border>
-                                    </Grid>
-                                </Border>
-
-                                <Border Grid.Column="2" Margin="20,5,0,0"
-                                        Background="{DynamicResource CardBgBrush}" Padding="10" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="auto" />
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="auto" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="8">
-                                            <Border.Background>
-                                                <LinearGradientBrush>
-                                                    <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <base:Icon IconType="Website" Foreground="White" />
-                                        </Border>
-                                        <Grid Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="auto" />
-                                                <RowDefinition Height="auto" />
-                                            </Grid.RowDefinitions>
-                                            <TextBlock>
-                                                <Run Text="{Binding WebPageCount}" FontSize="20"
-                                                     Foreground="{DynamicResource DefaultTextBrush}" />
-                                                <Run Text="{DynamicResource Piece}" FontSize="12"
-                                                     Foreground="{DynamicResource SubTextBrush}" />
-                                            </TextBlock>
-                                            <TextBlock Grid.Row="1" Margin="0,3,0,0" Text="{DynamicResource Webpage}"
-                                                       Foreground="{DynamicResource SubTextBrush}" />
-                                        </Grid>
-                                        <Border Grid.Column="2" VerticalAlignment="Bottom">
-                                            <base:DiffValue Type="Number" Value="{Binding WebPageCount}"
-                                                            LastValue="{Binding LastWebPageCount}" />
-                                        </Border>
-                                    </Grid>
-                                </Border>
-                            </Grid>
-
-                            <!-- 图表 + 饼图 + 最为频繁 -->
-                            <WrapPanel Margin="-10,0,-10,0">
-                                <i:Interaction.Behaviors>
-                                    <behaviors:RowWidthBehavior RowWidth="{Binding RowWidth, Mode=TwoWay}" />
-                                </i:Interaction.Behaviors>
-                                <Border Margin="10,10,0,0" Background="{DynamicResource CardBgBrush}"
-                                        CornerRadius="8" Width="{Binding ColumnChartWidth}" Padding="20" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
-                                    <StackPanel>
-                                        <charts:ColumnChart IsCanColumnSelect="True" ColumnSelectedIndex="{Binding WebColSelectedIndex,Mode=TwoWay}" IsShowTotal="False" NameIndexStart="{Binding NameIndexStart}" IsStack="True" Height="305" Data="{Binding WebBrowseStatisticsData}" />
-
-                                        <base:View Condition="!=-1" Value="{Binding WebColSelectedIndex}">
-                                            <StackPanel>
-                                                <Border Margin="0,5,0,0" HorizontalAlignment="Left" Padding="10"
-                                                        CornerRadius="8">
-                                                    <Border.Background>
-                                                        <SolidColorBrush Color="{DynamicResource ThemeColor}" Opacity=".05" />
-                                                    </Border.Background>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <base:Icon Foreground="{DynamicResource SubTextBrush}"
-                                                                   IconType="Calendar" VerticalAlignment="Center" />
-                                                        <TextBlock Foreground="{DynamicResource SubTextBrush}"
-                                                                   VerticalAlignment="Center"
-                                                                   Text="{Binding WebSitesColSelectedTimeText}" FontSize="13"
-                                                                   Margin="5,0,0,0" />
-                                                    </StackPanel>
-                                                </Border>
-                                                <base:View Value="{Binding WebSitesColSelectedData}" Condition="not empty">
-                                                    <charts:ListChart IsLoading="{Binding IsLoading}" IsShowBadge="True" IconSize="18" IsSearch="True" Margin="0,5,0,0" Height="300" Data="{Binding WebSitesColSelectedData}" ClickCommand="{Binding ToDetailCommand}" MenuType="WebSite" />
-                                                </base:View>
-                                                <base:View Value="{Binding WebSitesColSelectedData}" Condition="empty">
-                                                    <base:EmptyData IsLoading="{Binding IsLoading}" />
-                                                </base:View>
-                                            </StackPanel>
-                                        </base:View>
-                                    </StackPanel>
-                                </Border>
-
-                                <!-- 饼图 -->
-                                <Border Margin="10,10,0,0" Width="{Binding RadarChartWidth}" Height="300" Padding="20"
-                                        Background="{DynamicResource CardBgBrush}"
-                                        CornerRadius="8" VerticalAlignment="Top" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Text="{DynamicResource ClassificationProportion}" FontSize="14" />
-                                        <Grid Grid.Row="1" Margin="0,20,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <charts:PieChart Width="200" Height="200" Data="{Binding WebCategoriesPieData}" VerticalAlignment="Center" HorizontalAlignment="Left" />
-                                            <ListBox MaxHeight="200"
-                                                     IsHitTestVisible="False"
-                                                     Margin="20,0,0,0" VerticalAlignment="Center"
-                                                     Grid.Column="1"
-                                                     ItemsSource="{Binding WebCategoriesPieData}"
-                                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                                                <ListBox.Styles>
-                                                    <Style Selector="ListBox">
-                                                        <Setter Property="Template">
-                                                            <ControlTemplate>
-                                                                <Border>
-                                                                    <ScrollViewer>
-                                                                        <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
-                                                                    </ScrollViewer>
-                                                                </Border>
-                                                            </ControlTemplate>
-                                                        </Setter>
-                                                    </Style>
-                                                    <Style Selector="ListBoxItem">
-                                                        <Setter Property="Template">
-                                                            <ControlTemplate>
-                                                                <Grid>
-                                                                    <Border BorderBrush="Transparent"
-                                                                            BorderThickness="2" x:Name="Border"
-                                                                            Margin="5" CornerRadius="20">
-                                                                        <ContentPresenter
-                                                                            ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                                            Content="{TemplateBinding Content}" />
-                                                                    </Border>
-                                                                </Grid>
-                                                            </ControlTemplate>
-                                                        </Setter>
-                                                    </Style>
-                                                </ListBox.Styles>
-                                                <ListBox.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <StackPanel />
-                                                    </ItemsPanelTemplate>
-                                                </ListBox.ItemsPanel>
-                                                <ListBox.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <StackPanel Orientation="Horizontal">
-                                                            <Rectangle HorizontalAlignment="Left"
-                                                                       VerticalAlignment="Center"
-                                                                       RadiusX="2" RadiusY="2" Width="12" Height="12"
-                                                                       Fill="{Binding Color,Converter={StaticResource HextoColorConverter}}" />
-                                                            <TextBlock Margin="5,0,0,0"
-                                                                       Foreground="{DynamicResource SubTextBrush}"
-                                                                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                       Text="{Binding Name}" FontSize="12" />
-                                                        </StackPanel>
-                                                    </DataTemplate>
-                                                </ListBox.ItemTemplate>
-                                            </ListBox>
-                                        </Grid>
-                                    </Grid>
-                                </Border>
-
-                                <!-- 最为频繁 -->
-                                <Border Margin="10,10,0,0" Background="{DynamicResource CardBgBrush}"
-                                        Padding="20" CornerRadius="8" Width="{Binding TopListWidth}" Height="300"
-                                        VerticalAlignment="Top" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="auto" />
-                                            <RowDefinition Height="*" />
-                                        </Grid.RowDefinitions>
-                                        <TextBlock Text="{DynamicResource MostFrequent}" FontSize="14" />
-                                        <charts:ListChart IsLoading="{Binding IsLoading}" IconSize="18" Grid.Row="1" Margin="0,10,0,0" Data="{Binding WebSitesTopData}" ClickCommand="{Binding ToDetailCommand}" MenuType="WebSite" />
-                                    </Grid>
-                                </Border>
-                            </WrapPanel>
-                        </StackPanel>
-                    </TabItem>
-                </TabControl>
             </StackPanel>
         </ScrollViewer>
     </Grid>

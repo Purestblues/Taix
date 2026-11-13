@@ -477,6 +477,19 @@
     <system:String x:Key="MergeGroupResetAll">恢复全部</system:String>
     <system:String x:Key="MergeGroupDissolved">已解散，这个组不再自动合并</system:String>
     <system:String x:Key="MergeGroupRestored">已恢复自动合并</system:String>
+    <system:String x:Key="MergeGroupNew">新建合并</system:String>
+    <system:String x:Key="MergeGroupEditTitle">编辑合并组</system:String>
+    <system:String x:Key="MergeGroupNewTitle">新建合并组</system:String>
+    <system:String x:Key="MergeGroupNamePlaceholder">留空则使用母成员名称</system:String>
+    <system:String x:Key="MergeGroupSearchPlaceholder">搜索应用或网站…</system:String>
+    <system:String x:Key="MergeGroupPrimary">母项</system:String>
+    <system:String x:Key="MergeGroupSetPrimary">设为母项</system:String>
+    <system:String x:Key="MergeGroupNeedTwo">请至少选择 2 个成员</system:String>
+    <system:String x:Key="MergeGroupSaved">合并组已保存</system:String>
+    <system:String x:Key="MergeKindMixed">跨源</system:String>
+    <system:String x:Key="MergeKindManual">手动</system:String>
+    <system:String x:Key="MergeCandidateApp">应用</system:String>
+    <system:String x:Key="MergeCandidateSite">网站</system:String>
     <system:String x:Key="WebListSeparate">独立显示</system:String>
     <system:String x:Key="WebListMerged">并入浏览器</system:String>
     <system:String x:Key="DefaultBrowser">默认浏览器</system:String>
@@ -484,4 +497,21 @@
     <system:String x:Key="BrowserAuto">自动推荐</system:String>
     <system:String x:Key="ServerOutdated">概览页需要新版服务端（当前返回 404）。安装新版安装包或替换目录里的 shijian-server 后再试。</system:String>
     <system:String x:Key="EntityLoadFailed">实体数据加载失败，已保留上一次的结果。稍后再试或检查服务端日志。</system:String>
+
+    <!-- 分类页重设计（N5） -->
+    <system:String x:Key="BrowseByCategory">分类</system:String>
+    <system:String x:Key="BrowseByEntity">应用</system:String>
+    <system:String x:Key="EmptyCategoriesHeader">空分类 ({0})</system:String>
+    <system:String x:Key="FilterAll">全部</system:String>
+    <system:String x:Key="FilterUncategorized">未分类</system:String>
+    <system:String x:Key="SortByTodayDuration">今日时长</system:String>
+    <system:String x:Key="SortByTotalDuration">总时长</system:String>
+    <system:String x:Key="SortUncategorizedFirst">未分类优先</system:String>
+    <system:String x:Key="EntitySearchPlaceholder">搜索应用、网站或分类…</system:String>
+    <system:String x:Key="EntityTagChanged">已更新分类</system:String>
+    <system:String x:Key="TodayPrefix">今日</system:String>
+    <system:String x:Key="TotalPrefix">累计</system:String>
+    <system:String x:Key="EntityEmptyHint">没有符合条件的项目</system:String>
+    <system:String x:Key="ChangeCategory">更换分类</system:String>
+    <system:String x:Key="InsightEntities">应用与网站</system:String>
 </ResourceDictionary>

@@ -12,10 +12,58 @@
              xmlns:cat="using:ShiJian.Client.Controls.Category"
          xmlns:toggle="using:ShiJian.Client.Controls.Toggle"
          xmlns:vm="using:ShiJian.Client.ViewModels"
+         xmlns:models="using:ShiJian.Client.Models"
+         xmlns:lib="using:ShiJian.Client.Librarys"
          xmlns:c="using:ShiJian.Client.Controls"
          x:DataType="vm:CategoryPageViewModel"
          IsFillPage="True"
          x:Class="ShiJian.Client.Views.CategoryPage">
+    <c:TPage.Resources>
+        <!-- 共享分类打标签浮层（N5）：全列表共用一个 Flyout，避免为每行实例化 Popup -->
+        <Flyout x:Key="TagPickerFlyout" Placement="BottomEdgeAlignedRight">
+            <StackPanel x:DataType="vm:CategoryPageViewModel" MinWidth="180" MaxWidth="240" Spacing="4">
+                <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding TagPickerOptions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="lib:CategoryTagOption">
+                                <Button HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Padding="8,6"
+                                        CornerRadius="6"
+                                        Click="OnTagOptionClicked"
+                                        Command="{Binding $parent[ItemsControl].((vm:CategoryPageViewModel)DataContext).AssignEntityCategoryCommand}"
+                                        CommandParameter="{Binding}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                        <Border Grid.Column="0" Width="8" Height="8" CornerRadius="4"
+                                                VerticalAlignment="Center"
+                                                Background="{Binding Color, Converter={StaticResource HextoColorConverter}}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2" Text="✓" FontSize="11"
+                                                   Foreground="{DynamicResource ThemeBrush}"
+                                                   IsVisible="{Binding IsSelected}"
+                                                   VerticalAlignment="Center" />
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <Border Height="1" Background="{DynamicResource SettingPanelSpliteLineBrush}" Opacity="0.6" Margin="0,2" />
+                <Button HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Left"
+                        Background="Transparent" BorderThickness="0"
+                        Padding="8,6" CornerRadius="6"
+                        Click="OnTagOptionClicked"
+                        Command="{Binding EditCommand}">
+                    <TextBlock Text="{DynamicResource NewCategory}" FontSize="12"
+                               Foreground="{DynamicResource ThemeBrush}" />
+                </Button>
+            </StackPanel>
+        </Flyout>
+    </c:TPage.Resources>
 
     <Grid>
         <Grid
@@ -165,7 +213,7 @@
                 </ContextMenu>
             </Grid.ContextMenu>
 
-            <Grid Margin="0,8,0,24">
+            <Grid Margin="0,8,0,18">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="auto" />
@@ -173,26 +221,32 @@
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="{DynamicResource SideSort}" FontSize="18" VerticalAlignment="Center" />
-                    <select:TabSwitch Margin="10,0,0,0" VerticalAlignment="Center"
+                    <select:TabSwitch Margin="12,0,0,0" VerticalAlignment="Center"
                                    IsShowIcon="False" SelectedItem="{Binding ShowType,Mode=TwoWay}"
                                    Options="{Binding ShowTypeOptions}" />
+                    <select:TabSwitch Margin="10,0,0,0" VerticalAlignment="Center"
+                                   IsShowIcon="False" SelectedItem="{Binding BrowseMode,Mode=TwoWay}"
+                                   Options="{Binding BrowseModeOptions}" />
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{DynamicResource SortOrder}" FontSize="12"
-                               Foreground="{DynamicResource SubTextBrush}"
-                               VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <select:TabSwitch Margin="0,0,16,0" VerticalAlignment="Center"
-                                   ToolTip.Tip="{DynamicResource SortOrder}"
-                                   IsShowIcon="False" SelectedItem="{Binding SortMode,Mode=TwoWay}"
-                                   Options="{Binding SortOptions}" />
-                    <TextBlock Text="{DynamicResource ViewMode}" FontSize="12"
-                               Foreground="{DynamicResource SubTextBrush}"
-                               VerticalAlignment="Center" Margin="0,0,8,0" />
-                    <select:TabSwitch Margin="0,0,10,0" VerticalAlignment="Center"
-                                   ToolTip.Tip="{DynamicResource ViewMode}"
-                                   IsShowIcon="False" SelectedItem="{Binding ViewMode,Mode=TwoWay}"
-                                   Options="{Binding ViewModeOptions}" />
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                                IsVisible="{Binding IsCategoryBrowseMode}">
+                        <TextBlock Text="{DynamicResource SortOrder}" FontSize="12"
+                                   Foreground="{DynamicResource SubTextBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <select:TabSwitch Margin="0,0,16,0" VerticalAlignment="Center"
+                                       ToolTip.Tip="{DynamicResource SortOrder}"
+                                       IsShowIcon="False" SelectedItem="{Binding SortMode,Mode=TwoWay}"
+                                       Options="{Binding SortOptions}" />
+                        <TextBlock Text="{DynamicResource ViewMode}" FontSize="12"
+                                   Foreground="{DynamicResource SubTextBrush}"
+                                   VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <select:TabSwitch Margin="0,0,10,0" VerticalAlignment="Center"
+                                       ToolTip.Tip="{DynamicResource ViewMode}"
+                                       IsShowIcon="False" SelectedItem="{Binding ViewMode,Mode=TwoWay}"
+                                       Options="{Binding ViewModeOptions}" />
+                    </StackPanel>
                     <Button:Button Icon="CalculatorAddition"
                                Content="{DynamicResource NewCategory}"
                                Width="150"
@@ -200,10 +254,12 @@
                 </StackPanel>
             </Grid>
 
+            <!-- 分类卡片视图（BrowseMode == 0，含空分类折叠 N7-c） -->
             <TabControl
+                IsVisible="{Binding IsCategoryBrowseMode}"
                 SelectedIndex="{Binding ShowType.Id}"
                 BorderThickness="0"
-                Margin="0,10,0,0"
+                Margin="0,6,0,0"
                 Padding="0"
                 Background="Transparent"
                 Grid.Row="1">
@@ -221,167 +277,470 @@
                 </TabControl.Styles>
 
                 <TabItem>
-                    <Grid>
-                        <base:View Condition="empty" Value="{Binding Data}">
-                            <base:EmptyData IsLoading="{Binding IsLoading}" />
-                        </base:View>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <base:EmptyData IsVisible="{Binding !HasAnyAppCategories}" IsLoading="{Binding IsLoading}" />
 
-                        <ListBox Margin="10,20,10,0" ItemsSource="{Binding Data}"
-                                 Classes="categoryList" Classes.card="{Binding IsCardView}"
-                                 SelectedItem="{Binding SelectedAppCategoryItem,Mode=TwoWay}"
-                                 PointerPressed="OnAppCategoryListBoxPointerPressed"
-                                 behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                            <Interaction.Behaviors>
-                                <EventTriggerBehavior EventName="PointerReleased">
-                                    <InvokeCommandAction Command="{Binding GotoListCommand}"
-                                                         CommandParameter="{Binding SelectedAppCategoryItem}" />
+                            <ListBox Margin="10,12,10,0" ItemsSource="{Binding ActiveAppCategories}"
+                                     IsVisible="{Binding HasActiveAppCategories}"
+                                     Classes="categoryList" Classes.card="{Binding IsCardView}"
+                                     SelectedItem="{Binding SelectedAppCategoryItem,Mode=TwoWay}"
+                                     PointerPressed="OnAppCategoryListBoxPointerPressed"
+                                     behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <Interaction.Behaviors>
+                                    <EventTriggerBehavior EventName="PointerReleased">
+                                        <InvokeCommandAction Command="{Binding GotoListCommand}"
+                                                             CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                    </EventTriggerBehavior>
+                                </Interaction.Behaviors>
 
-                                </EventTriggerBehavior>
+                                <ListBox.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{DynamicResource ViewCategoryAppList}"
+                                                  Command="{Binding GotoListCommand}"
+                                                  CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                        <MenuItem Header="{DynamicResource Edit}" Command="{Binding EditCommand}"
+                                                  CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                        <MenuItem Header="{DynamicResource DeleteCategory}" Command="{Binding DelCommand}"
+                                                  IsVisible="{Binding !SelectedAppCategoryItem.Data.IsSystem}"
+                                                  CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                        <MenuItem Header="{DynamicResource ReApplyDirectoryMatch}"
+                                                  Command="{Binding ApplyDirectoryMatchCommand}"
+                                                  IsVisible="{Binding SelectedAppCategoryItem.Data.IsDirectoryMatch, FallbackValue=False}" />
+                                        <MenuItem Header="{DynamicResource RestoreSystemCategory}"
+                                                  Command="{Binding RestoreSystemCategoryCommand}"
+                                                  IsVisible="{Binding SelectedAppCategoryItem.Data.IsSystem}"
+                                                  CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                    </ContextMenu>
+                                </ListBox.ContextMenu>
 
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Margin" Value="0" />
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="Template">
+                                            <ControlTemplate>
+                                                <ContentPresenter Content="{TemplateBinding Content}"
+                                                                  ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                            </ControlTemplate>
+                                        </Setter>
+                                    </Style>
+                                    <Style Selector="ListBox">
+                                        <Setter Property="Template">
+                                            <ControlTemplate>
+                                                <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                            </ControlTemplate>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.Styles>
 
-                            </Interaction.Behaviors>
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
 
-                            <ListBox.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="{DynamicResource ViewCategoryAppList}"
-                                              Command="{Binding GotoListCommand}"
-                                              CommandParameter="{Binding SelectedAppCategoryItem}" />
-                                    <MenuItem Header="{DynamicResource Edit}" Command="{Binding EditCommand}"
-                                              CommandParameter="{Binding SelectedAppCategoryItem}" />
-                                    <MenuItem Header="{DynamicResource DeleteCategory}" Command="{Binding DelCommand}"
-                                              IsVisible="{Binding !SelectedAppCategoryItem.Data.IsSystem}"
-                                              CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <cat:CategoryCard />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
 
-                                    <MenuItem Header="{DynamicResource ReApplyDirectoryMatch}"
-                                              Command="{Binding ApplyDirectoryMatchCommand}"
-                                              IsVisible="{Binding SelectedAppCategoryItem.Data.IsDirectoryMatch, FallbackValue=False}" />
-                                    <MenuItem Header="{DynamicResource RestoreSystemCategory}"
-                                              Command="{Binding RestoreSystemCategoryCommand}"
-                                              IsVisible="{Binding SelectedAppCategoryItem.Data.IsSystem}"
-                                              CommandParameter="{Binding SelectedAppCategoryItem}" />
-                                </ContextMenu>
-                            </ListBox.ContextMenu>
+                            <!-- 空分类折叠区（N7-c 尾项） -->
+                            <StackPanel IsVisible="{Binding HasEmptyAppCategories}" Margin="10,16,10,12">
+                                <Button Background="Transparent" BorderThickness="0" Padding="4,6"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                        Command="{Binding ToggleAppEmptyExpandedCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="▸" FontSize="12" Foreground="{DynamicResource SubTextBrush}"
+                                                   IsVisible="{Binding !IsAppEmptyExpanded}" VerticalAlignment="Center" />
+                                        <TextBlock Text="▾" FontSize="12" Foreground="{DynamicResource SubTextBrush}"
+                                                   IsVisible="{Binding IsAppEmptyExpanded}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding AppEmptyHeaderText}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
 
-                            <ListBox.Styles>
-                                <Style Selector="ListBoxItem">
-                                    <Setter Property="Padding" Value="0" />
-                                    <Setter Property="Margin" Value="0" />
-                                    <Setter Property="Background" Value="Transparent" />
-                                    <Setter Property="Template">
-                                        <ControlTemplate>
-                                            <ContentPresenter Content="{TemplateBinding Content}"
-                                                              ContentTemplate="{TemplateBinding ContentTemplate}" />
-                                        </ControlTemplate>
-                                    </Setter>
-                                </Style>
+                                <Border x:Name="EmptyAppCategoriesHost" IsVisible="False" Height="0" Opacity="1">
+                                    <ListBox Margin="0,6,0,0" ItemsSource="{Binding EmptyAppCategories}"
+                                             Classes="categoryList" Classes.card="{Binding IsCardView}"
+                                             SelectedItem="{Binding SelectedAppCategoryItem,Mode=TwoWay}"
+                                             PointerPressed="OnAppCategoryListBoxPointerPressed"
+                                             behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                        <Interaction.Behaviors>
+                                            <EventTriggerBehavior EventName="PointerReleased">
+                                                <InvokeCommandAction Command="{Binding GotoListCommand}"
+                                                                     CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                            </EventTriggerBehavior>
+                                        </Interaction.Behaviors>
 
-                                <Style Selector="ListBox">
-                                    <Setter Property="Template">
-                                        <ControlTemplate>
-                                            <ScrollViewer>
-                                                <Border>
-                                                    <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
-                                                </Border>
-                                            </ScrollViewer>
-                                        </ControlTemplate>
-                                    </Setter>
-                                </Style>
-                            </ListBox.Styles>
+                                        <ListBox.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="{DynamicResource ViewCategoryAppList}"
+                                                          Command="{Binding GotoListCommand}"
+                                                          CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                                <MenuItem Header="{DynamicResource Edit}" Command="{Binding EditCommand}"
+                                                          CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                                <MenuItem Header="{DynamicResource DeleteCategory}" Command="{Binding DelCommand}"
+                                                          IsVisible="{Binding !SelectedAppCategoryItem.Data.IsSystem}"
+                                                          CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                                <MenuItem Header="{DynamicResource ReApplyDirectoryMatch}"
+                                                          Command="{Binding ApplyDirectoryMatchCommand}"
+                                                          IsVisible="{Binding SelectedAppCategoryItem.Data.IsDirectoryMatch, FallbackValue=False}" />
+                                                <MenuItem Header="{DynamicResource RestoreSystemCategory}"
+                                                          Command="{Binding RestoreSystemCategoryCommand}"
+                                                          IsVisible="{Binding SelectedAppCategoryItem.Data.IsSystem}"
+                                                          CommandParameter="{Binding SelectedAppCategoryItem}" />
+                                            </ContextMenu>
+                                        </ListBox.ContextMenu>
 
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem">
+                                                <Setter Property="Padding" Value="0" />
+                                                <Setter Property="Margin" Value="0" />
+                                                <Setter Property="Background" Value="Transparent" />
+                                                <Setter Property="Template">
+                                                    <ControlTemplate>
+                                                        <ContentPresenter Content="{TemplateBinding Content}"
+                                                                          ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                                    </ControlTemplate>
+                                                </Setter>
+                                            </Style>
+                                            <Style Selector="ListBox">
+                                                <Setter Property="Template">
+                                                    <ControlTemplate>
+                                                        <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                                    </ControlTemplate>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.Styles>
 
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <cat:CategoryCard />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Grid>
+                                        <ListBox.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ListBox.ItemsPanel>
+
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <cat:CategoryCard />
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
+                <TabItem>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <base:EmptyData IsVisible="{Binding !HasAnyWebCategories}" IsLoading="{Binding IsLoading}" />
 
-                <ScrollViewer>
-                    <StackPanel>
-                        <base:View Condition="empty" Value="{Binding WebCategoryData}">
-                            <base:EmptyData IsLoading="{Binding IsLoading}" />
-                        </base:View>
+                            <ListBox Margin="10,12,10,0"
+                                     IsVisible="{Binding HasActiveWebCategories}"
+                                     Classes="categoryList" Classes.card="{Binding IsCardView}"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     SelectedItem="{Binding SelectedWebCategoryItem,Mode=TwoWay}"
+                                     PointerPressed="OnWebCategoryListBoxPointerPressed"
+                                     behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
+                                     ItemsSource="{Binding ActiveWebCategories}">
+                                <Interaction.Behaviors>
+                                    <EventTriggerBehavior EventName="PointerReleased">
+                                        <InvokeCommandAction Command="{Binding GotoListCommand}"
+                                                             CommandParameter="{Binding SelectedWebCategoryItem}" />
+                                    </EventTriggerBehavior>
+                                </Interaction.Behaviors>
+                                <ListBox.ContextMenu>
+                                    <ContextMenu>
+                                        <MenuItem Header="{DynamicResource ViewWebsiteList}"
+                                                  Command="{Binding GotoListCommand}"
+                                                  CommandParameter="{Binding SelectedWebCategoryItem}" />
+                                        <MenuItem Header="{DynamicResource Edit}" Command="{Binding EditCommand}"
+                                                  CommandParameter="{Binding SelectedWebCategoryItem}" />
+                                        <MenuItem Header="{DynamicResource ReApplyUrlMatch}"
+                                                  Command="{Binding ApplyUrlMatchCommand}"
+                                                  IsVisible="{Binding SelectedWebCategoryItem.Data.IsUrlMatch, FallbackValue=False}" />
+                                        <MenuItem Header="{DynamicResource DeleteCategory}" Command="{Binding DelCommand}"
+                                                  IsVisible="{Binding !SelectedWebCategoryItem.Data.IsSystem}"
+                                                  CommandParameter="{Binding SelectedWebCategoryItem}" />
+                                    </ContextMenu>
+                                </ListBox.ContextMenu>
 
-                        <ListBox Margin="10,20,10,0"
-                                 Classes="categoryList" Classes.card="{Binding IsCardView}"
-                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 SelectedItem="{Binding SelectedWebCategoryItem,Mode=TwoWay}"
-                                 PointerPressed="OnWebCategoryListBoxPointerPressed"
-                                 behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
-                                 ItemsSource="{Binding WebCategoryData}">
+                                <ListBox.Styles>
+                                    <Style Selector="ListBoxItem">
+                                        <Setter Property="Padding" Value="0" />
+                                        <Setter Property="Margin" Value="0" />
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="Template">
+                                            <ControlTemplate>
+                                                <ContentPresenter Content="{TemplateBinding Content}"
+                                                                  ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                            </ControlTemplate>
+                                        </Setter>
+                                    </Style>
+                                    <Style Selector="ListBox">
+                                        <Setter Property="Template">
+                                            <ControlTemplate>
+                                                <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                            </ControlTemplate>
+                                        </Setter>
+                                    </Style>
+                                </ListBox.Styles>
 
-                            <Interaction.Behaviors>
-                                <EventTriggerBehavior EventName="PointerReleased">
-                                    <InvokeCommandAction Command="{Binding GotoListCommand}"
-                                                         CommandParameter="{Binding SelectedWebCategoryItem}" />
-                                </EventTriggerBehavior>
-                            </Interaction.Behaviors>
-                            <ListBox.ContextMenu>
-                                <ContextMenu>
-                                    <MenuItem Header="{DynamicResource ViewWebsiteList}"
-                                              Command="{Binding GotoListCommand}"
-                                              CommandParameter="{Binding SelectedWebCategoryItem}" />
-                                    <MenuItem Header="{DynamicResource Edit}" Command="{Binding EditCommand}"
-                                              CommandParameter="{Binding SelectedWebCategoryItem}" />
-                                    <MenuItem Header="{DynamicResource ReApplyUrlMatch}"
-                                              Command="{Binding ApplyUrlMatchCommand}"
-                                              IsVisible="{Binding SelectedWebCategoryItem.Data.IsUrlMatch, FallbackValue=False}" />
-                                    <MenuItem Header="{DynamicResource DeleteCategory}" Command="{Binding DelCommand}"
-                                              IsVisible="{Binding !SelectedWebCategoryItem.Data.IsSystem}"
-                                              CommandParameter="{Binding SelectedWebCategoryItem}" />
-                                </ContextMenu>
-                            </ListBox.ContextMenu>
+                                <ListBox.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel />
+                                    </ItemsPanelTemplate>
+                                </ListBox.ItemsPanel>
 
-                            <ListBox.Styles>
-                                <Style Selector="ListBoxItem">
-                                    <Setter Property="Padding" Value="0" />
-                                    <Setter Property="Margin" Value="0" />
-                                    <Setter Property="Background" Value="Transparent" />
-                                    <Setter Property="Template">
-                                        <ControlTemplate>
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <cat:CategoryCard />
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+
+                            <!-- 网站空分类折叠区（N7-c 尾项） -->
+                            <StackPanel IsVisible="{Binding HasEmptyWebCategories}" Margin="10,16,10,12">
+                                <Button Background="Transparent" BorderThickness="0" Padding="4,6"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                        Command="{Binding ToggleWebEmptyExpandedCommand}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="▸" FontSize="12" Foreground="{DynamicResource SubTextBrush}"
+                                                   IsVisible="{Binding !IsWebEmptyExpanded}" VerticalAlignment="Center" />
+                                        <TextBlock Text="▾" FontSize="12" Foreground="{DynamicResource SubTextBrush}"
+                                                   IsVisible="{Binding IsWebEmptyExpanded}" VerticalAlignment="Center" />
+                                        <TextBlock Text="{Binding WebEmptyHeaderText}" FontSize="12" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
+
+                                <Border x:Name="EmptyWebCategoriesHost" IsVisible="False" Height="0" Opacity="1">
+                                    <ListBox Margin="0,6,0,0"
+                                             Classes="categoryList" Classes.card="{Binding IsCardView}"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             SelectedItem="{Binding SelectedWebCategoryItem,Mode=TwoWay}"
+                                             PointerPressed="OnWebCategoryListBoxPointerPressed"
+                                             behaviors:KeyboardListActivation.EnterCommand="{Binding GotoListCommand}"
+                                             ItemsSource="{Binding EmptyWebCategories}">
+                                        <Interaction.Behaviors>
+                                            <EventTriggerBehavior EventName="PointerReleased">
+                                                <InvokeCommandAction Command="{Binding GotoListCommand}"
+                                                                     CommandParameter="{Binding SelectedWebCategoryItem}" />
+                                            </EventTriggerBehavior>
+                                        </Interaction.Behaviors>
+                                        <ListBox.ContextMenu>
+                                            <ContextMenu>
+                                                <MenuItem Header="{DynamicResource ViewWebsiteList}"
+                                                          Command="{Binding GotoListCommand}"
+                                                          CommandParameter="{Binding SelectedWebCategoryItem}" />
+                                                <MenuItem Header="{DynamicResource Edit}" Command="{Binding EditCommand}"
+                                                          CommandParameter="{Binding SelectedWebCategoryItem}" />
+                                                <MenuItem Header="{DynamicResource ReApplyUrlMatch}"
+                                                          Command="{Binding ApplyUrlMatchCommand}"
+                                                          IsVisible="{Binding SelectedWebCategoryItem.Data.IsUrlMatch, FallbackValue=False}" />
+                                                <MenuItem Header="{DynamicResource DeleteCategory}" Command="{Binding DelCommand}"
+                                                          IsVisible="{Binding !SelectedWebCategoryItem.Data.IsSystem}"
+                                                          CommandParameter="{Binding SelectedWebCategoryItem}" />
+                                            </ContextMenu>
+                                        </ListBox.ContextMenu>
+
+                                        <ListBox.Styles>
+                                            <Style Selector="ListBoxItem">
+                                                <Setter Property="Padding" Value="0" />
+                                                <Setter Property="Margin" Value="0" />
+                                                <Setter Property="Background" Value="Transparent" />
+                                                <Setter Property="Template">
+                                                    <ControlTemplate>
+                                                        <ContentPresenter Content="{TemplateBinding Content}"
+                                                                          ContentTemplate="{TemplateBinding ContentTemplate}" />
+                                                    </ControlTemplate>
+                                                </Setter>
+                                            </Style>
+                                            <Style Selector="ListBox">
+                                                <Setter Property="Template">
+                                                    <ControlTemplate>
+                                                        <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                                    </ControlTemplate>
+                                                </Setter>
+                                            </Style>
+                                        </ListBox.Styles>
+
+                                        <ListBox.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ListBox.ItemsPanel>
+
+                                        <ListBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <cat:CategoryCard />
+                                            </DataTemplate>
+                                        </ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+
+            <!-- 应用 / 网站明细视图（BrowseMode == 1，N5：搜索过滤排序 + 快速打标签） -->
+            <Grid Grid.Row="1" RowDefinitions="Auto,*" IsVisible="{Binding IsEntityBrowseMode}">
+                <!-- 搜索 / 筛选 / 排序工具条 -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,4,0,12">
+                    <input:InputBox Grid.Column="0"
+                                    Icon="Search"
+                                    Text="{Binding EntitySearchInput, Mode=TwoWay}"
+                                    Placeholder="{DynamicResource EntitySearchPlaceholder}" />
+                    <select:TabSwitch Grid.Column="1"
+                                      VerticalAlignment="Center"
+                                      IsShowIcon="False"
+                                      SelectedItem="{Binding EntityFilterMode, Mode=TwoWay}"
+                                      Options="{Binding EntityFilterOptions}" />
+                    <select:Select Grid.Column="2"
+                                   VerticalAlignment="Center"
+                                   Height="32" Padding="10,0"
+                                   SelectedItem="{Binding EntitySortMode, Mode=TwoWay}"
+                                   Options="{Binding EntitySortOptions}" />
+                </Grid>
+
+                <!-- 实体列表区 -->
+                <Grid Grid.Row="1">
+                    <base:EmptyData IsVisible="{Binding !HasFilteredEntities}" IsLoading="{Binding IsLoading}" />
+
+                    <ListBox ItemsSource="{Binding FilteredEntities}"
+                             IsVisible="{Binding HasFilteredEntities}"
+                             SelectedItem="{Binding SelectedEntityItem, Mode=TwoWay}"
+                             PointerPressed="OnEntityListBoxPointerPressed"
+                             behaviors:KeyboardListActivation.EnterCommand="{Binding GotoEntityDetailCommand}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                        <Interaction.Behaviors>
+                            <EventTriggerBehavior EventName="PointerReleased">
+                                <InvokeCommandAction Command="{Binding GotoEntityDetailCommand}"
+                                                     CommandParameter="{Binding SelectedEntityItem}" />
+                            </EventTriggerBehavior>
+                        </Interaction.Behaviors>
+                        <ListBox.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="{DynamicResource View}"
+                                          Command="{Binding GotoEntityDetailCommand}"
+                                          CommandParameter="{Binding SelectedEntityItem}" />
+                            </ContextMenu>
+                        </ListBox.ContextMenu>
+                        <ListBox.Styles>
+                            <Style Selector="ListBox">
+                                <Setter Property="Template">
+                                    <ControlTemplate>
+                                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                            <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                        </ScrollViewer>
+                                    </ControlTemplate>
+                                </Setter>
+                            </Style>
+                            <Style Selector="ListBoxItem">
+                                <Setter Property="Padding" Value="0" />
+                                <Setter Property="Margin" Value="0" />
+                                <Setter Property="Background" Value="Transparent" />
+                                <Setter Property="Template">
+                                    <ControlTemplate>
+                                        <Border Background="{DynamicResource CardBgBrush}"
+                                                BorderBrush="{DynamicResource CardBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="{StaticResource RadiusMedium}"
+                                                Margin="0,0,0,8"
+                                                Padding="14,10">
                                             <ContentPresenter Content="{TemplateBinding Content}"
                                                               ContentTemplate="{TemplateBinding ContentTemplate}" />
-                                        </ControlTemplate>
-                                    </Setter>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Setter>
+                                <Style Selector="^:pointerover /template/ Border">
+                                    <Setter Property="Background" Value="{DynamicResource ListItemCardHoverBgBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ListItemCardHoverBorderBrush}" />
                                 </Style>
-
-                                <Style Selector="ListBox">
-                                    <Setter Property="Template">
-                                        <ControlTemplate>
-                                            <ScrollViewer>
-                                                <Border>
-                                                    <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
-                                                </Border>
-                                            </ScrollViewer>
-                                        </ControlTemplate>
-                                    </Setter>
-                                </Style>
-                            </ListBox.Styles>
-
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <WrapPanel />
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <cat:CategoryCard />
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </StackPanel>
-                </ScrollViewer>
-            </TabControl>
+                            </Style>
+                        </ListBox.Styles>
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel />
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="models:CategoryEntityRow">
+                                <Grid ColumnDefinitions="36,*,Auto,Auto" ColumnSpacing="12">
+                                    <base:Img Grid.Column="0" Width="24" Height="24" DecodeWidth="24"
+                                              URL="{Binding Icon}" VerticalAlignment="Center" />
+                                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource StandardTextBrush}"
+                                                       TextTrimming="CharacterEllipsis"
+                                                       VerticalAlignment="Center" />
+                                            <Border Background="{DynamicResource HoverBackgroundColor}"
+                                                    CornerRadius="4" Padding="6,1"
+                                                    IsVisible="{Binding IsMerged}"
+                                                    ToolTip.Tip="{Binding MemberTooltip}"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding MergedText}" FontSize="10"
+                                                           Foreground="{DynamicResource SubTextBrush}" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Subtitle}" FontSize="11"
+                                                   Foreground="{DynamicResource SubTextBrush}"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="16"
+                                                VerticalAlignment="Center" Margin="0,0,6,0">
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="{DynamicResource TodayPrefix}" FontSize="11"
+                                                       Foreground="{DynamicResource SubTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding TodayText}" FontSize="12"
+                                                       Foreground="{DynamicResource StandardTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                            <TextBlock Text="{DynamicResource TotalPrefix}" FontSize="11"
+                                                       Foreground="{DynamicResource SubTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding TotalText}" FontSize="12"
+                                                       Foreground="{DynamicResource SubTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <!-- 快速打标签胶囊按钮：点击就地弹出共享分类选择器，不触发整行导航 -->
+                                    <Button Grid.Column="3"
+                                            VerticalAlignment="Center"
+                                            Padding="10,4"
+                                            CornerRadius="6"
+                                            Background="{DynamicResource HoverBackgroundColor}"
+                                            BorderBrush="{DynamicResource CardBorderBrush}"
+                                            BorderThickness="1"
+                                            Tag="{Binding}"
+                                            Click="OnTagPillClicked"
+                                            PointerReleased="OnTagPillPointerReleased">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Width="8" Height="8" CornerRadius="4"
+                                                    VerticalAlignment="Center"
+                                                    Background="{Binding CategoryColor, Converter={StaticResource HextoColorConverter}}" />
+                                            <TextBlock Text="{Binding CategoryName}" FontSize="12"
+                                                       Foreground="{DynamicResource StandardTextBrush}"
+                                                       VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </Grid>
+            </Grid>
         </Grid>
     </Grid>
 </c:TPage>

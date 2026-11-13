@@ -45,6 +45,73 @@ export interface AppOption {
   totalTime: number;
 }
 
+export interface MergeGroupPayload {
+  id: number;
+  name: string;
+  kind: string;
+  primaryRef: string;
+  members: string[];
+}
+
+function parseAppMemberName(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed.startsWith('site:')) return null;
+  return trimmed.startsWith('app:') ? trimmed.slice(4).trim() : trimmed;
+}
+
+/** 按服务端合并组折叠应用选择项（保留母成员名作为匹配词，累加同组应用时长） */
+export function foldAppOptions(
+  apps: AppOption[],
+  groups: MergeGroupPayload[],
+): AppOption[] {
+  if (!groups.length || !apps.length) return apps;
+
+  const byName = new Map<string, AppOption>();
+  for (const app of apps) byName.set(app.name, app);
+
+  const memberToGroup = new Map<string, MergeGroupPayload>();
+  for (const group of groups) {
+    if (group.kind !== 'app' && group.kind !== 'mixed') continue;
+    for (const raw of group.members) {
+      const appName = parseAppMemberName(raw);
+      if (appName) memberToGroup.set(appName, group);
+    }
+  }
+
+  const emittedGroups = new Set<number>();
+  const result: AppOption[] = [];
+
+  for (const app of apps) {
+    const group = memberToGroup.get(app.name);
+    if (!group) {
+      result.push(app);
+      continue;
+    }
+    if (emittedGroups.has(group.id)) continue;
+    emittedGroups.add(group.id);
+
+    const groupApps = group.members
+      .map(parseAppMemberName)
+      .filter((n): n is string => Boolean(n))
+      .map((n) => byName.get(n))
+      .filter((a): a is AppOption => Boolean(a));
+
+    if (!groupApps.length) continue;
+
+    const primaryName = parseAppMemberName(group.primaryRef);
+    const primary = (primaryName ? byName.get(primaryName) : undefined)
+      ?? groupApps.slice().sort((a, b) => b.totalTime - a.totalTime)[0];
+
+    result.push({
+      name: primary.name,
+      alias: group.name || primary.alias,
+      totalTime: groupApps.reduce((sum, item) => sum + item.totalTime, 0),
+    });
+  }
+
+  return result;
+}
+
 export function postCommand(api: ShiJianPluginUiApi, cmd: string, data?: unknown): Promise<unknown> {
   return api.postJson(`/api/plugins/${api.id}/commands`, { cmd, data });
 }
@@ -65,12 +132,18 @@ export async function listCategories(api: ShiJianPluginUiApi): Promise<string[]>
 
 /** 应用列表，用于匹配词选择器 */
 export async function listApps(api: ShiJianPluginUiApi): Promise<AppOption[]> {
-  const rows = (await api.getJson('/api/appdata')) as {
-    name: string | null;
-    alias: string | null;
-    totalTime?: number;
-  }[];
-  return rows.flatMap((a) =>
+  const [rows, mergeResp] = await Promise.all([
+    api.getJson('/api/appdata') as Promise<{
+      name: string | null;
+      alias: string | null;
+      totalTime?: number;
+    }[]>,
+    api.getJson('/api/entity/merge-groups')
+      .then((res) => (res as { groups?: MergeGroupPayload[] } | null)?.groups ?? [])
+      .catch(() => [] as MergeGroupPayload[]),
+  ]);
+  const apps = rows.flatMap((a) =>
     a.name ? [{ name: a.name, alias: a.alias, totalTime: a.totalTime ?? 0 }] : [],
   );
+  return foldAppOptions(apps, mergeResp);
 }

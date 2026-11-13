@@ -97,10 +97,13 @@ namespace ShiJian.Client.Librarys.Api;
 [JsonSerializable(typeof(List<BrowserOptionModel>))]
 [JsonSerializable(typeof(ApiResponse<MergeGroupListModel>))]
 [JsonSerializable(typeof(MergeGroupListModel))]
+[JsonSerializable(typeof(ApiResponse<MergeGroupModel>))]
 [JsonSerializable(typeof(MergeGroupModel))]
 [JsonSerializable(typeof(List<MergeGroupModel>))]
 [JsonSerializable(typeof(EntityGroupRequest))]
 [JsonSerializable(typeof(EntityRenameRequest))]
 [JsonSerializable(typeof(EntityRestoreRequest))]
+[JsonSerializable(typeof(EntityCreateGroupRequest))]
+[JsonSerializable(typeof(EntityUpdateGroupRequest))]
 [JsonSerializable(typeof(ApiResponse<bool>))]
 internal partial class ShiJianApiJsonContext : JsonSerializerContext { }

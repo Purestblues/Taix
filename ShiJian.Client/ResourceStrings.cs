@@ -243,6 +243,24 @@ public static class ResourceStrings
     public static string InsightCompareLastWeek => GetStringValue("InsightCompareLastWeek");
     public static string InsightCompareLastMonth => GetStringValue("InsightCompareLastMonth");
     public static string InsightCompareLastYear => GetStringValue("InsightCompareLastYear");
+    public static string MergeKindMixed => GetStringValue("MergeKindMixed");
+    public static string MergeKindManual => GetStringValue("MergeKindManual");
+    public static string MergeCandidateApp => GetStringValue("MergeCandidateApp");
+    public static string MergeCandidateSite => GetStringValue("MergeCandidateSite");
+    public static string MergeGroupNeedTwo => GetStringValue("MergeGroupNeedTwo");
+    public static string MergeGroupSaved => GetStringValue("MergeGroupSaved");
+    public static string BrowseByCategory => GetStringValue("BrowseByCategory");
+    public static string BrowseByEntity => GetStringValue("BrowseByEntity");
+    public static string EmptyCategoriesHeader => GetStringValue("EmptyCategoriesHeader");
+    public static string FilterAll => GetStringValue("FilterAll");
+    public static string FilterUncategorized => GetStringValue("FilterUncategorized");
+    public static string SortByTodayDuration => GetStringValue("SortByTodayDuration");
+    public static string SortByTotalDuration => GetStringValue("SortByTotalDuration");
+    public static string SortUncategorizedFirst => GetStringValue("SortUncategorizedFirst");
+    public static string EntityTagChanged => GetStringValue("EntityTagChanged");
+    public static string SystemCategoryUncategorized => GetStringValue("Uncategorized");
+    public static string Total => GetStringValue("Total");
+    public static string InsightEntities => GetStringValue("InsightEntities");
 
     private static string GetStringValue(string key)
     {

@@ -38,6 +38,12 @@ public class ApiEntityData : IEntityData
         return result?.Groups ?? [];
     }
 
+    public async Task<MergeGroupModel?> CreateGroupAsync(string name, string primaryRef, IReadOnlyList<string> members) =>
+        await _apiClient.CreateEntityMergeGroupAsync(name, primaryRef, members);
+
+    public async Task<MergeGroupModel?> UpdateGroupAsync(int groupId, string? name = null, string? primaryRef = null, IReadOnlyList<string>? members = null) =>
+        await _apiClient.UpdateEntityMergeGroupAsync(groupId, name, primaryRef, members);
+
     public Task DissolveGroupAsync(int groupId) => _apiClient.DissolveEntityMergeGroupAsync(groupId);
 
     public Task RenameGroupAsync(int groupId, string name) => _apiClient.RenameEntityMergeGroupAsync(groupId, name);

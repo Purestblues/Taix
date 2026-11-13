@@ -6,6 +6,7 @@ import {
   type ReminderRule, type RuleType,
 } from './rules.ts';
 import { durationLabel, summarizeRule } from './i18n.ts';
+import { foldAppOptions } from './bridge.ts';
 
 function rule(patch: Partial<ReminderRule> = {}): ReminderRule {
   return { id: 'r1', type: 'category', minutes: 120, match: '娱乐', window: 'all',
@@ -219,4 +220,27 @@ test('编译出的正文用友好时长，不再拼「xxx 分钟」', () => {
   assert.match(app, /fmtMinutes\(todayAppMinutes\("Chromium"\) \+ todayAppMinutes\("WeChat"\)\)/);
 
   assert.doesNotMatch(continuous + daily + category + app, /\.\. " 分钟"/);
+});
+
+test('foldAppOptions 按合并组折叠子成员并保留母成员匹配词', () => {
+  const folded = foldAppOptions(
+    [
+      { name: 'PiDeck', alias: 'PiDeck', totalTime: 900 },
+      { name: 'PiDeck-setup', alias: null, totalTime: 600 },
+      { name: 'chrome', alias: 'Google Chrome', totalTime: 3600 },
+    ],
+    [
+      {
+        id: 1,
+        name: 'PiDeck Suite',
+        kind: 'mixed',
+        primaryRef: 'app:PiDeck',
+        members: ['app:PiDeck', 'app:PiDeck-setup', 'site:pideck.io'],
+      },
+    ],
+  );
+
+  assert.equal(folded.length, 2);
+  assert.deepEqual(folded[0], { name: 'PiDeck', alias: 'PiDeck Suite', totalTime: 1500 });
+  assert.deepEqual(folded[1], { name: 'chrome', alias: 'Google Chrome', totalTime: 3600 });
 });

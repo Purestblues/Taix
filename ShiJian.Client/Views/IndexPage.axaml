@@ -169,12 +169,8 @@
             </Grid>
 
             <!-- ═══ 图表区：时段分布 + 分类占比 ═══ -->
-            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,16,0,0">
-                <select:TabSwitch IsShowIcon="False"
-                                  VerticalAlignment="Center"
-                                  SelectedItem="{Binding ChartType,Mode=TwoWay}"
-                                  Options="{Binding ChartTypeOptions}" />
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+            <Grid ColumnDefinitions="*,Auto" Margin="0,16,0,0">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                     <TextBlock Classes="cardCaption" Text="{DynamicResource Total}" VerticalAlignment="Center" />
                     <TextBlock Classes="cardCaption" Text="{Binding HourTotalText}"
                                Foreground="{DynamicResource DefaultTextBrush}" VerticalAlignment="Center" />
@@ -314,49 +310,21 @@
             </Grid>
 
             <!-- ═══ 更多 ═══ -->
-            <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                <TextBlock Text="{DynamicResource More}" Classes="eyebrow" />
-                <select:TabSwitch Margin="10,0,0,0"
-                                  VerticalAlignment="Center" IsShowIcon="False"
-                                  SelectedItem="{Binding MoreType,Mode=TwoWay}"
-                                  Options="{Binding MoreTypeOptions}" />
-            </StackPanel>
+            <TextBlock Text="{DynamicResource More}" Classes="eyebrow" Margin="0,16,0,0" />
 
-            <TabControl
-                SelectedIndex="{Binding MoreType.Id}"
-                BorderThickness="0"
-                Margin="0,8,0,0"
-                Padding="0"
-                Background="Transparent">
-                <TabControl.Styles>
-                    <Style Selector="TabItem">
-                        <Setter Property="Template">
-                            <ControlTemplate />
-                        </Setter>
-                    </Style>
-                </TabControl.Styles>
-                <TabControl.ContextMenu>
+            <Charts:CardChart Data="{Binding MoreData}"
+                              MenuType="App"
+                              Margin="0,8,0,0"
+                              ShowLimit="{Binding MoreNum}"
+                              IconSize="{x:Static platform:PlatformConstants.CardChartIconSize}"
+                              ClickCommand="{Binding ToDetailCommand}">
+                <Charts:CardChart.ContextMenu>
                     <ContextMenu>
                         <MenuItem
                             Header="{DynamicResource Refresh}" Command="{Binding RefreshCommand}" />
                     </ContextMenu>
-                </TabControl.ContextMenu>
-                <TabItem>
-                    <Charts:CardChart Data="{Binding AppMoreData}"
-                                      MenuType="App"
-                                      ShowLimit="{Binding MoreNum}"
-                                      IconSize="{x:Static platform:PlatformConstants.CardChartIconSize}"
-                                      ClickCommand="{Binding ToDetailCommand}" />
-                </TabItem>
-                <TabItem>
-                    <Grid>
-                        <Charts:CardChart Data="{Binding WebMoreData}" ClickCommand="{Binding ToDetailCommand}"
-                                          ShowLimit="{Binding MoreNum}"
-                                          IconSize="{x:Static platform:PlatformConstants.CardChartIconSize}"
-                                          MenuType="WebSite" />
-                    </Grid>
-                </TabItem>
-            </TabControl>
+                </Charts:CardChart.ContextMenu>
+            </Charts:CardChart>
 
     </StackPanel>
 </UserControl>

@@ -437,6 +437,25 @@ public class ShiJianApiClient : IShiJianApiClient
     public Task<MergeGroupListModel> GetEntityMergeGroupsAsync(CancellationToken cancellationToken = default) =>
         GetAsync<MergeGroupListModel>("api/entity/merge-groups", cancellationToken);
 
+    public Task<MergeGroupModel> CreateEntityMergeGroupAsync(string name, string primaryRef, IReadOnlyList<string> members) =>
+        PostAsync<MergeGroupModel, EntityCreateGroupRequest>("api/entity/merge-groups/create",
+            new EntityCreateGroupRequest
+            {
+                Name = name,
+                PrimaryRef = primaryRef,
+                Members = [.. members]
+            });
+
+    public Task<MergeGroupModel> UpdateEntityMergeGroupAsync(int groupId, string? name = null, string? primaryRef = null, IReadOnlyList<string>? members = null) =>
+        PostAsync<MergeGroupModel, EntityUpdateGroupRequest>("api/entity/merge-groups/update",
+            new EntityUpdateGroupRequest
+            {
+                GroupId = groupId,
+                Name = name,
+                PrimaryRef = primaryRef,
+                Members = members != null ? [.. members] : null
+            });
+
     public Task DissolveEntityMergeGroupAsync(int groupId) =>
         PostAsync<EntityGroupRequest>("api/entity/merge-groups/dissolve", new EntityGroupRequest { GroupId = groupId });
 

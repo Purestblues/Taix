@@ -1,5 +1,5 @@
 import type {
-  ApiResponse, AppItem, CategoryItem, PluginDetail, PluginListItem,
+  ApiResponse, AppItem, CategoryItem, MergeGroupItem, PluginDetail, PluginListItem,
 } from './types';
 import { t } from './i18n.svelte';
 
@@ -48,7 +48,58 @@ export const api = {
       `/api/plugins/${id}/records?key=${encodeURIComponent(key)}`,
     ).then((rows) => (Array.isArray(rows) && rows.length ? rows[0].value : null)),
   listCategories: () => request<CategoryItem[]>('GET', '/api/category'),
-  listApps: () => request<AppItem[]>('GET', '/api/appdata'),
+  listMergeGroups: () =>
+    request<{ groups: MergeGroupItem[] }>('GET', '/api/entity/merge-groups').then((r) => r.groups ?? []),
+  listApps: async () => {
+    const [apps, groups] = await Promise.all([
+      request<AppItem[]>('GET', '/api/appdata'),
+      request<{ groups: MergeGroupItem[] }>('GET', '/api/entity/merge-groups')
+        .then((r) => r.groups ?? [])
+        .catch(() => [] as MergeGroupItem[]),
+    ]);
+    if (!groups.length || !apps.length) return apps;
+    const byName = new Map(apps.filter((a) => a.name).map((a) => [a.name!, a]));
+    const parseApp = (raw: string) => {
+      const t = raw.trim();
+      if (!t || t.startsWith('site:')) return null;
+      return t.startsWith('app:') ? t.slice(4).trim() : t;
+    };
+    const memberToGroup = new Map<string, MergeGroupItem>();
+    for (const g of groups) {
+      if (g.kind !== 'app' && g.kind !== 'mixed') continue;
+      for (const m of g.members) {
+        const n = parseApp(m);
+        if (n) memberToGroup.set(n, g);
+      }
+    }
+    const emitted = new Set<number>();
+    const out: AppItem[] = [];
+    for (const app of apps) {
+      const g = app.name ? memberToGroup.get(app.name) : undefined;
+      if (!g) {
+        out.push(app);
+        continue;
+      }
+      if (emitted.has(g.id)) continue;
+      emitted.add(g.id);
+      const members = g.members
+        .map(parseApp)
+        .filter((n): n is string => Boolean(n))
+        .map((n) => byName.get(n))
+        .filter((a): a is AppItem => Boolean(a));
+      if (!members.length) continue;
+      const pName = parseApp(g.primaryRef);
+      const primary = (pName ? byName.get(pName) : undefined)
+        ?? members.slice().sort((a, b) => b.totalTime - a.totalTime)[0];
+      out.push({
+        id: primary.id,
+        name: primary.name,
+        alias: g.name || primary.alias,
+        totalTime: members.reduce((sum, item) => sum + item.totalTime, 0),
+      });
+    }
+    return out;
+  },
 };
 
 /** 插件自带配置 UI 的通用请求入口，getJson/postJson 转发到它 */

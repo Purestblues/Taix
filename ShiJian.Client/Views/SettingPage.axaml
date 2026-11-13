@@ -63,11 +63,19 @@
                             BorderThickness="1"
                             Margin="0,16,0,0">
                         <StackPanel>
-                            <StackPanel Margin="15,14,15,4" Spacing="3">
-                                <TextBlock Text="{DynamicResource MergeGroups}" FontSize="14" />
-                                <TextBlock Text="{DynamicResource MergeGroupsDesc}" FontSize="12"
-                                           Foreground="{DynamicResource SubTextBrush}" TextWrapping="Wrap" />
-                            </StackPanel>
+                            <Grid Margin="15,14,15,4" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                    <TextBlock Text="{DynamicResource MergeGroups}" FontSize="14" />
+                                    <TextBlock Text="{DynamicResource MergeGroupsDesc}" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Btn:Button Grid.Column="1"
+                                            Icon="CalculatorAddition"
+                                            Content="{DynamicResource MergeGroupNew}"
+                                            Height="30" Padding="10,0" FontSize="12"
+                                            VerticalAlignment="Center"
+                                            Command="{Binding OpenCreateMergeGroupCommand}" />
+                            </Grid>
 
                             <TextBlock Text="{DynamicResource MergeGroupsEmpty}" FontSize="12"
                                        Foreground="{DynamicResource SubTextBrush}"
@@ -88,6 +96,13 @@
                                                                    VerticalAlignment="Center" />
                                                         <Border Background="{DynamicResource HoverBackgroundColor}"
                                                                 CornerRadius="{StaticResource RadiusSmall}"
+                                                                Padding="6,1" VerticalAlignment="Center"
+                                                                IsVisible="{Binding HasKindBadge}">
+                                                            <TextBlock Text="{Binding KindLabel}" FontSize="10"
+                                                                       Foreground="{DynamicResource ThemeBrush}" />
+                                                        </Border>
+                                                        <Border Background="{DynamicResource HoverBackgroundColor}"
+                                                                CornerRadius="{StaticResource RadiusSmall}"
                                                                 Padding="6,1" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding CountText}" FontSize="10"
                                                                        Foreground="{DynamicResource SubTextBrush}" />
@@ -97,12 +112,17 @@
                                                                TextTrimming="CharacterEllipsis"
                                                                Foreground="{DynamicResource SubTextBrush}" />
                                                 </StackPanel>
-                                                <Btn:Button Grid.Column="1"
-                                                            Content="{DynamicResource MergeGroupDissolve}"
-                                                            Width="80" Height="30" FontSize="12"
-                                                            VerticalAlignment="Center"
-                                                            Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).DissolveMergeGroupCommand}"
-                                                            CommandParameter="{Binding}" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                                                            VerticalAlignment="Center">
+                                                    <Btn:Button Content="{DynamicResource Edit}"
+                                                                Width="68" Height="30" FontSize="12"
+                                                                Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).OpenEditMergeGroupCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                    <Btn:Button Content="{DynamicResource MergeGroupDissolve}"
+                                                                Width="68" Height="30" FontSize="12"
+                                                                Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).DissolveMergeGroupCommand}"
+                                                                CommandParameter="{Binding}" />
+                                                </StackPanel>
                                             </Grid>
                                         </Border>
                                     </DataTemplate>
@@ -457,6 +477,172 @@
                 </StackPanel>
             </Border>
         </Border>
+
+        <!-- 手动 / 跨源合并组编辑弹窗（N2） -->
+        <Grid Grid.Row="0" Grid.RowSpan="2"
+              Margin="-24"
+              ZIndex="20"
+              IsVisible="{Binding MergeEditorVisible}">
+            <Border Background="Black" Opacity="0.65" />
+            <Border MaxWidth="540" MaxHeight="560"
+                    Margin="24"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{DynamicResource StandardBackgroundBrush2}"
+                    CornerRadius="{StaticResource RadiusMedium}"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
+                    BorderThickness="1">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+                    <!-- 标题栏 -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{DynamicResource MergeGroupNewTitle}"
+                                       FontSize="15" FontWeight="SemiBold"
+                                       IsVisible="{Binding IsMergeEditorCreate}" />
+                            <TextBlock Text="{DynamicResource MergeGroupEditTitle}"
+                                       FontSize="15" FontWeight="SemiBold"
+                                       IsVisible="{Binding !IsMergeEditorCreate}" />
+                        </StackPanel>
+                        <Btn:IconButton Grid.Column="1"
+                                        Icon="ChromeClose"
+                                        FontSize="12"
+                                        Foreground="{DynamicResource SubTextBrush}"
+                                        Command="{Binding CloseMergeEditorCommand}" />
+                    </Grid>
+
+                    <!-- 内容区 -->
+                    <Grid Grid.Row="1" RowDefinitions="Auto,Auto,Auto,*">
+                        <input:InputBox Grid.Row="0"
+                                        Text="{Binding MergeEditorName, Mode=TwoWay}"
+                                        MaxLength="64"
+                                        Placeholder="{DynamicResource MergeGroupNamePlaceholder}"
+                                        Margin="0,0,0,10" />
+
+                        <!-- 已选成员与母项选择 -->
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource CardBgBrush}"
+                                BorderBrush="{DynamicResource CardBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusSmall}"
+                                Padding="10,8"
+                                Margin="0,0,0,10"
+                                IsVisible="{Binding MergeEditorSelectedMembers.Count}">
+                            <ItemsControl ItemsSource="{Binding MergeEditorSelectedMembers}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <WrapPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:MergeCandidateRow">
+                                        <Border Background="{DynamicResource HoverBackgroundColor}"
+                                                CornerRadius="{StaticResource RadiusSmall}"
+                                                Padding="8,4" Margin="0,2,6,2">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding TypeBadge}" FontSize="10"
+                                                           Foreground="{DynamicResource SubTextBrush}"
+                                                           VerticalAlignment="Center" />
+                                                <TextBlock Text="{Binding Name}" FontSize="12"
+                                                           VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeBrush}"
+                                                        CornerRadius="4" Padding="5,1"
+                                                        IsVisible="{Binding IsPrimary}"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{DynamicResource MergeGroupPrimary}"
+                                                               FontSize="10" Foreground="White" />
+                                                </Border>
+                                                <Button Content="{DynamicResource MergeGroupSetPrimary}"
+                                                        IsVisible="{Binding !IsPrimary}"
+                                                        Padding="6,1" FontSize="10"
+                                                        Background="Transparent"
+                                                        BorderBrush="{DynamicResource CardBorderBrush}"
+                                                        BorderThickness="1"
+                                                        Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).SetMergePrimaryCommand}"
+                                                        CommandParameter="{Binding}" />
+                                                <Button Content="×"
+                                                        Padding="4,0" FontSize="12"
+                                                        Background="Transparent" BorderThickness="0"
+                                                        Foreground="{DynamicResource SubTextBrush}"
+                                                        Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).ToggleMergeCandidateCommand}"
+                                                        CommandParameter="{Binding}" />
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+
+                        <!-- 搜索框 -->
+                        <input:InputBox Grid.Row="2"
+                                        Icon="Search"
+                                        Text="{Binding MergeEditorSearch, Mode=TwoWay}"
+                                        Placeholder="{DynamicResource MergeGroupSearchPlaceholder}"
+                                        Margin="0,0,0,8" />
+
+                        <!-- 候选应用 + 网站列表 -->
+                        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding MergeEditorCandidates}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="models:MergeCandidateRow">
+                                        <Button HorizontalAlignment="Stretch"
+                                                HorizontalContentAlignment="Stretch"
+                                                Background="Transparent"
+                                                BorderThickness="0"
+                                                Padding="8,6"
+                                                Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).ToggleMergeCandidateCommand}"
+                                                CommandParameter="{Binding}">
+                                            <Grid ColumnDefinitions="Auto,24,*,Auto" ColumnSpacing="10">
+                                                <CheckBox Grid.Column="0"
+                                                          IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                                          IsHitTestVisible="False"
+                                                          VerticalAlignment="Center" />
+                                                <base:Img Grid.Column="1" Width="20" Height="20"
+                                                          DecodeWidth="20"
+                                                          URL="{Binding Icon}"
+                                                          VerticalAlignment="Center" />
+                                                <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Name}" FontSize="13"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Text="{Binding Subtitle}" FontSize="11"
+                                                               Foreground="{DynamicResource SubTextBrush}"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                                <Border Grid.Column="3"
+                                                        Background="{DynamicResource HoverBackgroundColor}"
+                                                        CornerRadius="4" Padding="6,2"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding TypeBadge}" FontSize="10"
+                                                               Foreground="{DynamicResource SubTextBrush}" />
+                                                </Border>
+                                            </Grid>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+
+                    <!-- 底部错误提示与操作按钮 -->
+                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10" Margin="0,12,0,0">
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding MergeEditorError}"
+                                   IsVisible="{Binding HasMergeEditorError}"
+                                   FontSize="12"
+                                   Foreground="#D13438"
+                                   TextTrimming="CharacterEllipsis"
+                                   VerticalAlignment="Center" />
+                        <Btn:Button Grid.Column="1"
+                                    Content="{DynamicResource Cancel}"
+                                    Width="90" Height="32"
+                                    Command="{Binding CloseMergeEditorCommand}" />
+                        <Btn:Button Grid.Column="2"
+                                    Content="{DynamicResource Save}"
+                                    Width="90" Height="32"
+                                    Command="{Binding SaveMergeGroupCommand}" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>
 

@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ShiJian.Client.Controls.Select;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Models.Category;
 using ShiJian.Client.PageState;
 using ShiJian.Client.Shared.Models.Web;
@@ -17,11 +18,29 @@ public partial class CategoryPageModel : ModelBase
     /// </summary>
     public CategoryPageModel()
     {
+        BrowseMode = BrowseModeOptions[0];
         ViewMode = ViewModeOptions[0];
         SortMode = SortOptions[0];
+        EntityFilterMode = EntityFilterOptions[0];
+        EntitySortMode = EntitySortOptions[0];
     }
 
     private ObservableCollection<CategoryModel> _data = new();
+    private ObservableCollection<CategoryModel> _activeAppCategories = new();
+    private ObservableCollection<CategoryModel> _emptyAppCategories = new();
+    private ObservableCollection<WebCategoryModel> _activeWebCategories = new();
+    private ObservableCollection<WebCategoryModel> _emptyWebCategories = new();
+    private bool _isAppEmptyExpanded;
+    private bool _isWebEmptyExpanded;
+    private SelectItemModel _browseMode;
+    private string _entitySearchInput = string.Empty;
+    private SelectItemModel _entityFilterMode;
+    private SelectItemModel _entitySortMode;
+    private ObservableCollection<CategoryEntityRow> _filteredEntities = new();
+    private CategoryEntityRow? _selectedEntityItem;
+    private int _uncategorizedEntityCount;
+    private int _totalEntityCount;
+    private ObservableCollection<CategoryTagOption> _tagPickerOptions = new();
     private string _editColor = string.Empty;
     private string _editErrorText = string.Empty;
     private string _editIconFile = string.Empty;
@@ -43,6 +62,172 @@ public partial class CategoryPageModel : ModelBase
     {
         get => base.ShowType;
         set => base.ShowType = value;
+    }
+
+    /// <summary>N5：「分类 / 应用」主视图切换</summary>
+    [PageState(LookupFrom = nameof(BrowseModeOptions))]
+    public SelectItemModel BrowseMode
+    {
+        get => _browseMode;
+        set
+        {
+            _browseMode = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsEntityBrowseMode));
+            OnPropertyChanged(nameof(IsCategoryBrowseMode));
+        }
+    }
+
+    public List<SelectItemModel> BrowseModeOptions { get; } =
+    [
+        new() { Id = 0, Name = ResourceStrings.BrowseByCategory },
+        new() { Id = 1, Name = ResourceStrings.BrowseByEntity }
+    ];
+
+    public bool IsEntityBrowseMode => BrowseMode?.Id == 1;
+    public bool IsCategoryBrowseMode => !IsEntityBrowseMode;
+
+    [PageState]
+    public bool IsAppEmptyExpanded
+    {
+        get => _isAppEmptyExpanded;
+        set
+        {
+            if (_isAppEmptyExpanded == value) return;
+            _isAppEmptyExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState]
+    public bool IsWebEmptyExpanded
+    {
+        get => _isWebEmptyExpanded;
+        set
+        {
+            if (_isWebEmptyExpanded == value) return;
+            _isWebEmptyExpanded = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public ObservableCollection<CategoryModel> ActiveAppCategories => _activeAppCategories;
+    public ObservableCollection<CategoryModel> EmptyAppCategories => _emptyAppCategories;
+    public ObservableCollection<WebCategoryModel> ActiveWebCategories => _activeWebCategories;
+    public ObservableCollection<WebCategoryModel> EmptyWebCategories => _emptyWebCategories;
+
+    public bool HasAnyAppCategories => Data.Count > 0;
+    public bool HasActiveAppCategories => ActiveAppCategories.Count > 0;
+    public bool HasEmptyAppCategories => EmptyAppCategories.Count > 0;
+    public string AppEmptyHeaderText => string.Format(ResourceStrings.EmptyCategoriesHeader, EmptyAppCategories.Count);
+
+    public bool HasAnyWebCategories => WebCategoryData.Count > 0;
+    public bool HasActiveWebCategories => ActiveWebCategories.Count > 0;
+    public bool HasEmptyWebCategories => EmptyWebCategories.Count > 0;
+    public string WebEmptyHeaderText => string.Format(ResourceStrings.EmptyCategoriesHeader, EmptyWebCategories.Count);
+
+    public string EntitySearchInput
+    {
+        get => _entitySearchInput;
+        set
+        {
+            if (_entitySearchInput == value) return;
+            _entitySearchInput = value;
+            OnPropertyChanged();
+        }
+    }
+
+    [PageState(LookupFrom = nameof(EntityFilterOptions))]
+    public SelectItemModel EntityFilterMode
+    {
+        get => _entityFilterMode;
+        set
+        {
+            _entityFilterMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public List<SelectItemModel> EntityFilterOptions { get; } =
+    [
+        new() { Id = 0, Name = ResourceStrings.FilterAll },
+        new() { Id = 1, Name = ResourceStrings.FilterUncategorized }
+    ];
+
+    [PageState(LookupFrom = nameof(EntitySortOptions))]
+    public SelectItemModel EntitySortMode
+    {
+        get => _entitySortMode;
+        set
+        {
+            _entitySortMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public List<SelectItemModel> EntitySortOptions { get; } =
+    [
+        new() { Id = 0, Name = ResourceStrings.SortByTodayDuration },
+        new() { Id = 1, Name = ResourceStrings.SortByTotalDuration },
+        new() { Id = 2, Name = ResourceStrings.SortByName },
+        new() { Id = 3, Name = ResourceStrings.SortUncategorizedFirst }
+    ];
+
+    public ObservableCollection<CategoryEntityRow> FilteredEntities => _filteredEntities;
+
+    public CategoryEntityRow? SelectedEntityItem
+    {
+        get => _selectedEntityItem;
+        set
+        {
+            _selectedEntityItem = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public int UncategorizedEntityCount
+    {
+        get => _uncategorizedEntityCount;
+        set
+        {
+            if (_uncategorizedEntityCount == value) return;
+            _uncategorizedEntityCount = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public int TotalEntityCount
+    {
+        get => _totalEntityCount;
+        set
+        {
+            if (_totalEntityCount == value) return;
+            _totalEntityCount = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasAnyEntities));
+        }
+    }
+
+    public bool HasAnyEntities => _totalEntityCount > 0;
+    public bool HasFilteredEntities => FilteredEntities.Count > 0;
+
+    public ObservableCollection<CategoryTagOption> TagPickerOptions => _tagPickerOptions;
+
+    public void NotifyCategoryBucketStates()
+    {
+        OnPropertyChanged(nameof(HasAnyAppCategories));
+        OnPropertyChanged(nameof(HasActiveAppCategories));
+        OnPropertyChanged(nameof(HasEmptyAppCategories));
+        OnPropertyChanged(nameof(AppEmptyHeaderText));
+        OnPropertyChanged(nameof(HasAnyWebCategories));
+        OnPropertyChanged(nameof(HasActiveWebCategories));
+        OnPropertyChanged(nameof(HasEmptyWebCategories));
+        OnPropertyChanged(nameof(WebEmptyHeaderText));
+    }
+
+    public void NotifyEntityListState()
+    {
+        OnPropertyChanged(nameof(HasFilteredEntities));
     }
 
     private SelectItemModel _viewMode;

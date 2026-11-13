@@ -31,7 +31,6 @@ namespace ShiJian.Client.ViewModels;
 
 public partial class IndexPageViewModel : IndexPageModel
 {
-    private readonly IData _dataService;
     private readonly IWebData _webDataService;
     private readonly ICategorys _categoryService;
     private readonly INavigationService _navigationService;
@@ -41,15 +40,13 @@ public partial class IndexPageViewModel : IndexPageModel
     private readonly IEntityData _entityData;
     private readonly IAppData _appDataService;
 
-    // 图表原始数据缓存（切应用/网站时本地重建，不重复请求）
-    private IReadOnlyList<ColumnDataModel> _appColumns = [];
-    private IReadOnlyList<ColumnDataModel> _webColumns = [];
+    // 图表原始数据缓存（换主题时本地重建，不重复请求）
+    private EntityHoursModel? _entityHours;
     private double[] _compareTotalsAll = [];
     private IReadOnlyList<CategoryModel>? _appColumnCategories;
     private IReadOnlyList<WebSiteCategoryModel>? _webColumnCategories;
 
     public IndexPageViewModel(
-        IData data,
         IWebData webData,
         ICategorys categories,
         INavigationService navigationService,
@@ -59,7 +56,6 @@ public partial class IndexPageViewModel : IndexPageModel
         IEntityData entityData,
         IAppData appData)
     {
-        _dataService = data;
         _webDataService = webData;
         _categoryService = categories;
         _navigationService = navigationService;
@@ -132,43 +128,6 @@ public partial class IndexPageViewModel : IndexPageModel
         WhenPropertyChanged(this, x => x.IsWebBrowserMerged, OnWebBrowserMergedChangedAsync);
         WhenPropertyChanged(this, x => x.CustomStart, _ => OnCustomRangeChangedAsync());
         WhenPropertyChanged(this, x => x.CustomEnd, _ => OnCustomRangeChangedAsync());
-
-        MoreTypeOptions =
-        [
-            new SelectItemModel
-            {
-                Id = 0,
-                Name = Application.Current?.FindResource("App") as string ?? "App"
-            },
-            new SelectItemModel
-            {
-                Id = 1,
-                Name = Application.Current?.FindResource("Website") as string ?? "Website"
-            }
-        ];
-        MoreType = MoreTypeOptions[0];
-
-        ChartTypeOptions =
-        [
-            new SelectItemModel
-            {
-                Id = 0,
-                Name = Application.Current?.FindResource("App") as string ?? "App"
-            },
-            new SelectItemModel
-            {
-                Id = 1,
-                Name = Application.Current?.FindResource("Website") as string ?? "Website"
-            }
-        ];
-        ChartType = ChartTypeOptions[0];
-
-        // 切应用/网站不需要重新请求，直接用已经缓存的分类×时段数据重建序列
-        WhenPropertyChanged(this, x => x.ChartType, _ =>
-        {
-            ApplyChartSeries();
-            return Task.CompletedTask;
-        });
     }
 
     public override Task OnNavigatedToAsync()
@@ -263,40 +222,35 @@ public partial class IndexPageViewModel : IndexPageModel
         DateTime prevStart, DateTime prevEnd, bool isHourly, string compareCaption, string[] labels,
         CancellationToken cancellationToken)
     {
-        // N2：榜单与总额走统一实体表（服务端已算好互斥归属、差额行与合并组），
-        // 图表仍然用「分类 × 时段」矩阵（它按分类聚合，不受应用/网站重叠影响）。
+        // 榜单、总额与图表统一走实体表与实体时段矩阵（应用与网站同台对齐、总额一致）
+        var buckets = isHourly ? "hour" : "day";
         var entityTask = _entityData.GetEntityListAsync(start, end, IsWebBrowserMerged, cancellationToken);
         var prevEntityTask = _entityData.GetEntityListAsync(prevStart, prevEnd, IsWebBrowserMerged, cancellationToken);
+        var hoursTask = _entityData.GetEntityHoursAsync(start, end, buckets, IsWebBrowserMerged, cancellationToken);
+        var prevHoursTask = _entityData.GetEntityHoursAsync(prevStart, prevEnd, buckets, IsWebBrowserMerged, cancellationToken);
 
         var pageCountTask = _webDataService.GetBrowsePagesTotalAsync(start, end, cancellationToken);
         var prevPageCountTask = _webDataService.GetBrowsePagesTotalAsync(prevStart, prevEnd, cancellationToken);
 
-        var columnTask = isHourly
-            ? _dataService.GetCategoryHoursDataAsync(start, cancellationToken)
-            : _dataService.GetCategoryRangeDataAsync(start, end, cancellationToken);
         var categoriesTask = _categoryService.GetCategoriesAsync(cancellationToken);
-
-        var webColumnTask = _webDataService.GetBrowseDataByCategoryStatisticsAsync(start, end, cancellationToken);
         var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
-
-        // 时段对比：只取「上一个周期的分类×时段矩阵」，总时长在本地按列汇总
-        var compareColumnTask = isHourly
-            ? _dataService.GetCategoryHoursDataAsync(prevStart, cancellationToken)
-            : _dataService.GetCategoryRangeDataAsync(prevStart, prevEnd, cancellationToken);
 
         HasEntityError = false;
         EntityErrorText = string.Empty;
 
-        await Task.WhenAll(pageCountTask, prevPageCountTask,
-            columnTask, categoriesTask, webColumnTask, webCategoriesTask, compareColumnTask);
+        await Task.WhenAll(pageCountTask, prevPageCountTask, categoriesTask, webCategoriesTask);
         cancellationToken.ThrowIfCancellationRequested();
 
         EntityListModel? entity;
         EntityListModel? prevEntity;
+        EntityHoursModel? hours;
+        EntityHoursModel? prevHours;
         try
         {
             entity = await entityTask;
             prevEntity = await prevEntityTask;
+            hours = await hoursTask;
+            prevHours = await prevHoursTask;
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
         {
@@ -318,13 +272,17 @@ public partial class IndexPageViewModel : IndexPageModel
         var appChartData = appRows.Select(ToChartRow).ToList();
         WeekData = appChartData;
         AppFrequentUseData = appChartData.Take(FrequentUseNum).ToList();
-        AppMoreData = appChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();
 
         var webChartData = siteRows.Select(ToChartRow).ToList();
         WebFrequentUseData = webChartData.Take(FrequentUseNum).ToList();
-        WebMoreData = webChartData.Skip(FrequentUseNum).Take(MoreNum).ToList();
 
-        // 概览卡片：总额取实体表的总额（两种视图都是「应用总时长」）
+        MoreData = appChartData.Skip(FrequentUseNum)
+            .Concat(webChartData.Skip(FrequentUseNum))
+            .OrderByDescending(x => x.Value)
+            .Take(MoreNum)
+            .ToList();
+
+        // 概览卡片：总额取实体表的总额
         TotalTime = entity?.TotalSeconds ?? 0;
         LastTotalTime = prevEntity?.TotalSeconds ?? 0;
         TotalTimeText = Time.ToString((int)TotalTime);
@@ -342,14 +300,11 @@ public partial class IndexPageViewModel : IndexPageModel
         WebPageCount = await pageCountTask;
         LastWebPageCount = await prevPageCountTask;
 
-        // 原始矩阵先存起来，切换"应用/网站"时只需本地重建，不再打服务端
-        _appColumns = await columnTask ?? [];
-        _webColumns = await webColumnTask ?? [];
+        // 缓存原始矩阵，换主题时本地重建即可
+        _entityHours = hours;
         _appColumnCategories = await categoriesTask;
         _webColumnCategories = await webCategoriesTask;
-
-        // 对比列：上一个周期的每桶总量（网站维度没有小时级数据，那边不展示对比）
-        _compareTotalsAll = SumByBucket(await compareColumnTask, labels.Length);
+        _compareTotalsAll = ChartDataMapper.SumAllBuckets(prevHours, labels.Length);
 
         ApplyChartSeries();
     }
@@ -360,33 +315,16 @@ public partial class IndexPageViewModel : IndexPageModel
 
     private void ApplyChartSeries()
     {
-        var useWeb = ChartType?.Id == 1;
-
-        var columns = useWeb ? _webColumns : _appColumns;
-        var visuals = useWeb ? BuildWebCategoryMap(_webColumnCategories) : BuildAppCategoryMap(_appColumnCategories);
-
-        var series = new List<ChartsDataModel>(columns.Count);
-        foreach (var column in columns)
-        {
-            if (!visuals.TryGetValue(column.CategoryID, out var visual))
-                visual = UnknownCategory;
-
-            series.Add(new ChartsDataModel
-            {
-                Name = visual.Name,
-                Icon = visual.Icon,
-                Color = ChartColorHelper.Resolve(visual.Color, visual.IsSystem),
-                Values = column.Values ?? []
-            });
-        }
-
-        series = series.OrderByDescending(m => m.Values.Sum()).ToList();
+        var series = ChartDataMapper.BuildUnifiedCategorySeries(
+            _entityHours,
+            ChartDataMapper.ToVisualMap(_appColumnCategories, ResourceStrings.Uncategorized),
+            ChartDataMapper.ToVisualMap(_webColumnCategories, ResourceStrings.Uncategorized),
+            ResourceStrings.Uncategorized);
 
         HourSeries = series;
-        // 网站维度没有上一周期的同粒度数据，不显示对比柱
-        IsCompareSupported = !useWeb;
-        CompareValues = useWeb ? [] : _compareTotalsAll;
-        HourTotalText = Time.ToString((int)series.Sum(m => m.Values.Sum()));
+        IsCompareSupported = true;
+        CompareValues = _compareTotalsAll;
+        HourTotalText = Time.ToString((int)series.Sum(m => m.Value));
 
         CategorySeries = series
             .Select(m => new ChartsDataModel
@@ -394,61 +332,19 @@ public partial class IndexPageViewModel : IndexPageModel
                 Name = m.Name,
                 Icon = m.Icon,
                 Color = m.Color,
-                Value = m.Values.Sum(),
-                Tag = Time.ToString((int)m.Values.Sum())
+                Value = m.Value,
+                Tag = m.Tag
             })
-            .Where(m => m.Value > 0)
             .ToList();
 
         CategoryTotalText = Time.ToString((int)CategorySeries.Sum(m => m.Value));
-        ChartDonutCaption = useWeb ? ResourceStrings.Website : ResourceStrings.App;
-    }
-
-    private sealed record CategoryVisual(string Name, string? Icon, string? Color, bool IsSystem);
-
-    /// <summary>没匹配到分类的桶：按系统分类处理，最终落到主题色</summary>
-    private static CategoryVisual UnknownCategory =>
-        new(ResourceStrings.Uncategorized, null, null, true);
-
-    private static Dictionary<int, CategoryVisual> BuildAppCategoryMap(IReadOnlyList<CategoryModel>? categories)
-    {
-        var map = new Dictionary<int, CategoryVisual>();
-        if (categories == null) return map;
-
-        foreach (var item in categories)
-        {
-            // 只存原始色，解析放到 ApplyChartSeries：换主题时同一份数据能直接重算
-            map[item.ID] = new CategoryVisual(
-                item.Name ?? ResourceStrings.Uncategorized,
-                item.IconFile,
-                item.Color,
-                item.IsSystem);
-        }
-
-        return map;
-    }
-
-    private static Dictionary<int, CategoryVisual> BuildWebCategoryMap(IReadOnlyList<WebSiteCategoryModel>? categories)
-    {
-        var map = new Dictionary<int, CategoryVisual>();
-        if (categories == null) return map;
-
-        foreach (var item in categories)
-        {
-            map[item.ID] = new CategoryVisual(
-                item.Name ?? ResourceStrings.Uncategorized,
-                item.IconFile,
-                item.Color,
-                item.IsSystem);
-        }
-
-        return map;
+        ChartDonutCaption = ResourceStrings.Total;
     }
 
     /// <summary>主题切换后按新背景重算分类色，数据本身不用重新请求</summary>
     private void OnThemeChanged()
     {
-        if (_appColumns.Count == 0 && _webColumns.Count == 0) return;
+        if (_entityHours == null) return;
         ApplyChartSeries();
     }
 
@@ -457,24 +353,6 @@ public partial class IndexPageViewModel : IndexPageModel
         var labels = new string[24];
         for (var i = 0; i < 24; i++) labels[i] = i.ToString();
         return labels;
-    }
-
-    /// <summary>把「分类×时段矩阵」按列加总成每个时段的对比总量</summary>
-    private static double[] SumByBucket(IReadOnlyList<ColumnDataModel>? columns, int count)
-    {
-        var totals = new double[count];
-        if (columns == null) return totals;
-
-        foreach (var column in columns)
-        {
-            var values = column.Values;
-            if (values == null) continue;
-
-            var length = Math.Min(values.Length, count);
-            for (var i = 0; i < length; i++) totals[i] += values[i];
-        }
-
-        return totals;
     }
 
     private static string[] WeekDayLabels() =>
@@ -514,7 +392,7 @@ public partial class IndexPageViewModel : IndexPageModel
         {
             if (chartData.Data is EntityModel entity)
             {
-                if (entity.Kind == "site")
+                if (entity.Kind == "site" || entity.Key.StartsWith("site:", StringComparison.Ordinal))
                 {
                     var site = await _webDataService.GetWebSiteAsync(entity.EntityId);
                     if (site != null)
@@ -544,13 +422,13 @@ public partial class IndexPageViewModel : IndexPageModel
     public override void Dispose()
     {
         ChartColorHelper.ThemeChanged -= OnThemeChanged;
+        _entityHours = null;
         _compareTotalsAll = [];
         CompareValues = [];
         WeekData = [];
         AppFrequentUseData = [];
-        AppMoreData = [];
         WebFrequentUseData = [];
-        WebMoreData = [];
+        MoreData = [];
         HourSeries = [];
         HourLabels = [];
         CategorySeries = [];

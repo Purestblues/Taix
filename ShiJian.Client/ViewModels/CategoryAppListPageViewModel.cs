@@ -6,6 +6,7 @@ using System.Windows.Input;
 using ShiJian.Client.Events;
 using ShiJian.Client.Foundation;
 using ShiJian.Client.Foundation.Rx;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Models;
 using ShiJian.Client.Models.CategoryAppList;
 using ShiJian.Client.Servicers;
@@ -24,6 +25,7 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
     private readonly INavigationService _navigationService;
     private readonly IAppUpdateService _appUpdateService;
     private readonly IAppEventService _appEventService;
+    private readonly IAppMergeService _appMergeService;
     private List<ChooseAppModel> _appList = [];
 
     public CategoryAppListPageViewModel(
@@ -31,13 +33,15 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
         INavigationDataService navigationData,
         INavigationService navigationService,
         IAppUpdateService appUpdateService,
-        IAppEventService appEventService)
+        IAppEventService appEventService,
+        IAppMergeService appMergeService)
     {
         _appDataService = appData;
         _navigationData = navigationData;
         _navigationService = navigationService;
         _appUpdateService = appUpdateService;
         _appEventService = appEventService;
+        _appMergeService = appMergeService;
 
         ShowChooseCommand = AsyncRelayCommand.CreateFromTask<object>(OnShowChooseAsync).DisposeWith(Disposables);
         ChoosedCommand = AsyncRelayCommand.CreateFromTask<object>(OnChoosed).DisposeWith(Disposables);
@@ -150,8 +154,9 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
         }
 
         var addedApps = (await _appDataService.GetAppsByCategoryIDAsync(Category.Data.ID)).ToList();
-        Data = addedApps;
-        MainPageOriginalData = addedApps;
+        var foldedApps = AppMergePlanner.FoldApps(addedApps, await _appMergeService.GetGroupsAsync());
+        Data = foldedApps;
+        MainPageOriginalData = foldedApps;
         MainSearchInput = string.Empty;
     }
 
@@ -164,9 +169,11 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
     public override async Task OnNavigatedToAsync()
     {
         Category = _navigationData.Data as CategoryModel ?? new CategoryModel();
-        MainPageOriginalData = Category.Data != null
+        var rawApps = Category.Data != null
             ? (await _appDataService.GetAppsByCategoryIDAsync(Category.Data.ID)).ToList()
             : [];
+        var foldedApps = AppMergePlanner.FoldApps(rawApps, await _appMergeService.GetGroupsAsync());
+        MainPageOriginalData = foldedApps;
         Data = MainPageOriginalData;
         MainSearchInput = string.Empty;
     }
@@ -174,7 +181,8 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
     public override async Task RefreshAsync()
     {
         if (Category?.Data == null) return;
-        MainPageOriginalData = (await _appDataService.GetAppsByCategoryIDAsync(Category.Data.ID)).ToList();
+        var rawApps = (await _appDataService.GetAppsByCategoryIDAsync(Category.Data.ID)).ToList();
+        MainPageOriginalData = AppMergePlanner.FoldApps(rawApps, await _appMergeService.GetGroupsAsync());
         // 保留当前搜索关键字：setter 会触发 FilterMainData，重新筛选保留过滤状态
         if (string.IsNullOrEmpty(MainSearchInput))
         {
@@ -243,6 +251,7 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
 
         var keyword = MainSearchInput.ToLower();
         var filtered = MainPageOriginalData.Where(m =>
+            (m.Alias != null && m.Alias.ToLower().Contains(keyword)) ||
             (m.Description != null && m.Description.ToLower().Contains(keyword)) ||
             (m.Name != null && m.Name.ToLower().Contains(keyword))
         ).ToList();

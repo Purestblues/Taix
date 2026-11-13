@@ -115,17 +115,10 @@
                 </Border.Transitions>
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto"
                       Margin="0,5,0,16">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal"
-                                VerticalAlignment="Center">
-                        <TextBlock Text="{DynamicResource SideDetails}"
-                                   FontSize="18"
-                                   VerticalAlignment="Center" />
-                        <select:TabSwitch Margin="10,0,0,0"
-                                          VerticalAlignment="Center"
-                                          IsShowIcon="False"
-                                          SelectedItem="{Binding ShowType,Mode=TwoWay}"
-                                          Options="{Binding ShowTypeOptions}" />
-                    </StackPanel>
+                    <TextBlock Grid.Column="0"
+                               Text="{DynamicResource SideDetails}"
+                               FontSize="18"
+                               VerticalAlignment="Center" />
 
                     <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10"
                                 VerticalAlignment="Center">
@@ -171,20 +164,19 @@
 
                 <Grid Grid.Column="0" RowDefinitions="Auto,Auto,*,Auto">
 
-                    <!-- 配色模式（只影响应用维度的表盘） -->
+                    <!-- 配色模式 -->
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                         <TextBlock FontSize="11"
                                    Text="{DynamicResource ClockHint}"
                                    Foreground="{DynamicResource SubTextBrush}"
                                    Opacity="0.6"
                                    VerticalAlignment="Center" />
-                        <base:View Grid.Column="1" Condition="0" Value="{Binding ShowType.Id}">
-                            <select:TabSwitch x:Name="ColorModeSwitch"
-                                              VerticalAlignment="Center"
-                                              IsShowIcon="False"
-                                              SelectedItem="{Binding SelectedColorMode, Mode=TwoWay}"
-                                              Options="{Binding ColorModeOptions}" />
-                        </base:View>
+                        <select:TabSwitch x:Name="ColorModeSwitch"
+                                          Grid.Column="1"
+                                          VerticalAlignment="Center"
+                                          IsShowIcon="False"
+                                          SelectedItem="{Binding SelectedColorMode, Mode=TwoWay}"
+                                          Options="{Binding ColorModeOptions}" />
                     </Grid>
 
                     <!-- A：关键指标卡（含实体接口不可用提示） -->
@@ -322,10 +314,8 @@
                             </Style>
                         </TabControl.Styles>
                         <TabItem>
-                            <Grid>
-                                <!-- 应用模式：环形时钟 + 图例 -->
-                                <base:View Condition="0" Value="{Binding ShowType.Id}">
-                                <Grid ColumnDefinitions="*,Auto">
+                            <!-- 环形时钟 + 图例 -->
+                            <Grid ColumnDefinitions="*,Auto">
                                     <timeline:ClockRing HorizontalAlignment="Center"
                                                         VerticalAlignment="Center"
                                                         MaxWidth="420"
@@ -400,27 +390,10 @@
                                             </ItemsControl>
                                         </StackPanel>
                                     </Border>
-                                </Grid>
-                                </base:View>
-
-                                <!-- 网站模式：没有会话级时间轴，直接整行榜单 -->
-                                <base:View Condition="1" Value="{Binding ShowType.Id}">
-                                    <Charts:ListChart IsLoading="{Binding IsLoading}" IsShowBadge="True"
-                                                      IsSearch="True"
-                                                      MaxWidth="720"
-                                                      HorizontalAlignment="Center"
-                                                      MenuType="WebSite"
-                                                      Data="{Binding Data}"
-                                                      ClickCommand="{Binding ToDetailCommand}" />
-                                </base:View>
                             </Grid>
                         </TabItem>
                         <TabItem>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ClockColumnWidth}}" />
-                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ListColumnWidth}}" />
-                                </Grid.ColumnDefinitions>
+                            <Grid ColumnDefinitions="*,420">
                                 <timeline:ClockRing HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
                                                     MaxWidth="420"
@@ -445,17 +418,13 @@
                                                   HorizontalAlignment="Stretch"
                                                   IsShowBadge="True"
                                                   IsSearch="True"
-                                                  MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
+                                                  MenuType="App"
                                                   Data="{Binding WeekData}"
                                                   ClickCommand="{Binding ToDetailCommand}" />
                             </Grid>
                         </TabItem>
                         <TabItem>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ClockColumnWidth}}" />
-                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ListColumnWidth}}" />
-                                </Grid.ColumnDefinitions>
+                            <Grid ColumnDefinitions="*,420">
                                 <timeline:ClockRing HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
                                                     MaxWidth="420"
@@ -480,17 +449,13 @@
                                                   HorizontalAlignment="Stretch"
                                                   IsShowBadge="True"
                                                   IsSearch="True"
-                                                  MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
+                                                  MenuType="App"
                                                   Data="{Binding MonthData}"
                                                   ClickCommand="{Binding ToDetailCommand}" />
                             </Grid>
                         </TabItem>
                         <TabItem>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ClockColumnWidth}}" />
-                                    <ColumnDefinition Width="{Binding IsAppDimension, Converter={StaticResource ListColumnWidth}}" />
-                                </Grid.ColumnDefinitions>
+                            <Grid ColumnDefinitions="*,420">
                                 <timeline:ClockRing HorizontalAlignment="Center"
                                                     VerticalAlignment="Center"
                                                     MaxWidth="420"
@@ -515,7 +480,7 @@
                                                   HorizontalAlignment="Stretch"
                                                   IsShowBadge="True"
                                                   IsSearch="True"
-                                                  MenuType="{Binding ShowType.Id, Converter={StaticResource ShowTypeToContextMenuTypeConverter}}"
+                                                  MenuType="App"
                                                   Data="{Binding YearData}"
                                                   ClickCommand="{Binding ToDetailCommand}" />
                             </Grid>

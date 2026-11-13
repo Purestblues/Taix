@@ -30,14 +30,16 @@ public class AppMergeService : IAppMergeService
 
     private readonly IEntityData _entityData;
     private readonly IAppData _appData;
+    private readonly IWebSiteData _webSiteData;
     private readonly object _gate = new();
     private IReadOnlyList<AppMergeGroup> _groups = [];
     private DateTime _loadedAt = DateTime.MinValue;
 
-    public AppMergeService(IEntityData entityData, IAppData appData)
+    public AppMergeService(IEntityData entityData, IAppData appData, IWebSiteData webSiteData)
     {
         _entityData = entityData;
         _appData = appData;
+        _webSiteData = webSiteData;
     }
 
     public IReadOnlyList<AppMergeGroup> Groups
@@ -96,6 +98,24 @@ public class AppMergeService : IAppMergeService
         AppMergePlanner.Decorate(rows, groups);
     }
 
+    public async Task<AppMergeGroup?> CreateGroupAsync(string name, string primaryRef, IReadOnlyList<string> members)
+    {
+        var created = await _entityData.CreateGroupAsync(name, primaryRef, members).ConfigureAwait(false);
+        var groups = await GetGroupsAsync(force: true).ConfigureAwait(false);
+        return created != null
+            ? groups.FirstOrDefault(g => g.Key == created.Id.ToString())
+            : null;
+    }
+
+    public async Task<AppMergeGroup?> UpdateGroupAsync(int groupId, string? name = null, string? primaryRef = null, IReadOnlyList<string>? members = null)
+    {
+        var updated = await _entityData.UpdateGroupAsync(groupId, name, primaryRef, members).ConfigureAwait(false);
+        var groups = await GetGroupsAsync(force: true).ConfigureAwait(false);
+        return updated != null
+            ? groups.FirstOrDefault(g => g.Key == updated.Id.ToString())
+            : null;
+    }
+
     /// <param name="groupKey">组标识（服务端组 ID 的字符串形式）</param>
     public async Task DissolveAsync(string groupKey)
     {
@@ -116,36 +136,86 @@ public class AppMergeService : IAppMergeService
     {
         if (remote.Count == 0) return [];
 
-        var apps = await _appData.GetAllAppsAsync(cancellationToken).ConfigureAwait(false);
-        var byName = apps
+        var appsTask = _appData.GetAllAppsAsync(cancellationToken);
+        var sitesTask = _webSiteData.GetAllWebSitesAsync(cancellationToken);
+        await Task.WhenAll(appsTask, sitesTask).ConfigureAwait(false);
+
+        var byName = appsTask.Result
             .Where(app => !string.IsNullOrEmpty(app.Name))
-            .GroupBy(app => app.Name, StringComparer.Ordinal)
+            .GroupBy(app => app.Name!, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var byDomain = sitesTask.Result
+            .Where(site => !string.IsNullOrEmpty(site.Domain))
+            .GroupBy(site => site.Domain!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
         var result = new List<AppMergeGroup>(remote.Count);
         foreach (var model in remote)
         {
-            if (model.Kind != "app") continue;
-
-            var memberIds = new List<int>();
+            var memberAppIds = new List<int>();
+            var memberSiteIds = new List<int>();
             var memberNames = new List<string>();
-            foreach (var member in model.Members)
+            var memberRefs = new List<string>();
+
+            foreach (var raw in model.Members)
             {
-                if (!byName.TryGetValue(member, out var app)) continue;
-                memberIds.Add(app.ID);
-                memberNames.Add(app.Name);
+                var (isSite, value) = AppMergePlanner.ParseMemberRef(raw);
+                if (string.IsNullOrEmpty(value)) continue;
+
+                if (isSite)
+                {
+                    if (!byDomain.TryGetValue(value, out var site)) continue;
+                    memberSiteIds.Add(site.ID);
+                    memberNames.Add(AppMergePlanner.SiteDisplayName(site));
+                    memberRefs.Add(AppMergePlanner.CanonicalMemberRef(true, site.Domain ?? value));
+                }
+                else
+                {
+                    if (!byName.TryGetValue(value, out var app)) continue;
+                    memberAppIds.Add(app.ID);
+                    memberNames.Add(AppMergePlanner.AppDisplayName(app));
+                    memberRefs.Add(AppMergePlanner.CanonicalMemberRef(false, app.Name ?? value));
+                }
             }
 
-            if (memberIds.Count < 2) continue;
+            if (memberAppIds.Count + memberSiteIds.Count < 2) continue;
 
-            var primaryId = byName.TryGetValue(model.PrimaryRef, out var primary) ? primary.ID : memberIds[0];
+            var (primaryIsSite, primaryValue) = AppMergePlanner.ParseMemberRef(model.PrimaryRef);
+            int primaryAppId = 0;
+            int primarySiteId = 0;
+            string canonicalPrimary = memberRefs[0];
+            if (primaryIsSite && byDomain.TryGetValue(primaryValue, out var primarySite))
+            {
+                primarySiteId = primarySite.ID;
+                canonicalPrimary = AppMergePlanner.CanonicalMemberRef(true, primarySite.Domain ?? primaryValue);
+            }
+            else if (!primaryIsSite && byName.TryGetValue(primaryValue, out var primaryApp))
+            {
+                primaryAppId = primaryApp.ID;
+                canonicalPrimary = AppMergePlanner.CanonicalMemberRef(false, primaryApp.Name ?? primaryValue);
+            }
+            else if (memberAppIds.Count > 0)
+            {
+                primaryAppId = memberAppIds[0];
+            }
+            else if (memberSiteIds.Count > 0)
+            {
+                primarySiteId = memberSiteIds[0];
+            }
+
             result.Add(new AppMergeGroup
             {
                 Key = model.Id.ToString(),
                 Name = model.Name,
-                PrimaryAppId = primaryId,
-                MemberAppIds = memberIds,
+                Kind = model.Kind,
+                IsAuto = model.IsAuto,
+                PrimaryRef = canonicalPrimary,
+                PrimaryAppId = primaryAppId,
+                PrimarySiteId = primarySiteId,
+                MemberAppIds = memberAppIds,
+                MemberSiteIds = memberSiteIds,
                 MemberNames = memberNames,
+                MemberRefs = memberRefs,
                 TotalTime = 0
             });
         }

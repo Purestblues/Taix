@@ -225,4 +225,47 @@ public class AppMergePlannerTests
         Assert.Equal(0, badge.CategoryId); // 点徽章不会跳到分类 0
         Assert.Contains("0.11.3", row.PopupText);
     }
+
+    [Theory]
+    [InlineData("app:42", false, "42")]
+    [InlineData("site:108", true, "108")]
+    [InlineData("42", false, "42")]
+    [InlineData("  site:9  ", true, "9")]
+    public void ParseMemberRef_ParsesSiteAndAppRefs(string raw, bool expectedIsSite, string expectedValue)
+    {
+        var (isSite, value) = AppMergePlanner.ParseMemberRef(raw);
+        Assert.Equal(expectedIsSite, isSite);
+        Assert.Equal(expectedValue, value);
+    }
+
+    [Fact]
+    public void FoldApps_CollapsesGroupedMembersIntoPrimaryWithGroupNameAndSummedTime()
+    {
+        var apps = new[]
+        {
+            App(1, "WeChat", @"C:\WeChat\WeChat.exe", 300),
+            App(2, "WeChatAppEx", @"C:\WeChat\WeChatAppEx.exe", 120),
+            App(3, "Code", @"C:\Code\Code.exe", 500)
+        };
+        var groups = new[]
+        {
+            new AppMergeGroup
+            {
+                Key = "g1",
+                Kind = "app",
+                Name = "微信生态",
+                PrimaryAppId = 1,
+                MemberAppIds = [1, 2]
+            }
+        };
+
+        var folded = AppMergePlanner.FoldApps(apps, groups);
+
+        Assert.Equal(2, folded.Count);
+        var wechat = Assert.Single(folded, a => a.ID == 1);
+        Assert.Equal("微信生态", wechat.Alias);
+        Assert.Equal(420, wechat.TotalTime);
+        Assert.DoesNotContain(folded, a => a.ID == 2);
+        Assert.Contains(folded, a => a.ID == 3 && a.TotalTime == 500);
+    }
 }

@@ -27,6 +27,10 @@ public interface IEntityData
 
     Task<IReadOnlyList<MergeGroupModel>> GetMergeGroupsAsync(CancellationToken cancellationToken = default);
 
+    Task<MergeGroupModel?> CreateGroupAsync(string name, string primaryRef, IReadOnlyList<string> members);
+
+    Task<MergeGroupModel?> UpdateGroupAsync(int groupId, string? name = null, string? primaryRef = null, IReadOnlyList<string>? members = null);
+
     Task DissolveGroupAsync(int groupId);
 
     Task RenameGroupAsync(int groupId, string name);

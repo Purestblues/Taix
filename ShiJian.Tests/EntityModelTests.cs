@@ -160,4 +160,38 @@ public class EntityModelTests
         Assert.Equal(ResourceStrings.ServerOutdated, ChartDataMapper.FormatEntityLoadError(notFound));
         Assert.Equal(ResourceStrings.EntityLoadFailed, ChartDataMapper.FormatEntityLoadError(serverErr));
     }
+
+    [Fact]
+    public void AggregateColumnsByCategory_SlicesMixedGroupsByCategoryKind()
+    {
+        var hours = new EntityHoursModel
+        {
+            BucketCount = 2,
+            Rows =
+            [
+                new EntityHoursRow
+                {
+                    Key = "app:1",
+                    Kind = "mixed",
+                    CategoryId = 5,
+                    CategoryKind = "app",
+                    Values = [100, 50]
+                },
+                new EntityHoursRow
+                {
+                    Key = "site:2",
+                    Kind = "mixed",
+                    CategoryId = 5,
+                    CategoryKind = "site",
+                    Values = [40, 20]
+                }
+            ]
+        };
+
+        var appCols = ChartDataMapper.AggregateColumnsByCategory(hours, isWeb: false);
+        var siteCols = ChartDataMapper.AggregateColumnsByCategory(hours, isWeb: true);
+
+        Assert.Equal([100d, 50d], Assert.Single(appCols).Values);
+        Assert.Equal([40d, 20d], Assert.Single(siteCols).Values);
+    }
 }

@@ -155,24 +155,262 @@ impl EntityService {
 
             let site = sites.entry(log.site_id).or_default();
             site.credited += credited;
-            if let Some(app_id) = browser_app {
-                *site.by_browser.entry(app_id).or_insert(0) += credited;
-                *credited_by_browser.entry(app_id).or_insert(0) += credited;
+            if unmatched == 0 {
+                if let Some(app_id) = browser_app {
+                    *site.by_browser.entry(app_id).or_insert(0) += credited;
+                    *credited_by_browser.entry(app_id).or_insert(0) += credited;
+                }
             }
         }
 
         // 补全站点静态信息（只查有归属的站点）
         fill_site_details(pool, &mut sites).await?;
 
-        // 4. 合并组：先把自动组落库（按全量应用判定，避免「今天没跑的成员看不到组」），
-        //    再把本窗口的行按组折叠
+        // 4. 合并组：先把自动组落库，再统一按持久化的组（含 app / site / mixed）折叠应用与站点
         sync_auto_groups(pool).await?;
-        let merged_apps = apply_merge_groups(pool, &apps, &excluded).await?;
+        let groups = load_groups(pool).await?;
 
-        // 5. 组装行
+        let visible_apps: Vec<&AppAgg> = apps
+            .iter()
+            .filter(|agg| !excluded.contains(&agg.app.app_id.unwrap_or(0)))
+            .collect();
+
+        let mut app_to_group: HashMap<String, usize> = HashMap::new();
+        let mut site_to_group: HashMap<String, usize> = HashMap::new();
+        for (idx, group) in groups.iter().enumerate() {
+            for raw in &group.members {
+                match parse_member_ref(raw) {
+                    MemberTarget::App(name) => {
+                        app_to_group.insert(name, idx);
+                    }
+                    MemberTarget::Site(domain) => {
+                        site_to_group.insert(domain, idx);
+                    }
+                }
+            }
+        }
+
+        // 记录哪些站点归入了某个合并组（用于浏览器归属扣减，防重复计算）
+        let mut grouped_site_ids: HashSet<i64> = HashSet::new();
+        let mut claimed_by_browser: HashMap<i64, i64> = HashMap::new();
+        for (site_id, agg) in &sites {
+            if agg.credited <= 0 {
+                continue;
+            }
+            if let Some(&g_idx) = site_to_group.get(&agg.domain) {
+                grouped_site_ids.insert(*site_id);
+                let group = &groups[g_idx];
+                let group_app_names: HashSet<String> = group
+                    .members
+                    .iter()
+                    .filter_map(|m| match parse_member_ref(m) {
+                        MemberTarget::App(name) => Some(name),
+                        MemberTarget::Site(_) => None,
+                    })
+                    .collect();
+                for (&browser_id, &sec) in &agg.by_browser {
+                    let browser_in_same_group = visible_apps.iter().any(|a| {
+                        a.app.app_id == Some(browser_id)
+                            && a.app.app_name.as_ref().is_some_and(|n| group_app_names.contains(n))
+                    });
+                    if !browser_in_same_group {
+                        *claimed_by_browser.entry(browser_id).or_insert(0) += sec;
+                    }
+                }
+            }
+        }
+
+        // 5. 组装行：先组装合并组行（app / site / mixed），再组装未入组的独立应用与站点
         let mut rows: Vec<EntityModel> = Vec::new();
         let mut balance_seconds: i64 = 0;
-        for (primary, group) in merged_apps {
+
+        for (g_idx, group) in groups.iter().enumerate() {
+            let group_apps: Vec<&AppAgg> = visible_apps
+                .iter()
+                .copied()
+                .filter(|a| {
+                    a.app
+                        .app_name
+                        .as_deref()
+                        .and_then(|n| app_to_group.get(n).copied())
+                        == Some(g_idx)
+                })
+                .collect();
+            let group_sites: Vec<(i64, &SiteAgg)> = sites
+                .iter()
+                .filter(|(_, agg)| {
+                    agg.credited > 0 && site_to_group.get(&agg.domain).copied() == Some(g_idx)
+                })
+                .map(|(id, agg)| (*id, agg))
+                .collect();
+
+            if group_apps.is_empty() && group_sites.is_empty() {
+                continue;
+            }
+
+            let group_app_ids: HashSet<i64> =
+                group_apps.iter().filter_map(|a| a.app.app_id).collect();
+
+            let mut total_group_seconds: i64 = group_apps.iter().map(|a| a.seconds).sum();
+            for (_, site_agg) in &group_sites {
+                let mut site_contrib = site_agg.credited;
+                for (&browser_id, &sec) in &site_agg.by_browser {
+                    if group_app_ids.contains(&browser_id) {
+                        site_contrib -= sec;
+                    }
+                }
+                total_group_seconds += site_contrib.max(0);
+            }
+
+            // 如果组内包含了浏览器且关闭「网站并入浏览器」，扣掉未入同组但归属于该浏览器的站点秒数以保证总额守恒
+            if !browser_merged {
+                for app_agg in &group_apps {
+                    let app_id = app_agg.app.app_id.unwrap_or(0);
+                    if browser_app_ids.contains(&app_id) {
+                        let outside_credited: i64 = sites
+                            .iter()
+                            .filter(|(sid, _)| !grouped_site_ids.contains(sid))
+                            .filter_map(|(_, s)| s.by_browser.get(&app_id))
+                            .sum();
+                        total_group_seconds = (total_group_seconds - outside_credited).max(0);
+                    }
+                }
+            }
+
+            // 决定母成员（优先取 PrimaryRef；当母成员在本窗口没跑时退化到本窗口时长最长的成员）
+            let primary_target = parse_member_ref(&group.primary_ref);
+            let chosen_app = match &primary_target {
+                MemberTarget::App(name) => group_apps
+                    .iter()
+                    .copied()
+                    .find(|a| a.app.app_name.as_deref() == Some(name.as_str())),
+                MemberTarget::Site(_) => None,
+            };
+            let chosen_site = match &primary_target {
+                MemberTarget::Site(domain) => group_sites
+                    .iter()
+                    .copied()
+                    .find(|(_, agg)| agg.domain == *domain),
+                MemberTarget::App(_) => None,
+            };
+
+            enum ChosenPrimary<'a> {
+                App(&'a AppAgg),
+                Site(i64, &'a SiteAgg),
+            }
+
+            let chosen = if let Some(a) = chosen_app {
+                ChosenPrimary::App(a)
+            } else if let Some((sid, s)) = chosen_site {
+                ChosenPrimary::Site(sid, s)
+            } else {
+                let best_app = group_apps.iter().copied().max_by_key(|a| a.seconds);
+                let best_site = group_sites.iter().copied().max_by_key(|(_, s)| s.credited);
+                match (best_app, best_site) {
+                    (Some(a), Some((sid, s))) => {
+                        if a.seconds >= s.credited {
+                            ChosenPrimary::App(a)
+                        } else {
+                            ChosenPrimary::Site(sid, s)
+                        }
+                    }
+                    (Some(a), None) => ChosenPrimary::App(a),
+                    (None, Some((sid, s))) => ChosenPrimary::Site(sid, s),
+                    (None, None) => continue,
+                }
+            };
+
+            let mut members: Vec<EntityMemberModel> = Vec::new();
+            let primary_app_id = match chosen {
+                ChosenPrimary::App(a) => a.app.app_id,
+                ChosenPrimary::Site(_, _) => None,
+            };
+            let primary_site_id = match chosen {
+                ChosenPrimary::App(_) => None,
+                ChosenPrimary::Site(sid, _) => Some(sid),
+            };
+
+            for a in &group_apps {
+                if a.app.app_id == primary_app_id {
+                    continue;
+                }
+                members.push(EntityMemberModel {
+                    key: format!("app:{}", a.app.app_id.unwrap_or(0)),
+                    name: display_name(&a.app),
+                    seconds: a.seconds,
+                    icon: a.app.app_icon_file.clone(),
+                });
+            }
+            for (sid, s) in &group_sites {
+                if Some(*sid) == primary_site_id {
+                    continue;
+                }
+                members.push(EntityMemberModel {
+                    key: format!("site:{}", sid),
+                    name: site_display_name(s),
+                    seconds: s.credited,
+                    icon: s.icon_file.clone(),
+                });
+            }
+
+            match chosen {
+                ChosenPrimary::App(primary) => {
+                    let app_id = primary.app.app_id.unwrap_or(0);
+                    let is_browser = browser_app_ids.contains(&app_id);
+                    if is_browser && browser_merged {
+                        for (site_id, per_browser) in &sites {
+                            if grouped_site_ids.contains(site_id) {
+                                continue;
+                            }
+                            if let Some(seconds) = per_browser.by_browser.get(&app_id) {
+                                let agg = &sites[site_id];
+                                members.push(EntityMemberModel {
+                                    key: format!("site:{}", site_id),
+                                    name: site_display_name(agg),
+                                    seconds: *seconds,
+                                    icon: agg.icon_file.clone(),
+                                });
+                            }
+                        }
+                    }
+                    rows.push(EntityModel {
+                        key: format!("app:{}", app_id),
+                        kind: group.kind.clone(),
+                        name: group.name.clone(),
+                        icon: primary.app.app_icon_file.clone(),
+                        seconds: total_group_seconds,
+                        category_id: primary.app.app_category_id.unwrap_or(0),
+                        category_kind: "app".to_string(),
+                        category_name: primary.app.cat_name.clone(),
+                        category_color: primary.app.cat_color.clone(),
+                        is_browser,
+                        members,
+                    });
+                }
+                ChosenPrimary::Site(site_id, primary) => {
+                    rows.push(EntityModel {
+                        key: format!("site:{}", site_id),
+                        kind: group.kind.clone(),
+                        name: group.name.clone(),
+                        icon: primary.icon_file.clone(),
+                        seconds: total_group_seconds,
+                        category_id: primary.category_id,
+                        category_kind: "site".to_string(),
+                        category_name: primary.category_name.clone(),
+                        category_color: primary.category_color.clone(),
+                        is_browser: false,
+                        members,
+                    });
+                }
+            }
+        }
+
+        // 未入组的独立应用
+        for primary in &visible_apps {
+            let name_key = primary.app.app_name.as_deref().unwrap_or("");
+            if app_to_group.contains_key(name_key) {
+                continue;
+            }
             let app_id = primary.app.app_id.unwrap_or(0);
             let is_browser = browser_app_ids.contains(&app_id);
             let site_credited = credited_by_browser.get(&app_id).copied().unwrap_or(0);
@@ -202,21 +440,15 @@ impl EntityService {
             }
 
             let mut members: Vec<EntityMemberModel> = Vec::new();
-            let kept_name = primary.app.app_name.clone().unwrap_or_default();
-            if let Some(group) = &group {
-                for member in group.members.iter().filter(|m| m.as_str() != kept_name) {
-                    if let Some(agg) = apps.iter().find(|a| names_match(a, member)) {
-                        members.push(EntityMemberModel {
-                            key: format!("app:{}", agg.app.app_id.unwrap_or(0)),
-                            name: display_name(&agg.app),
-                            seconds: agg.seconds,
-                            icon: agg.app.app_icon_file.clone(),
-                        });
-                    }
-                }
-            }
+            let mut row_seconds = primary.seconds;
             if is_browser && browser_merged {
+                // 若有站点被手动归入 mixed / site 组，这里扣除防止在同一页面算两次
+                let claimed = claimed_by_browser.get(&app_id).copied().unwrap_or(0);
+                row_seconds = (row_seconds - claimed).max(0);
                 for (site_id, per_browser) in &sites {
+                    if grouped_site_ids.contains(site_id) {
+                        continue;
+                    }
                     if let Some(seconds) = per_browser.by_browser.get(&app_id) {
                         let agg = &sites[site_id];
                         members.push(EntityMemberModel {
@@ -229,17 +461,12 @@ impl EntityService {
                 }
             }
 
-            let name = group
-                .as_ref()
-                .map(|g| g.name.clone())
-                .unwrap_or_else(|| display_name(&primary.app));
-
             rows.push(EntityModel {
                 key: format!("app:{}", app_id),
                 kind: "app".to_string(),
-                name,
+                name: display_name(&primary.app),
                 icon: primary.app.app_icon_file.clone(),
-                seconds: primary.seconds,
+                seconds: row_seconds,
                 category_id: primary.app.app_category_id.unwrap_or(0),
                 category_kind: "app".to_string(),
                 category_name: primary.app.cat_name.clone(),
@@ -252,29 +479,27 @@ impl EntityService {
         // 网站侧总时长（含并入浏览器的部分）
         let site_seconds: i64 = sites.values().map(|agg| agg.credited).sum();
 
-        // 6. 站点行：关闭合并时全部独立成行；打开合并时只有「找不到归属浏览器」的站点还需要留行
-        if !browser_merged || sites.values().any(|agg| agg.by_browser.is_empty()) {
-            for (site_id, agg) in &sites {
-                if agg.credited <= 0 {
-                    continue;
-                }
-                if browser_merged && !agg.by_browser.is_empty() {
-                    continue;
-                }
-                rows.push(EntityModel {
-                    key: format!("site:{}", site_id),
-                    kind: "site".to_string(),
-                    name: site_display_name(agg),
-                    icon: agg.icon_file.clone(),
-                    seconds: agg.credited,
-                    category_id: agg.category_id,
-                    category_kind: "site".to_string(),
-                    category_name: agg.category_name.clone(),
-                    category_color: agg.category_color.clone(),
-                    is_browser: false,
-                    members: Vec::new(),
-                });
+        // 6. 未入组的站点行：关闭合并时全部独立成行；打开合并时只有「找不到归属浏览器」的站点还需要留行
+        for (site_id, agg) in &sites {
+            if agg.credited <= 0 || grouped_site_ids.contains(site_id) {
+                continue;
             }
+            if browser_merged && !agg.by_browser.is_empty() {
+                continue;
+            }
+            rows.push(EntityModel {
+                key: format!("site:{}", site_id),
+                kind: "site".to_string(),
+                name: site_display_name(agg),
+                icon: agg.icon_file.clone(),
+                seconds: agg.credited,
+                category_id: agg.category_id,
+                category_kind: "site".to_string(),
+                category_name: agg.category_name.clone(),
+                category_color: agg.category_color.clone(),
+                is_browser: false,
+                members: Vec::new(),
+            });
         }
 
         // 关闭合并时，被站点吃掉的那部分已经从浏览器行里扣掉了，站点秒数也计入展示总量
@@ -380,6 +605,140 @@ impl EntityService {
             .execute(pool)
             .await?;
         Ok(())
+    }
+
+    pub async fn create_group(
+        pool: &SqlitePool,
+        name: &str,
+        primary_ref: &str,
+        members: &[String],
+    ) -> Result<MergeGroupModel, AppError> {
+        let normalized_members = normalize_members(members)?;
+        let final_primary = resolve_primary_ref(primary_ref, &normalized_members)?;
+        ensure_no_member_conflicts(pool, &normalized_members, None).await?;
+
+        let kind = infer_group_kind(&normalized_members);
+        let group_name = if name.trim().is_empty() {
+            resolve_target_display_name(pool, &parse_member_ref(&final_primary)).await?
+        } else {
+            name.trim().chars().take(64).collect()
+        };
+
+        let mut tx = pool.begin().await?;
+        let res = sqlx::query(
+            "INSERT INTO EntityMergeGroups (Name, Kind, AutoKey, PrimaryRef, IsAuto, UpdatedAt) VALUES (?, ?, NULL, ?, 0, datetime('now'))",
+        )
+        .bind(&group_name)
+        .bind(&kind)
+        .bind(&final_primary)
+        .execute(&mut *tx)
+        .await?;
+        let group_id = res.last_insert_rowid();
+
+        for member in &normalized_members {
+            sqlx::query(
+                "INSERT OR IGNORE INTO EntityMergeMembers (GroupID, MemberRef, AddedAt) VALUES (?, ?, datetime('now'))",
+            )
+            .bind(group_id)
+            .bind(member)
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+
+        Ok(MergeGroupModel {
+            id: group_id,
+            name: group_name,
+            kind,
+            is_auto: false,
+            primary_ref: final_primary,
+            members: normalized_members,
+        })
+    }
+
+    pub async fn update_group(
+        pool: &SqlitePool,
+        id: i64,
+        name: Option<&str>,
+        primary_ref: Option<&str>,
+        members: Option<&[String]>,
+    ) -> Result<MergeGroupModel, AppError> {
+        let groups = load_groups(pool).await?;
+        let Some(existing) = groups.into_iter().find(|g| g.id == id) else {
+            return Err(AppError::Business("合并组不存在".to_string()));
+        };
+
+        let members_changed = members.is_some();
+        let final_members = match members {
+            Some(list) => normalize_members(list)?,
+            None => existing.members.clone(),
+        };
+
+        if members_changed {
+            ensure_no_member_conflicts(pool, &final_members, Some(id)).await?;
+        }
+
+        let final_primary = match primary_ref {
+            Some(p) if !p.trim().is_empty() => resolve_primary_ref(p, &final_members)?,
+            _ => {
+                let existing_primary = parse_member_ref(&existing.primary_ref);
+                final_members
+                    .iter()
+                    .find(|m| parse_member_ref(m) == existing_primary)
+                    .cloned()
+                    .unwrap_or_else(|| final_members[0].clone())
+            }
+        };
+
+        let final_name: String = match name {
+            Some(n) if !n.trim().is_empty() => n.trim().chars().take(64).collect(),
+            _ => existing.name.clone(),
+        };
+
+        let final_kind = infer_group_kind(&final_members);
+        let final_is_auto = if members_changed || primary_ref.is_some_and(|p| !p.trim().is_empty()) {
+            false
+        } else {
+            existing.is_auto
+        };
+
+        let mut tx = pool.begin().await?;
+        sqlx::query(
+            "UPDATE EntityMergeGroups SET Name = ?, Kind = ?, PrimaryRef = ?, IsAuto = ?, UpdatedAt = datetime('now') WHERE ID = ?",
+        )
+        .bind(&final_name)
+        .bind(&final_kind)
+        .bind(&final_primary)
+        .bind(if final_is_auto { 1_i64 } else { 0_i64 })
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+
+        if members_changed {
+            sqlx::query("DELETE FROM EntityMergeMembers WHERE GroupID = ?")
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
+            for member in &final_members {
+                sqlx::query(
+                    "INSERT OR IGNORE INTO EntityMergeMembers (GroupID, MemberRef, AddedAt) VALUES (?, ?, datetime('now'))",
+                )
+                .bind(id)
+                .bind(member)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+        tx.commit().await?;
+
+        Ok(MergeGroupModel {
+            id,
+            name: final_name,
+            kind: final_kind,
+            is_auto: final_is_auto,
+            primary_ref: final_primary,
+            members: final_members,
+        })
     }
 
     /// 设置页选「默认浏览器」用：浏览日志里出现过的浏览器 + 应用侧识别到的浏览器实体
@@ -540,6 +899,7 @@ impl EntityService {
         let logs = load_browse_logs(pool, utc_start, utc_end).await?;
         let mut site_matrix: HashMap<i64, Vec<i64>> = HashMap::new();
         let mut browser_site_matrix: HashMap<i64, Vec<i64>> = HashMap::new();
+        let mut site_by_browser_matrix: HashMap<i64, HashMap<i64, Vec<i64>>> = HashMap::new();
         let mut attributed_sites: HashSet<i64> = HashSet::new();
 
         for log in logs {
@@ -585,6 +945,13 @@ impl EntityService {
                     .entry(app_id)
                     .or_insert_with(|| vec![0_i64; bucket_count]);
                 entry[index] += credited;
+
+                let per_browser = site_by_browser_matrix
+                    .entry(log.site_id)
+                    .or_default()
+                    .entry(app_id)
+                    .or_insert_with(|| vec![0_i64; bucket_count]);
+                per_browser[index] += credited;
             }
         }
 
@@ -602,42 +969,304 @@ impl EntityService {
         let window_apps: Vec<AppAgg> = app_matrix
             .iter()
             .filter_map(|(app_id, values)| {
+                let sum: i64 = values.iter().sum();
+                if sum <= 0 {
+                    return None;
+                }
                 app_meta.get(app_id).map(|agg| {
                     let mut app = (*agg).clone();
-                    app.seconds = values.iter().sum();
+                    app.seconds = sum;
                     app
                 })
             })
             .collect();
         sync_auto_groups(pool).await?;
-        let merged_apps = apply_merge_groups(pool, &window_apps, &excluded).await?;
-        let name_to_id: HashMap<String, i64> = all_apps
-            .iter()
-            .filter_map(|agg| agg.app.app_name.clone().map(|name| (name, agg.app.app_id.unwrap_or(0))))
-            .collect();
+        let groups = load_groups(pool).await?;
 
-        // 4. 组装行
-        let mut rows: Vec<EntityHoursRow> = Vec::new();
-        for (primary, group) in merged_apps {
-            let app_id = primary.app.app_id.unwrap_or(0);
-            let is_browser = browser_app_ids.contains(&app_id);
-            let kept_name = primary.app.app_name.clone().unwrap_or_default();
+        let mut app_to_group: HashMap<String, usize> = HashMap::new();
+        let mut site_to_group: HashMap<String, usize> = HashMap::new();
+        for (g_idx, group) in groups.iter().enumerate() {
+            for member in &group.members {
+                match parse_member_ref(member) {
+                    MemberTarget::App(name) => {
+                        app_to_group.insert(name, g_idx);
+                    }
+                    MemberTarget::Site(domain) => {
+                        site_to_group.insert(domain, g_idx);
+                    }
+                }
+            }
+        }
 
-            let mut values = if let Some(group) = &group {
-                let mut summed = vec![0_i64; bucket_count];
-                for member in &group.members {
-                    if let Some(member_id) = name_to_id.get(member) {
-                        if let Some(member_values) = app_matrix.get(member_id) {
-                            for (index, value) in member_values.iter().enumerate() {
-                                summed[index] += *value;
+        let mut grouped_site_ids: HashSet<i64> = HashSet::new();
+        let mut claimed_by_browser_matrix: HashMap<i64, Vec<i64>> = HashMap::new();
+        for (site_id, values) in &site_matrix {
+            if values.iter().all(|v| *v <= 0) {
+                continue;
+            }
+            let Some(site_agg) = site_aggs.get(site_id) else {
+                continue;
+            };
+            if let Some(&g_idx) = site_to_group.get(&site_agg.domain) {
+                grouped_site_ids.insert(*site_id);
+                let group_app_names: HashSet<String> = groups[g_idx]
+                    .members
+                    .iter()
+                    .filter_map(|m| match parse_member_ref(m) {
+                        MemberTarget::App(name) => Some(name),
+                        MemberTarget::Site(_) => None,
+                    })
+                    .collect();
+                if let Some(per_browser) = site_by_browser_matrix.get(site_id) {
+                    for (&browser_id, b_values) in per_browser {
+                        let browser_in_same_group = window_apps.iter().any(|a| {
+                            a.app.app_id == Some(browser_id)
+                                && a.app.app_name.as_ref().is_some_and(|n| group_app_names.contains(n))
+                        });
+                        if !browser_in_same_group {
+                            let entry = claimed_by_browser_matrix
+                                .entry(browser_id)
+                                .or_insert_with(|| vec![0_i64; bucket_count]);
+                            for (idx, val) in b_values.iter().enumerate() {
+                                entry[idx] += *val;
                             }
                         }
                     }
                 }
-                summed
-            } else {
-                app_matrix.get(&app_id).cloned().unwrap_or_else(|| vec![0_i64; bucket_count])
+            }
+        }
+
+        // 4. 组装行：先合并组，再未入组应用，再未入组站点
+        let mut rows: Vec<EntityHoursRow> = Vec::new();
+
+        for (g_idx, group) in groups.iter().enumerate() {
+            let group_apps: Vec<&AppAgg> = window_apps
+                .iter()
+                .filter(|a| {
+                    a.app
+                        .app_name
+                        .as_deref()
+                        .and_then(|n| app_to_group.get(n).copied())
+                        == Some(g_idx)
+                })
+                .collect();
+            let group_sites: Vec<(i64, &SiteAgg, &Vec<i64>)> = site_matrix
+                .iter()
+                .filter_map(|(sid, values)| {
+                    if values.iter().all(|v| *v <= 0) {
+                        return None;
+                    }
+                    let agg = site_aggs.get(sid)?;
+                    if site_to_group.get(&agg.domain).copied() == Some(g_idx) {
+                        Some((*sid, agg, values))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+
+            if group_apps.is_empty() && group_sites.is_empty() {
+                continue;
+            }
+
+            let group_app_ids: HashSet<i64> =
+                group_apps.iter().filter_map(|a| a.app.app_id).collect();
+            let mut values = vec![0_i64; bucket_count];
+            for a in &group_apps {
+                if let Some(app_id) = a.app.app_id {
+                    if let Some(app_vals) = app_matrix.get(&app_id) {
+                        for (idx, val) in app_vals.iter().enumerate() {
+                            values[idx] += *val;
+                        }
+                    }
+                }
+            }
+            for (sid, _, site_vals) in &group_sites {
+                for idx in 0..bucket_count {
+                    let mut contrib = site_vals[idx];
+                    if let Some(per_browser) = site_by_browser_matrix.get(sid) {
+                        for (&browser_id, b_vals) in per_browser {
+                            if group_app_ids.contains(&browser_id) {
+                                contrib -= b_vals[idx];
+                            }
+                        }
+                    }
+                    values[idx] += contrib.max(0);
+                }
+            }
+
+            if !browser_merged {
+                for a in &group_apps {
+                    let app_id = a.app.app_id.unwrap_or(0);
+                    if browser_app_ids.contains(&app_id) {
+                        for (sid, s_vals) in &site_matrix {
+                            if grouped_site_ids.contains(sid) {
+                                continue;
+                            }
+                            if let Some(b_vals) =
+                                site_by_browser_matrix.get(sid).and_then(|m| m.get(&app_id))
+                            {
+                                let _ = s_vals;
+                                for (idx, val) in b_vals.iter().enumerate() {
+                                    values[idx] = (values[idx] - *val).max(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if values.iter().all(|v| *v <= 0) {
+                continue;
+            }
+
+            let primary_target = parse_member_ref(&group.primary_ref);
+            let chosen_app = match &primary_target {
+                MemberTarget::App(name) => group_apps
+                    .iter()
+                    .copied()
+                    .find(|a| a.app.app_name.as_deref() == Some(name.as_str())),
+                MemberTarget::Site(_) => None,
             };
+            let chosen_site = match &primary_target {
+                MemberTarget::Site(domain) => group_sites
+                    .iter()
+                    .find(|(_, agg, _)| agg.domain == *domain)
+                    .map(|(sid, agg, _)| (*sid, *agg)),
+                MemberTarget::App(_) => None,
+            };
+
+            enum ChosenHoursPrimary<'a> {
+                App(&'a AppAgg),
+                Site(i64, &'a SiteAgg),
+            }
+
+            let chosen = if let Some(a) = chosen_app {
+                ChosenHoursPrimary::App(a)
+            } else if let Some((sid, s)) = chosen_site {
+                ChosenHoursPrimary::Site(sid, s)
+            } else {
+                let best_app = group_apps.iter().copied().max_by_key(|a| a.seconds);
+                let best_site = group_sites
+                    .iter()
+                    .max_by_key(|(_, _, vals)| vals.iter().sum::<i64>())
+                    .map(|(sid, agg, vals)| (*sid, *agg, vals.iter().sum::<i64>()));
+                match (best_app, best_site) {
+                    (Some(a), Some((sid, s, s_sum))) => {
+                        if a.seconds >= s_sum {
+                            ChosenHoursPrimary::App(a)
+                        } else {
+                            ChosenHoursPrimary::Site(sid, s)
+                        }
+                    }
+                    (Some(a), None) => ChosenHoursPrimary::App(a),
+                    (None, Some((sid, s, _))) => ChosenHoursPrimary::Site(sid, s),
+                    (None, None) => continue,
+                }
+            };
+
+            let primary_app_id = match chosen {
+                ChosenHoursPrimary::App(a) => a.app.app_id,
+                ChosenHoursPrimary::Site(_, _) => None,
+            };
+            let primary_site_id = match chosen {
+                ChosenHoursPrimary::App(_) => None,
+                ChosenHoursPrimary::Site(sid, _) => Some(sid),
+            };
+
+            let mut members: Vec<EntityMemberModel> = Vec::new();
+            for a in &group_apps {
+                if a.app.app_id == primary_app_id {
+                    continue;
+                }
+                members.push(EntityMemberModel {
+                    key: format!("app:{}", a.app.app_id.unwrap_or(0)),
+                    name: display_name(&a.app),
+                    seconds: a.seconds,
+                    icon: a.app.app_icon_file.clone(),
+                });
+            }
+            for (sid, s, s_vals) in &group_sites {
+                if Some(*sid) == primary_site_id {
+                    continue;
+                }
+                members.push(EntityMemberModel {
+                    key: format!("site:{}", sid),
+                    name: site_display_name(s),
+                    seconds: s_vals.iter().sum(),
+                    icon: s.icon_file.clone(),
+                });
+            }
+
+            match chosen {
+                ChosenHoursPrimary::App(primary) => {
+                    let app_id = primary.app.app_id.unwrap_or(0);
+                    let is_browser = browser_app_ids.contains(&app_id);
+                    if is_browser && browser_merged {
+                        for (sid, per_browser) in &site_by_browser_matrix {
+                            if grouped_site_ids.contains(sid) {
+                                continue;
+                            }
+                            if let Some(b_vals) = per_browser.get(&app_id) {
+                                let sum: i64 = b_vals.iter().sum();
+                                if sum > 0 {
+                                    if let Some(agg) = site_aggs.get(sid) {
+                                        members.push(EntityMemberModel {
+                                            key: format!("site:{}", sid),
+                                            name: site_display_name(agg),
+                                            seconds: sum,
+                                            icon: agg.icon_file.clone(),
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    rows.push(EntityHoursRow {
+                        key: format!("app:{}", app_id),
+                        kind: group.kind.clone(),
+                        name: group.name.clone(),
+                        icon: primary.app.app_icon_file.clone(),
+                        category_id: primary.app.app_category_id.unwrap_or(0),
+                        category_kind: "app".to_string(),
+                        category_name: primary.app.cat_name.clone(),
+                        category_color: primary.app.cat_color.clone(),
+                        is_browser,
+                        values,
+                        members,
+                    });
+                }
+                ChosenHoursPrimary::Site(sid, primary) => {
+                    rows.push(EntityHoursRow {
+                        key: format!("site:{}", sid),
+                        kind: group.kind.clone(),
+                        name: group.name.clone(),
+                        icon: primary.icon_file.clone(),
+                        category_id: primary.category_id,
+                        category_kind: "site".to_string(),
+                        category_name: primary.category_name.clone(),
+                        category_color: primary.category_color.clone(),
+                        is_browser: false,
+                        values,
+                        members,
+                    });
+                }
+            }
+        }
+
+        // 未入组的独立应用
+        for primary in &window_apps {
+            let name_key = primary.app.app_name.as_deref().unwrap_or("");
+            if app_to_group.contains_key(name_key) {
+                continue;
+            }
+            let app_id = primary.app.app_id.unwrap_or(0);
+            let is_browser = browser_app_ids.contains(&app_id);
+
+            let mut values = app_matrix
+                .get(&app_id)
+                .cloned()
+                .unwrap_or_else(|| vec![0_i64; bucket_count]);
 
             if is_browser && !browser_merged {
                 if let Some(credited) = browser_site_matrix.get(&app_id) {
@@ -649,34 +1278,41 @@ impl EntityService {
                 if values.iter().all(|value| *value <= 0) {
                     continue;
                 }
+            } else if is_browser && browser_merged {
+                if let Some(claimed) = claimed_by_browser_matrix.get(&app_id) {
+                    for (index, value) in claimed.iter().enumerate() {
+                        values[index] = (values[index] - *value).max(0);
+                    }
+                }
             }
-            if values.iter().all(|value| *value <= 0) && group.is_none() {
+            if values.iter().all(|value| *value <= 0) {
                 continue;
             }
 
-            let name = group
-                .as_ref()
-                .map(|group| group.name.clone())
-                .unwrap_or_else(|| display_name(&primary.app));
             let name = if is_browser && !browser_merged {
                 other_row_name(&primary.app, browser_apps.len())
             } else {
-                name
+                display_name(&primary.app)
             };
 
             let mut members: Vec<EntityMemberModel> = Vec::new();
-            if let Some(group) = &group {
-                for member in group.members.iter().filter(|member| member.as_str() != kept_name) {
-                    if let Some(agg) = window_apps
-                        .iter()
-                        .find(|candidate| candidate.app.app_name.as_deref() == Some(member.as_str()))
-                    {
-                        members.push(EntityMemberModel {
-                            key: format!("app:{}", agg.app.app_id.unwrap_or(0)),
-                            name: display_name(&agg.app),
-                            seconds: agg.seconds,
-                            icon: agg.app.app_icon_file.clone(),
-                        });
+            if is_browser && browser_merged {
+                for (sid, per_browser) in &site_by_browser_matrix {
+                    if grouped_site_ids.contains(sid) {
+                        continue;
+                    }
+                    if let Some(b_vals) = per_browser.get(&app_id) {
+                        let sum: i64 = b_vals.iter().sum();
+                        if sum > 0 {
+                            if let Some(agg) = site_aggs.get(sid) {
+                                members.push(EntityMemberModel {
+                                    key: format!("site:{}", sid),
+                                    name: site_display_name(agg),
+                                    seconds: sum,
+                                    icon: agg.icon_file.clone(),
+                                });
+                            }
+                        }
                     }
                 }
             }
@@ -701,9 +1337,9 @@ impl EntityService {
             });
         }
 
-        // 站点行：关闭合并时全部出现；打开合并时只留「归属不到浏览器」的那些
+        // 未入组的站点行：关闭合并时全部出现；打开合并时只留「归属不到浏览器」的那些
         for (site_id, values) in &site_matrix {
-            if values.iter().all(|value| *value <= 0) {
+            if values.iter().all(|value| *value <= 0) || grouped_site_ids.contains(site_id) {
                 continue;
             }
             if browser_merged && attributed_sites.contains(site_id) {
@@ -1097,10 +1733,15 @@ async fn summarize_app_sessions(
             .await?;
         let name_to_id: HashMap<String, i64> =
             app_names.into_iter().map(|(id, name)| (name, id)).collect();
-        for group in groups.iter().filter(|group| group.kind == "app") {
+        for group in groups
+            .iter()
+            .filter(|group| group.kind == "app" || group.kind == "mixed")
+        {
             for member in &group.members {
-                if let Some(&app_id) = name_to_id.get(member) {
-                    app_to_entity.insert(app_id, group.id);
+                if let MemberTarget::App(name) = parse_member_ref(member) {
+                    if let Some(&app_id) = name_to_id.get(&name) {
+                        app_to_entity.insert(app_id, group.id);
+                    }
                 }
             }
         }
@@ -1378,9 +2019,33 @@ async fn sync_auto_groups(pool: &SqlitePool) -> Result<(), AppError> {
         .copied()
         .collect();
 
+    let manual_rows: Vec<(String,)> = sqlx::query_as(
+        r#"
+        SELECT m.MemberRef
+        FROM EntityMergeMembers m
+        INNER JOIN EntityMergeGroups g ON g.ID = m.GroupID
+        WHERE g.IsAuto = 0
+        "#,
+    )
+    .fetch_all(pool)
+    .await?;
+    let manual_app_names: HashSet<String> = manual_rows
+        .into_iter()
+        .filter_map(|(member,)| match parse_member_ref(&member) {
+            MemberTarget::App(name) => Some(name),
+            MemberTarget::Site(_) => None,
+        })
+        .collect();
+
     let candidates: Vec<MergeCandidate> = all
         .iter()
         .filter(|agg| !browser_ids.contains(&agg.app.app_id.unwrap_or(0)))
+        .filter(|agg| {
+            agg.app
+                .app_name
+                .as_ref()
+                .is_none_or(|name| !manual_app_names.contains(name))
+        })
         .map(|agg| MergeCandidate {
             name: agg.app.app_name.clone().unwrap_or_default(),
             file: agg.app.app_file.clone(),
@@ -1435,88 +2100,153 @@ async fn sync_auto_groups(pool: &SqlitePool) -> Result<(), AppError> {
     Ok(())
 }
 
-/// 把本窗口的应用行按持久化的组合并：组里保留一行（母成员，或母成员不在时的最长可见成员），
-/// 组时长 = 本窗口可见成员之和。
-async fn apply_merge_groups(
-    pool: &SqlitePool,
-    apps: &[AppAgg],
-    excluded: &HashSet<i64>,
-) -> Result<Vec<(AppAgg, Option<MergeGroupModel>)>, AppError> {
-    let groups = load_groups(pool).await?;
-    if groups.is_empty() {
-        return Ok(apps
-            .iter()
-            .filter(|agg| !excluded.contains(&agg.app.app_id.unwrap_or(0)))
-            .map(|agg| (agg.clone(), None))
-            .collect());
-    }
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+enum MemberTarget {
+    App(String),
+    Site(String),
+}
 
-    let visible: HashSet<String> = apps
-        .iter()
-        .map(|agg| agg.app.app_name.clone().unwrap_or_default())
-        .collect();
-    let seconds_of = |name: &str| -> i64 {
-        apps.iter()
-            .find(|agg| agg.app.app_name.as_deref() == Some(name))
-            .map(|agg| agg.seconds)
-            .unwrap_or(0)
+fn parse_member_ref(raw: &str) -> MemberTarget {
+    let trimmed = raw.trim();
+    if let Some(domain) = trimmed.strip_prefix("site:") {
+        MemberTarget::Site(domain.trim().to_string())
+    } else if let Some(name) = trimmed.strip_prefix("app:") {
+        MemberTarget::App(name.trim().to_string())
+    } else {
+        MemberTarget::App(trimmed.to_string())
+    }
+}
+
+fn canonical_member_ref(raw: &str) -> Result<(MemberTarget, String), AppError> {
+    let target = parse_member_ref(raw);
+    let canonical = match &target {
+        MemberTarget::App(name) => {
+            if name.is_empty() {
+                return Err(AppError::Business("成员标识不能为空".to_string()));
+            }
+            format!("app:{}", name)
+        }
+        MemberTarget::Site(domain) => {
+            if domain.is_empty() {
+                return Err(AppError::Business("站点域名不能为空".to_string()));
+            }
+            format!("site:{}", domain)
+        }
     };
+    Ok((target, canonical))
+}
 
-    let mut member_to_group: HashMap<String, i64> = HashMap::new();
-    let mut keep: HashMap<i64, String> = HashMap::new();
-    for group in groups.iter().filter(|group| group.kind == "app") {
-        for member in &group.members {
-            member_to_group.insert(member.clone(), group.id);
+fn normalize_members(members: &[String]) -> Result<Vec<String>, AppError> {
+    let mut seen: HashSet<MemberTarget> = HashSet::new();
+    let mut normalized: Vec<String> = Vec::new();
+    for raw in members {
+        if normalized.len() >= GROUP_ORDER_MAX {
+            break;
         }
-        let chosen = if visible.contains(&group.primary_ref) {
-            Some(group.primary_ref.clone())
-        } else {
-            group
-                .members
-                .iter()
-                .filter(|member| visible.contains(*member))
-                .max_by_key(|member| seconds_of(member.as_str()))
-                .cloned()
-        };
-        if let Some(chosen) = chosen {
-            keep.insert(group.id, chosen);
+        let (target, canonical) = canonical_member_ref(raw)?;
+        if seen.insert(target) {
+            normalized.push(canonical);
         }
     }
+    if normalized.len() < 2 {
+        return Err(AppError::Business("合并组至少需要 2 个不同成员".to_string()));
+    }
+    Ok(normalized)
+}
 
-    let mut result: Vec<(AppAgg, Option<MergeGroupModel>)> = Vec::new();
-    for agg in apps {
-        let app_id = agg.app.app_id.unwrap_or(0);
-        if excluded.contains(&app_id) {
+fn resolve_primary_ref(primary_ref: &str, members: &[String]) -> Result<String, AppError> {
+    if primary_ref.trim().is_empty() {
+        return Ok(members[0].clone());
+    }
+    let (target, canonical) = canonical_member_ref(primary_ref)?;
+    if let Some(found) = members.iter().find(|m| parse_member_ref(m) == target) {
+        Ok(found.clone())
+    } else {
+        Err(AppError::Business(format!("母成员「{}」不在成员列表内", canonical)))
+    }
+}
+
+fn infer_group_kind(members: &[String]) -> String {
+    let mut has_app = false;
+    let mut has_site = false;
+    for member in members {
+        match parse_member_ref(member) {
+            MemberTarget::App(_) => has_app = true,
+            MemberTarget::Site(_) => has_site = true,
+        }
+    }
+    match (has_app, has_site) {
+        (true, true) => "mixed".to_string(),
+        (false, true) => "site".to_string(),
+        _ => "app".to_string(),
+    }
+}
+
+async fn ensure_no_member_conflicts(
+    pool: &SqlitePool,
+    members: &[String],
+    exclude_group_id: Option<i64>,
+) -> Result<(), AppError> {
+    let groups = load_groups(pool).await?;
+    let mut occupied: HashMap<MemberTarget, String> = HashMap::new();
+    for group in groups {
+        if Some(group.id) == exclude_group_id {
             continue;
         }
-        let name = agg.app.app_name.clone().unwrap_or_default();
-        match member_to_group.get(&name) {
-            Some(group_id) => {
-                if keep.get(group_id) == Some(&name) {
-                    let group = groups.iter().find(|group| group.id == *group_id).cloned();
-                    result.push((agg.clone(), group));
-                }
-            }
-            None => result.push((agg.clone(), None)),
+        for m in group.members {
+            occupied.insert(parse_member_ref(&m), group.name.clone());
         }
     }
-
-    // 组时长 = 本窗口内所有可见成员之和（母成员没跑的日子，子成员的时长也不能丢）
-    for (agg, group) in result.iter_mut() {
-        let Some(group) = group else { continue };
-        let total: i64 = group
-            .members
-            .iter()
-            .filter_map(|member| {
-                apps.iter()
-                    .find(|candidate| candidate.app.app_name.as_deref() == Some(member.as_str()))
-                    .map(|candidate| candidate.seconds)
-            })
-            .sum();
-        agg.seconds = total.max(agg.seconds);
+    for member in members {
+        let target = parse_member_ref(member);
+        if let Some(group_name) = occupied.get(&target) {
+            return Err(AppError::Business(format!(
+                "成员已在合并组「{}」中，请先从原组移除",
+                group_name
+            )));
+        }
     }
+    Ok(())
+}
 
-    Ok(result)
+async fn resolve_target_display_name(
+    pool: &SqlitePool,
+    target: &MemberTarget,
+) -> Result<String, AppError> {
+    match target {
+        MemberTarget::App(name) => {
+            let row: Option<(Option<String>, Option<String>)> =
+                sqlx::query_as("SELECT Alias, Description FROM AppModels WHERE Name = ? LIMIT 1")
+                    .bind(name)
+                    .fetch_optional(pool)
+                    .await?;
+            if let Some((alias, desc)) = row {
+                let candidate = alias
+                    .as_deref()
+                    .filter(|v| !v.trim().is_empty())
+                    .or_else(|| desc.as_deref().filter(|v| !v.trim().is_empty()))
+                    .unwrap_or(name);
+                return Ok(candidate.chars().take(64).collect());
+            }
+            Ok(name.chars().take(64).collect())
+        }
+        MemberTarget::Site(domain) => {
+            let row: Option<(Option<String>, Option<String>)> =
+                sqlx::query_as("SELECT Alias, Title FROM WebSiteModels WHERE Domain = ? LIMIT 1")
+                    .bind(domain)
+                    .fetch_optional(pool)
+                    .await?;
+            if let Some((alias, title)) = row {
+                let candidate = alias
+                    .as_deref()
+                    .filter(|v| !v.trim().is_empty())
+                    .or_else(|| title.as_deref().filter(|v| !v.trim().is_empty()))
+                    .unwrap_or(domain);
+                return Ok(candidate.chars().take(64).collect());
+            }
+            Ok(domain.chars().take(64).collect())
+        }
+    }
 }
 
 /// 默认浏览器的自动推荐：浏览日志里出现最多的标识 → 只有一条就归它 → 都没就只有唯一识别到的浏览器
@@ -1579,10 +2309,6 @@ fn overlap_seconds(intervals: &[(i64, i64)], start: i64, end: i64) -> i64 {
         }
     }
     total
-}
-
-fn names_match(agg: &AppAgg, name: &str) -> bool {
-    agg.app.app_name.as_deref() == Some(name)
 }
 
 fn display_name(app: &AppJoinCols) -> String {
@@ -2019,5 +2745,156 @@ mod tests {
         assert_eq!(summary.longest_browse_seconds, 1800);
         assert!(summary.top_app.is_some());
         assert!(summary.top_site.is_some());
+    }
+
+    #[tokio::test]
+    async fn manual_mixed_group_create_update_and_conservation() {
+        let pool = test_pool().await;
+        let (_, site_id) = seed(&pool).await;
+        let desktop_cat = sqlx::query(
+            "INSERT INTO CategoryModels (Name, IconFile, Color, IsDirectoryMatch, Directories, IsSystem) VALUES ('DesktopCat', NULL, '#112233', 0, NULL, 0)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap()
+        .last_insert_rowid();
+        let site_cat = sqlx::query(
+            "INSERT INTO WebSiteCategoryModels (Name, IconFile, Color, IsUrlMatch, UrlPatterns, IsSystem) VALUES ('SiteCat', NULL, '#445566', 0, NULL, 0)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap()
+        .last_insert_rowid();
+
+        sqlx::query("UPDATE WebSiteModels SET CategoryID = ? WHERE ID = ?")
+            .bind(site_cat)
+            .bind(site_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let desktop_id = sqlx::query(
+            r#"INSERT INTO AppModels (Name, Alias, CategoryID, TotalTime, File, IconFile, Description, Publisher)
+               VALUES ('ExampleDesktop', NULL, ?, 1200, 'C:\Apps\ExampleDesktop.exe', NULL, 'Example Desktop', NULL)"#,
+        )
+        .bind(desktop_cat)
+        .execute(&pool)
+        .await
+        .unwrap()
+        .last_insert_rowid();
+
+        sqlx::query(
+            "INSERT INTO HoursLogModels (DataTime, AppModelID, Time) VALUES ('2026-11-12T04:00:00+00:00', ?, 1200)",
+        )
+        .bind(desktop_id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let created = EntityService::create_group(
+            &pool,
+            "",
+            "app:ExampleDesktop",
+            &[
+                "app:ExampleDesktop".to_string(),
+                "site:example.com".to_string(),
+            ],
+        )
+        .await
+        .expect("create mixed group");
+        assert_eq!(created.kind, "mixed");
+        assert!(!created.is_auto);
+        assert_eq!(created.name, "Example Desktop");
+        assert_eq!(created.primary_ref, "app:ExampleDesktop");
+
+        // 成员冲突校验
+        let conflict = EntityService::create_group(
+            &pool,
+            "Conflict",
+            "app:chrome",
+            &["app:chrome".to_string(), "ExampleDesktop".to_string()],
+        )
+        .await;
+        assert!(conflict.is_err());
+
+        let config = ConfigService::new(&test_config_dir("mixed"));
+        let day = chrono::NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
+
+        // browser_merged = true 时：混合组独占站点时长 1800s，从 chrome 扣除，总额严格守恒
+        let merged = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", true, None)
+            .await
+            .expect("list merged");
+        assert_eq!(merged.total_seconds, 4800);
+        let sum_merged: i64 = merged.rows.iter().map(|r| r.seconds).sum();
+        assert_eq!(sum_merged, 4800);
+        let mixed_row = merged
+            .rows
+            .iter()
+            .find(|r| r.key == format!("app:{}", desktop_id))
+            .expect("mixed group row");
+        assert_eq!(mixed_row.kind, "mixed");
+        assert_eq!(mixed_row.category_kind, "app");
+        assert_eq!(mixed_row.category_id, desktop_cat);
+        assert_eq!(mixed_row.seconds, 3000);
+        assert_eq!(mixed_row.members.len(), 1);
+        let chrome_row = merged
+            .rows
+            .iter()
+            .find(|r| r.name == "Google Chrome" || r.is_browser)
+            .expect("chrome row");
+        assert_eq!(chrome_row.seconds, 1800);
+
+        // browser_merged = false 时总额同样守恒
+        let split = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", false, None)
+            .await
+            .expect("list split");
+        assert_eq!(split.total_seconds, 4800);
+        assert_eq!(split.rows.iter().map(|r| r.seconds).sum::<i64>(), 4800);
+
+        // hours 矩阵也保持与 list 一致
+        let hours = EntityService::hours(&pool, &config, day, day, "hour", "Asia/Shanghai", true)
+            .await
+            .expect("hours merged");
+        let mixed_hours = hours
+            .rows
+            .iter()
+            .find(|r| r.key == format!("app:{}", desktop_id))
+            .expect("mixed hours row");
+        assert_eq!(mixed_hours.kind, "mixed");
+        assert_eq!(mixed_hours.values.iter().sum::<i64>(), 3000);
+        assert_eq!(
+            hours
+                .rows
+                .iter()
+                .map(|r| r.values.iter().sum::<i64>())
+                .sum::<i64>(),
+            4800
+        );
+
+        // 更新母成员为 site:example.com，分类命名空间随之切到 site
+        let updated = EntityService::update_group(
+            &pool,
+            created.id,
+            Some("Example All"),
+            Some("site:example.com"),
+            None,
+        )
+        .await
+        .expect("update mixed group");
+        assert_eq!(updated.name, "Example All");
+        assert_eq!(updated.primary_ref, "site:example.com");
+
+        let after_update = EntityService::list(&pool, &config, day, day, "Asia/Shanghai", true, None)
+            .await
+            .expect("list after update");
+        let site_primary_row = after_update
+            .rows
+            .iter()
+            .find(|r| r.key == format!("site:{}", site_id))
+            .expect("site primary row");
+        assert_eq!(site_primary_row.kind, "mixed");
+        assert_eq!(site_primary_row.category_kind, "site");
+        assert_eq!(site_primary_row.category_id, site_cat);
+        assert_eq!(site_primary_row.seconds, 3000);
     }
 }

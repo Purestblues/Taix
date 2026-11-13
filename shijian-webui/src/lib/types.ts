@@ -97,3 +97,11 @@ export interface AppOption {
   alias: string | null;
   totalTime: number;
 }
+
+export interface MergeGroupItem {
+  id: number;
+  name: string;
+  kind: string;
+  primaryRef: string;
+  members: string[];
+}

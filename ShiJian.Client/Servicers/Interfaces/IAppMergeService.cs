@@ -27,6 +27,12 @@ public interface IAppMergeService
     /// <summary>给合并后的榜单行加「合并 N 项」徽章</summary>
     void Decorate(IEnumerable<Controls.Charts.Model.ChartsDataModel> rows);
 
+    /// <summary>创建手动合并组（支持应用、网站或跨源）</summary>
+    Task<AppMergeGroup?> CreateGroupAsync(string name, string primaryRef, IReadOnlyList<string> members);
+
+    /// <summary>更新合并组（名称、母成员、成员列表）</summary>
+    Task<AppMergeGroup?> UpdateGroupAsync(int groupId, string? name = null, string? primaryRef = null, IReadOnlyList<string>? members = null);
+
     /// <summary>解散一个自动组（写覆盖表，之后不再自动合并）</summary>
     Task DissolveAsync(string groupKey);
 

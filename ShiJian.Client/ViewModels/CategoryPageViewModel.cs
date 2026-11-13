@@ -15,6 +15,8 @@ using ShiJian.Client.Librarys;
 using ShiJian.Client.Logging;
 using ShiJian.Client.Models;
 using ShiJian.Client.Models.Category;
+using ShiJian.Client.Models.Navigation;
+using ShiJian.Client.Servicers;
 using ShiJian.Client.Servicers.Interfaces;
 using ShiJian.Client.Shared.Models.Entity;
 using ShiJian.Client.Shared.Models.Web;
@@ -28,16 +30,25 @@ public class CategoryPageViewModel : CategoryPageModel
 {
     private readonly IDialogService _dialogService;
     private readonly IWebData _webDataService;
+    private readonly IWebSiteData _webSiteDataService;
     private readonly IAppData _appDataService;
     private readonly IData _dataService;
     private readonly IEntityData _entityDataService;
     private readonly ICategorys _categoryService;
+    private readonly IAppUpdateService _appUpdateService;
+    private readonly IAppMergeService _appMergeService;
     private readonly IToastService _toastService;
     private readonly INavigationService _navigationService;
     private readonly IStateService _stateService;
 
     private List<string> _originalDirectories = new();
     private List<string> _originalUrlPatterns = new();
+    private List<CategoryEntityRow> _allAppEntityRows = new();
+    private List<CategoryEntityRow> _allWebEntityRows = new();
+    private bool _appEntitiesLoaded;
+    private bool _webEntitiesLoaded;
+    private bool _categoryStatsDirty;
+    private CategoryEntityRow? _tagTargetRow;
 
     public CategoryPageViewModel(
         ICategorys categorys,
@@ -46,6 +57,9 @@ public class CategoryPageViewModel : CategoryPageModel
         IData data,
         IEntityData entityData,
         IWebData webData,
+        IWebSiteData webSiteData,
+        IAppUpdateService appUpdateService,
+        IAppMergeService appMergeService,
         IDialogService dialogService,
         IToastService toastService,
         IStateService stateService)
@@ -56,6 +70,9 @@ public class CategoryPageViewModel : CategoryPageModel
         _dataService = data;
         _entityDataService = entityData;
         _webDataService = webData;
+        _webSiteDataService = webSiteData;
+        _appUpdateService = appUpdateService;
+        _appMergeService = appMergeService;
         _dialogService = dialogService;
         _toastService = toastService;
         _stateService = stateService;
@@ -77,12 +94,33 @@ public class CategoryPageViewModel : CategoryPageModel
         RestoreSystemCategoryCommand = AsyncRelayCommand.CreateFromTask<object>(OnRestoreSystemCategoryAsync).DisposeWith(Disposables);
         ApplyDirectoryMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyDirectoryMatchAsync).DisposeWith(Disposables);
         ApplyUrlMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyUrlMatchAsync).DisposeWith(Disposables);
+        ToggleAppEmptyExpandedCommand = AsyncRelayCommand.Create<object>(_ => IsAppEmptyExpanded = !IsAppEmptyExpanded).DisposeWith(Disposables);
+        ToggleWebEmptyExpandedCommand = AsyncRelayCommand.Create<object>(_ => IsWebEmptyExpanded = !IsWebEmptyExpanded).DisposeWith(Disposables);
+        GotoEntityDetailCommand = AsyncRelayCommand.CreateFromTask<object>(OnGotoEntityDetailAsync).DisposeWith(Disposables);
+        AssignEntityCategoryCommand = AsyncRelayCommand.CreateFromTask<object>(OnAssignEntityCategoryAsync).DisposeWith(Disposables);
+
         WhenPropertyChanged(this, x => x.ShowType, _ => ExecuteAsync(LoadDataCoreAsync)).DisposeWith(Disposables);
         // 排序不重拉数据，所以不走 WhenPropertyChanged 那个会 CancelAndResetLoadToken 的重载：
         // 否则加载还没回来时切换排序，会把正在跑的那次加载取消掉。
         ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.SortMode)
             .Skip(1)
             .Subscribe(_ => ApplySort())
+            .DisposeWith(Disposables);
+        ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.BrowseMode)
+            .Skip(1)
+            .Subscribe(_ => OnBrowseModeChanged())
+            .DisposeWith(Disposables);
+        ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.EntitySearchInput)
+            .Skip(1)
+            .Subscribe(_ => ApplyEntityFilterAndSort())
+            .DisposeWith(Disposables);
+        ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.EntityFilterMode)
+            .Skip(1)
+            .Subscribe(_ => ApplyEntityFilterAndSort())
+            .DisposeWith(Disposables);
+        ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.EntitySortMode)
+            .Skip(1)
+            .Subscribe(_ => ApplyEntityFilterAndSort())
             .DisposeWith(Disposables);
 
         ChartColorHelper.ThemeChanged += OnThemeChanged;
@@ -120,6 +158,10 @@ public class CategoryPageViewModel : CategoryPageModel
     public ICommand RestoreSystemCategoryCommand { get; }
     public ICommand ApplyDirectoryMatchCommand { get; }
     public ICommand ApplyUrlMatchCommand { get; }
+    public ICommand ToggleAppEmptyExpandedCommand { get; }
+    public ICommand ToggleWebEmptyExpandedCommand { get; }
+    public ICommand GotoEntityDetailCommand { get; }
+    public ICommand AssignEntityCategoryCommand { get; }
 
 
     private bool _hasDirectoryMatchCategory;
@@ -155,11 +197,37 @@ public class CategoryPageViewModel : CategoryPageModel
         if (WebCategoryData.Count > 0)
             CategoryCardStats.ReorderInPlace(WebCategoryData,
                 CategoryCardStats.Sort(WebCategoryData.ToList(), CurrentSortMode, m => m.Data?.Name));
+
+        RebuildCategoryBuckets();
     }
 
-    private Task OnRefreshAsync(object _) => ExecuteAsync(LoadDataCoreAsync);
+    /// <summary>单点重建「活跃 / 空分类」分组（载入、排序、新建、编辑、删除、恢复、快速打标全部复用它）</summary>
+    private void RebuildCategoryBuckets()
+    {
+        var (activeApps, emptyApps) = CategoryCardStats.SplitEmpty(Data);
+        CategoryCardStats.SyncCollection(ActiveAppCategories, activeApps);
+        CategoryCardStats.SyncCollection(EmptyAppCategories, emptyApps);
 
-    public override Task RefreshAsync() => ExecuteAsync(LoadDataCoreAsync);
+        var (activeWebs, emptyWebs) = CategoryCardStats.SplitEmpty(WebCategoryData);
+        CategoryCardStats.SyncCollection(ActiveWebCategories, activeWebs);
+        CategoryCardStats.SyncCollection(EmptyWebCategories, emptyWebs);
+
+        NotifyCategoryBucketStates();
+    }
+
+    private Task OnRefreshAsync(object _)
+    {
+        _appEntitiesLoaded = false;
+        _webEntitiesLoaded = false;
+        return ExecuteAsync(LoadDataCoreAsync);
+    }
+
+    public override Task RefreshAsync()
+    {
+        _appEntitiesLoaded = false;
+        _webEntitiesLoaded = false;
+        return ExecuteAsync(LoadDataCoreAsync);
+    }
 
     private async Task OnApplyDirectoryMatchAsync(object _)
     {
@@ -297,6 +365,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
             WebCategoryData.Remove(SelectedWebCategoryItem);
             SelectedWebCategoryItem = null;
+            _webEntitiesLoaded = false;
             ApplySort();
 
             _toastService.Success(ResourceStrings.CategoryDeleted);
@@ -593,6 +662,7 @@ public class CategoryPageViewModel : CategoryPageModel
             }
 
             ComputeHasDirectoryMatchCategory();
+            _appEntitiesLoaded = false;
             ApplySort();
             EditVisibility = false;
             SelectedAppCategoryItem = null;
@@ -648,6 +718,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
             Data.Remove(SelectedAppCategoryItem);
             SelectedAppCategoryItem = null;
+            _appEntitiesLoaded = false;
             ApplySort();
 
             _toastService.Success(ResourceStrings.CategoryDeleted);
@@ -771,6 +842,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
             EditVisibility = false;
             SelectedWebCategoryItem = null;
+            _webEntitiesLoaded = false;
             ApplySort();
         }
         catch (Exception ex)
@@ -888,12 +960,40 @@ public class CategoryPageViewModel : CategoryPageModel
         }
     }
 
+    private void OnBrowseModeChanged()
+    {
+        if (IsRestoringState) return;
+
+        if (IsEntityBrowseMode)
+        {
+            var alreadyLoaded = ShowType.Id == 0 ? _appEntitiesLoaded : _webEntitiesLoaded;
+            if (alreadyLoaded)
+                ApplyEntityFilterAndSort();
+            else
+                _ = ExecuteAsync(LoadDataCoreAsync);
+        }
+        else if (_categoryStatsDirty)
+        {
+            _ = ExecuteAsync(LoadDataCoreAsync);
+        }
+    }
+
     private async Task LoadDataCoreAsync(CancellationToken cancellationToken)
     {
+        if (IsEntityBrowseMode)
+        {
+            if (ShowType.Id == 0)
+                await LoadAppEntitiesAsync(cancellationToken);
+            else
+                await LoadWebEntitiesAsync(cancellationToken);
+            return;
+        }
+
         if (ShowType.Id == 0)
             await LoadAppCategoryCardsAsync(cancellationToken);
         else
             await LoadWebCategoryCardsAsync(cancellationToken);
+        _categoryStatsDirty = false;
     }
 
     /// <summary>
@@ -935,6 +1035,7 @@ public class CategoryPageViewModel : CategoryPageModel
         foreach (var card in CategoryCardStats.Sort(cards, CurrentSortMode, m => m.Data.Name)) Data.Add(card);
 
         ComputeHasDirectoryMatchCategory();
+        RebuildCategoryBuckets();
     }
 
     private async Task LoadWebCategoryCardsAsync(CancellationToken cancellationToken)
@@ -969,6 +1070,187 @@ public class CategoryPageViewModel : CategoryPageModel
         CategoryCardStats.Assign(cards, m => m.Data.ID, durationByCategory);
 
         foreach (var card in CategoryCardStats.Sort(cards, CurrentSortMode, m => m.Data?.Name)) WebCategoryData.Add(card);
+        RebuildCategoryBuckets();
+    }
+
+    private async Task LoadAppEntitiesAsync(CancellationToken cancellationToken)
+    {
+        var today = DateTime.Now.Date;
+        var appsTask = _appDataService.GetAllAppsAsync(cancellationToken);
+        var catsTask = _categoryService.GetCategoriesAsync(cancellationToken);
+        var groupsTask = _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken);
+        var entityTask = _entityDataService.GetEntityListAsync(today, today, false, cancellationToken);
+
+        await Task.WhenAll(appsTask, catsTask, groupsTask, entityTask);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var categories = catsTask.Result;
+        if (Data.Count == 0 && categories.Count > 0)
+        {
+            foreach (var c in categories)
+                Data.Add(new CategoryModel { Data = c });
+            ComputeHasDirectoryMatchCategory();
+            RebuildCategoryBuckets();
+        }
+
+        _allAppEntityRows = CategoryEntityViewHelper.BuildAppRows(
+            appsTask.Result,
+            categories,
+            groupsTask.Result,
+            entityTask.Result,
+            ResourceStrings.SystemCategoryUncategorized);
+        _appEntitiesLoaded = true;
+        ApplyEntityFilterAndSort();
+    }
+
+    private async Task LoadWebEntitiesAsync(CancellationToken cancellationToken)
+    {
+        var today = DateTime.Now.Date;
+        var sitesTask = _webSiteDataService.GetAllWebSitesAsync(cancellationToken);
+        var catsTask = _webDataService.GetWebSiteCategoriesAsync(cancellationToken);
+        var groupsTask = _appMergeService.GetGroupsAsync(cancellationToken: cancellationToken);
+        var entityTask = _entityDataService.GetEntityListAsync(today, today, false, cancellationToken);
+
+        await Task.WhenAll(sitesTask, catsTask, groupsTask, entityTask);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var categories = catsTask.Result;
+        if (WebCategoryData.Count == 0 && categories.Count > 0)
+        {
+            foreach (var c in categories)
+                WebCategoryData.Add(new WebCategoryModel { Data = c });
+            RebuildCategoryBuckets();
+        }
+
+        _allWebEntityRows = CategoryEntityViewHelper.BuildSiteRows(
+            sitesTask.Result,
+            categories,
+            groupsTask.Result,
+            entityTask.Result,
+            ResourceStrings.SystemCategoryUncategorized);
+        _webEntitiesLoaded = true;
+        ApplyEntityFilterAndSort();
+    }
+
+    private IReadOnlyList<CategoryEntityRow> CurrentSourceEntities =>
+        ShowType.Id == 0 ? _allAppEntityRows : _allWebEntityRows;
+
+    private void ApplyEntityFilterAndSort()
+    {
+        var source = CurrentSourceEntities;
+        TotalEntityCount = source.Count;
+        UncategorizedEntityCount = source.Count(r => r.IsUncategorized);
+
+        var filter = EntityFilterMode?.Id == 1
+            ? Librarys.EntityFilterMode.Uncategorized
+            : Librarys.EntityFilterMode.All;
+        var sort = EntitySortMode?.Id switch
+        {
+            1 => Librarys.EntitySortMode.TotalDuration,
+            2 => Librarys.EntitySortMode.Name,
+            3 => Librarys.EntitySortMode.UncategorizedFirst,
+            _ => Librarys.EntitySortMode.TodayDuration
+        };
+
+        var desired = CategoryEntityViewHelper.FilterAndSort(source, EntitySearchInput, filter, sort);
+        CategoryCardStats.SyncCollection(FilteredEntities, desired);
+        NotifyEntityListState();
+    }
+
+    /// <summary>打开分类选择浮层前刷新可选分类清单（与当前应用/网站页签对应）</summary>
+    public void PrepareTagPicker(CategoryEntityRow row)
+    {
+        _tagTargetRow = row;
+        TagPickerOptions.Clear();
+
+        if (!row.IsSite)
+        {
+            foreach (var cat in Data)
+            {
+                if (cat.Data == null) continue;
+                TagPickerOptions.Add(new CategoryTagOption
+                {
+                    Id = cat.Data.ID,
+                    Name = cat.Data.Name ?? ResourceStrings.SystemCategoryUncategorized,
+                    Color = string.IsNullOrWhiteSpace(cat.Data.Color) ? "#8A8A8A" : cat.Data.Color!,
+                    Icon = cat.Data.IconFile,
+                    IsSystem = cat.Data.IsSystem,
+                    IsSelected = cat.Data.ID == row.CategoryId
+                });
+            }
+        }
+        else
+        {
+            foreach (var cat in WebCategoryData)
+            {
+                if (cat.Data == null) continue;
+                TagPickerOptions.Add(new CategoryTagOption
+                {
+                    Id = cat.Data.ID,
+                    Name = cat.Data.Name ?? ResourceStrings.SystemCategoryUncategorized,
+                    Color = string.IsNullOrWhiteSpace(cat.Data.Color) ? "#8A8A8A" : cat.Data.Color!,
+                    Icon = cat.Data.IconFile,
+                    IsSystem = cat.Data.IsSystem,
+                    IsSelected = cat.Data.ID == row.CategoryId
+                });
+            }
+        }
+    }
+
+    private async Task OnAssignEntityCategoryAsync(object param)
+    {
+        if (param is not CategoryTagOption option || _tagTargetRow == null) return;
+        var row = _tagTargetRow;
+        if (row.CategoryId == option.Id) return;
+
+        try
+        {
+            if (row.IsSite)
+                await _webDataService.UpdateWebSitesCategoryAsync([row.PrimaryId], option.Id);
+            else
+                await _appUpdateService.UpdateCategoryAsync(row.PrimaryId, option.Id);
+
+            row.CategoryId = option.Id;
+            row.CategoryName = option.Name;
+            row.CategoryColor = option.Color;
+            row.IsUncategorized = option.IsSystem;
+
+            _categoryStatsDirty = true;
+            ApplyEntityFilterAndSort();
+            _toastService.Success(ResourceStrings.EntityTagChanged);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"快速修改分类失败：{ex.Message}", ex);
+            _toastService.Error(ResourceStrings.OperationFailedRetry);
+        }
+    }
+
+    private async Task OnGotoEntityDetailAsync(object obj)
+    {
+        var row = obj as CategoryEntityRow ?? SelectedEntityItem;
+        if (row == null) return;
+
+        try
+        {
+            if (row.IsSite)
+            {
+                var site = await _webSiteDataService.GetWebSiteAsync(row.PrimaryId);
+                if (site != null)
+                    _navigationService.NavigateTo(nameof(WebSiteDetailPage),
+                        WebSiteDetailNavigationContext.Create(site, 0, DateTime.Today));
+                return;
+            }
+
+            var app = await _appDataService.GetAppAsync(row.PrimaryId);
+            if (app != null)
+                _navigationService.NavigateTo(nameof(DetailPage),
+                    DetailNavigationContext.Create(app, 0, DateTime.Today));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error($"打开详情页失败：{ex.Message}", ex);
+        }
     }
 
     /// <summary>
@@ -982,7 +1264,7 @@ public class CategoryPageViewModel : CategoryPageModel
 
         foreach (var row in entity.Rows)
         {
-            if (side == "site" ? row.Kind != "site" : row.Kind == "site") continue;
+            if (side == "site" ? row.CategoryKind != "site" : row.CategoryKind == "site") continue;
             if (row.CategoryId <= 0 || row.Seconds <= 0) continue;
 
             result[row.CategoryId] = result.TryGetValue(row.CategoryId, out var current)
@@ -997,7 +1279,13 @@ public class CategoryPageViewModel : CategoryPageModel
     {
         ChartColorHelper.ThemeChanged -= OnThemeChanged;
         Data?.Clear();
+        ActiveAppCategories?.Clear();
+        EmptyAppCategories?.Clear();
         WebCategoryData?.Clear();
+        ActiveWebCategories?.Clear();
+        EmptyWebCategories?.Clear();
+        FilteredEntities?.Clear();
+        TagPickerOptions?.Clear();
         EditDirectories?.Clear();
         base.Dispose();
     }

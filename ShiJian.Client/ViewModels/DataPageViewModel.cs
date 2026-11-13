@@ -163,14 +163,6 @@ public partial class DataPageViewModel : DataPageModel
             await LoadDataAsync(date, dataType);
         }, skipInitial: false);
 
-        WhenPropertyChanged(this, x => x.ShowType, async _ =>
-        {
-            await LoadDataAsync(DayDate, 0);
-            await LoadDataAsync(WeekDate, 1);
-            await LoadDataAsync(MonthDate, 2);
-            await LoadDataAsync(YearDate, 3);
-        });
-
         // 配色模式只影响扇区取色与图例口径，数据不用重拉：扇区里两种颜色都已备好
         WhenPropertyChanged(this, x => x.UseCategoryColor, _ =>
         {
@@ -274,7 +266,7 @@ public partial class DataPageViewModel : DataPageModel
     {
         try
         {
-            if (entity.Kind == "site")
+            if (entity.Kind == "site" || entity.Key.StartsWith("site:", StringComparison.Ordinal))
             {
                 var site = await _webDataService.GetWebSiteAsync(entity.EntityId);
                 if (site != null)
@@ -316,60 +308,34 @@ public partial class DataPageViewModel : DataPageModel
             }
             ct.ThrowIfCancellationRequested();
 
-            List<ChartsDataModel> chartData;
+            var rows = (entityList?.Rows ?? []).OrderByDescending(r => r.Seconds).ToList();
+            var chartData = ChartDataMapper.MapFromEntities(rows, includeBadges: true);
 
-            if (ShowType.Id == 0)
+            switch (dataType)
             {
-                var appRows = (entityList?.Rows ?? []).Where(r => r.Kind != "site").ToList();
-                chartData = ChartDataMapper.MapFromEntities(appRows, includeBadges: true);
-
-                switch (dataType)
-                {
-                    case 0:
-                        Data = chartData;
-                        DayClock = await BuildDayClockAsync(date, ct);
-                        break;
-                    case 1:
-                        WeekClock = await BuildHourlyClockAsync(start, end, ClockTickMode.Day,
-                            ResourceStrings.ThisWeek, ct);
-                        break;
-                    case 2:
-                        MonthClock = await BuildHourlyClockAsync(start, end, ClockTickMode.Day,
-                            ResourceStrings.ThisMonth, ct);
-                        break;
-                    case 3:
-                        YearClock = await BuildMonthlyClockAsync(start, end, ct);
-                        break;
-                }
-            }
-            else
-            {
-                var siteRows = (entityList?.Rows ?? []).Where(r => r.Kind == "site").ToList();
-                chartData = ChartDataMapper.MapFromEntities(siteRows, includeBadges: true);
-
-                if (dataType == 0) Data = chartData;
-
-                // 网站维度没有会话级时间轴，环形时钟一律置空（页面会隐藏表盘）
-                switch (dataType)
-                {
-                    case 0: DayClock = ClockRingData.Empty; break;
-                    case 1: WeekClock = ClockRingData.Empty; break;
-                    case 2: MonthClock = ClockRingData.Empty; break;
-                    case 3: YearClock = ClockRingData.Empty; break;
-                }
+                case 0:
+                    Data = chartData;
+                    DayClock = await BuildDayClockAsync(date, ct);
+                    break;
+                case 1:
+                    WeekData = chartData;
+                    WeekClock = await BuildHourlyClockAsync(start, end, ClockTickMode.Day,
+                        ResourceStrings.ThisWeek, ct);
+                    break;
+                case 2:
+                    MonthData = chartData;
+                    MonthClock = await BuildHourlyClockAsync(start, end, ClockTickMode.Day,
+                        ResourceStrings.ThisMonth, ct);
+                    break;
+                case 3:
+                    YearData = chartData;
+                    YearClock = await BuildMonthlyClockAsync(start, end, ct);
+                    break;
             }
 
             ct.ThrowIfCancellationRequested();
 
-            switch (dataType)
-            {
-                case 1: WeekData = chartData; break;
-                case 2: MonthData = chartData; break;
-                case 3: YearData = chartData; break;
-            }
-
-            // 看板只算当前页签：切应用/网站时会顺次预热四个周期，
-            // 每个周期都算一遍看板要多拨好几次会话请求，不划算
+            // 看板只算当前页签，避免同时预热四个周期时重复请求会话流水
             if (dataType != TabbarSelectedIndex) return;
 
             var insight = await BuildInsightAsync(date, dataType, ct);
@@ -499,17 +465,19 @@ public partial class DataPageViewModel : DataPageModel
 
         var hoursTask = _entityData.GetEntityHoursAsync(rangeStart, rangeEnd, "month", false, ct);
         var categoriesTask = _categoryService.GetCategoriesAsync(ct);
-        await Task.WhenAll(hoursTask, categoriesTask);
+        var webCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(ct);
+        await Task.WhenAll(hoursTask, categoriesTask, webCategoriesTask);
         ct.ThrowIfCancellationRequested();
 
         var entityHours = await hoursTask;
         var categoryMap = (await categoriesTask).ToDictionary(c => c.ID);
-        var appRows = (entityHours?.Rows ?? []).Where(r => r.Kind != "site").ToList();
+        var webCategoryMap = (await webCategoriesTask).ToDictionary(c => c.ID);
+        var rows = entityHours?.Rows ?? [];
 
         for (var i = 0; i < 12; i++)
         {
             var slotStart = new DateTime(rangeStart.Year, i + 1, 1);
-            var monthItems = appRows
+            var monthItems = rows
                 .Where(r => i < r.Values.Length && r.Values[i] > 0)
                 .Select(r => (Row: r, Seconds: r.Values[i]))
                 .OrderByDescending(x => x.Seconds)
@@ -528,7 +496,22 @@ public partial class DataPageViewModel : DataPageModel
                 var startFraction = slotFraction + slotWidth * cursor;
                 cursor += share;
 
-                categoryMap.TryGetValue(row.CategoryId, out var catModel);
+                var isSite = row.Kind == "site" || row.CategoryKind == "site";
+                string categoryColor;
+                object? categoryData;
+                if (isSite)
+                {
+                    webCategoryMap.TryGetValue(row.CategoryId, out var webCat);
+                    categoryColor = ResolveCategoryColor(webCat?.Color, webCat?.IsSystem ?? false, webCat != null, isDark);
+                    categoryData = webCat;
+                }
+                else
+                {
+                    categoryMap.TryGetValue(row.CategoryId, out var catModel);
+                    categoryColor = ResolveCategoryColor(catModel, isDark);
+                    categoryData = catModel;
+                }
+
                 segments.Add(new ClockSegment
                 {
                     StartFraction = startFraction,
@@ -536,11 +519,11 @@ public partial class DataPageViewModel : DataPageModel
                     Name = row.Name,
                     CategoryName = row.CategoryName,
                     Color = TimelineColorService.GetColor(row.Name, isDark),
-                    CategoryColor = ResolveCategoryColor(catModel, isDark),
+                    CategoryColor = categoryColor,
                     RangeText = $"{slotStart:yyyy-MM} · {FormatDuration(seconds)}",
                     Seconds = seconds,
                     Data = row.ToEntityModel((int)seconds),
-                    CategoryData = catModel
+                    CategoryData = categoryData
                 });
             }
         }
@@ -548,10 +531,13 @@ public partial class DataPageViewModel : DataPageModel
         return BuildRingData(segments, ClockTickMode.Month, rangeStart, rangeEnd, ResourceStrings.ThisYear);
     }
 
-    private static string ResolveCategoryColor(Shared.Models.CategoryModel? category, bool isDark)
+    private static string ResolveCategoryColor(Shared.Models.CategoryModel? category, bool isDark) =>
+        ResolveCategoryColor(category?.Color, category?.IsSystem ?? false, category != null, isDark);
+
+    private static string ResolveCategoryColor(string? color, bool isSystem, bool hasCategory, bool isDark)
     {
-        return category != null
-            ? ChartColorHelper.Resolve(category.Color, category.IsSystem)
+        return hasCategory
+            ? ChartColorHelper.Resolve(color, isSystem)
             : TimelineColorService.GetColor(ResourceStrings.SystemCategory, isDark);
     }
 
@@ -656,8 +642,6 @@ public partial class DataPageViewModel : DataPageModel
     /// <summary>时段偏好横条的最大宽度（右侧洞察栏的可用宽度）</summary>
     private const double BandMaxWidth = 96;
 
-    private sealed record CategoryVisual(string Name, string Color);
-
     private DataPageInsight InsightAt(int index) => index switch
     {
         0 => DayInsight,
@@ -683,7 +667,6 @@ public partial class DataPageViewModel : DataPageModel
 
     private async Task<DataPageInsight?> BuildInsightAsync(DateTime date, int dataType, CancellationToken ct)
     {
-        var isWeb = ShowType.Id == 1;
         var (start, end) = GetDateRange(date, dataType);
         var previousDate = PreviousDate(date, dataType);
         var (prevStart, prevEnd) = GetDateRange(previousDate, dataType);
@@ -693,12 +676,14 @@ public partial class DataPageViewModel : DataPageModel
         var prevHoursTask = _entityData.GetEntityHoursAsync(prevStart, prevEnd, bucketMode, false, ct);
         var summaryTask = _entityData.GetEntitySummaryAsync(start, end, false, ct);
         var prevSummaryTask = _entityData.GetEntitySummaryAsync(prevStart, prevEnd, false, ct);
-        var visualsTask = GetCategoryVisualsAsync(isWeb, ct);
-        var spansTask = GetSpansAsync(start, end, isWeb, ct);
+        var appCategoriesTask = _categoryService.GetCategoriesAsync(ct);
+        var siteCategoriesTask = _webDataService.GetWebSiteCategoriesAsync(ct);
+        var spansTask = GetSpansAsync(start, end, isWeb: false, ct);
 
         try
         {
-            await Task.WhenAll(currentHoursTask, prevHoursTask, summaryTask, prevSummaryTask, visualsTask, spansTask);
+            await Task.WhenAll(currentHoursTask, prevHoursTask, summaryTask, prevSummaryTask,
+                appCategoriesTask, siteCategoriesTask, spansTask);
         }
         catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
         {
@@ -709,24 +694,25 @@ public partial class DataPageViewModel : DataPageModel
         }
         ct.ThrowIfCancellationRequested();
 
-        var currentColumns = ChartDataMapper.AggregateColumnsByCategory(await currentHoursTask, isWeb);
-        var previousColumns = ChartDataMapper.AggregateColumnsByCategory(await prevHoursTask, isWeb);
+        var currentHours = await currentHoursTask;
+        var prevHours = await prevHoursTask;
         var summary = await summaryTask;
         var prevSummary = await prevSummaryTask;
-        var visuals = await visualsTask;
+        var appCategories = await appCategoriesTask;
+        var siteCategories = await siteCategoriesTask;
         var spans = await spansTask;
         var periodSpans = spans.Select(s => (s.Start, s.End)).ToList();
 
-        var buckets = BucketTotals(currentColumns, dataType, start);
-        var prevBuckets = BucketTotals(previousColumns, dataType, prevStart);
+        var buckets = ChartDataMapper.SumAllBuckets(currentHours);
+        var prevBuckets = ChartDataMapper.SumAllBuckets(prevHours, buckets.Length);
         var labels = BucketLabels(dataType, buckets.Length, start);
 
         var totalSeconds = buckets.Sum();
         var prevTotalSeconds = prevBuckets.Sum();
         var hourOfDay = InsightBuilder.HourOfDayHistogram(periodSpans, start, end);
 
-        var entityCount = isWeb ? (summary?.SiteCount ?? 0) : (summary?.AppCount ?? 0);
-        var previousCount = isWeb ? (prevSummary?.SiteCount ?? 0) : (prevSummary?.AppCount ?? 0);
+        var entityCount = (summary?.AppCount ?? 0) + (summary?.SiteCount ?? 0);
+        var previousCount = (prevSummary?.AppCount ?? 0) + (prevSummary?.SiteCount ?? 0);
 
         var vsCaption = VersusCaption(dataType);
         var totalDiff = InsightBuilder.BuildDiff(totalSeconds, prevTotalSeconds);
@@ -737,27 +723,15 @@ public partial class DataPageViewModel : DataPageModel
         var longestSessionSeconds = summary?.LongestSessionSeconds ?? 0;
         var longestSessionStart = summary?.LongestSessionStart is { } ls ? ToLocal(ls) : (DateTime?)null;
 
-        var webPageCount = summary?.WebPageCount ?? 0;
-        var webRecordCount = summary?.WebRecordCount ?? 0;
-        var longestBrowseSeconds = summary?.LongestBrowseSeconds ?? 0;
-
         var cards = new List<InsightStatCard>(4)
         {
             BuildCard(ResourceStrings.CategoryTotalUsage, InsightBuilder.FormatDuration(totalSeconds), totalDiff, vsCaption),
-            BuildCard(isWeb ? ResourceStrings.InsightSites : ResourceStrings.InsightApps, entityCount.ToString(),
-                countDiff, vsCaption),
-            isWeb
-                ? BuildCard(ResourceStrings.InsightPages, webPageCount.ToString(), null, null)
-                : BuildCard(ResourceStrings.InsightSessions, sessionCount.ToString(), null, null,
-                    $"{ResourceStrings.InsightAverageSession} {InsightBuilder.FormatDuration(avgSessionSeconds)}"),
-            isWeb
-                ? BuildCard(ResourceStrings.InsightRecords, webRecordCount.ToString(), null, null,
-                    longestBrowseSeconds > 0
-                        ? $"{ResourceStrings.InsightLongestRecord} {InsightBuilder.FormatDuration(longestBrowseSeconds)}"
-                        : null)
-                : BuildCard(ResourceStrings.InsightLongest, InsightBuilder.FormatDuration(longestSessionSeconds),
-                    null, null,
-                    longestSessionStart.HasValue ? InsightBuilder.FormatMoment(longestSessionStart.Value, start, end) : null)
+            BuildCard(ResourceStrings.InsightEntities, entityCount.ToString(), countDiff, vsCaption),
+            BuildCard(ResourceStrings.InsightSessions, sessionCount.ToString(), null, null,
+                $"{ResourceStrings.InsightAverageSession} {InsightBuilder.FormatDuration(avgSessionSeconds)}"),
+            BuildCard(ResourceStrings.InsightLongest, InsightBuilder.FormatDuration(longestSessionSeconds),
+                null, null,
+                longestSessionStart.HasValue ? InsightBuilder.FormatMoment(longestSessionStart.Value, start, end) : null)
         };
 
         var peakHour = InsightBuilder.PeakHour(hourOfDay);
@@ -769,19 +743,19 @@ public partial class DataPageViewModel : DataPageModel
             _ => ResourceStrings.CategoryActiveDays
         };
 
-        var firstMoment = isWeb ? summary?.FirstBrowseStart : summary?.FirstSessionStart;
-        var lastMoment = isWeb ? summary?.LastBrowseEnd : summary?.LastSessionEnd;
+        var firstMoment = summary?.FirstSessionStart;
+        var lastMoment = summary?.LastSessionEnd;
 
         var habits = new List<InsightHabitRow>
         {
             new()
             {
-                Label = isWeb ? ResourceStrings.InsightFirstBrowse : ResourceStrings.InsightFirstUse,
+                Label = ResourceStrings.InsightFirstUse,
                 Value = firstMoment.HasValue ? InsightBuilder.FormatMoment(ToLocal(firstMoment.Value), start, end) : "—"
             },
             new()
             {
-                Label = isWeb ? ResourceStrings.InsightLastBrowse : ResourceStrings.InsightLastUse,
+                Label = ResourceStrings.InsightLastUse,
                 Value = lastMoment.HasValue ? InsightBuilder.FormatMoment(ToLocal(lastMoment.Value), start, end) : "—"
             },
             new()
@@ -805,7 +779,12 @@ public partial class DataPageViewModel : DataPageModel
         };
         var bands = InsightBuilder.BuildBands(hourOfDay, bandNames, BandMaxWidth);
 
-        var (categorySeries, categoryTotalText) = BuildCategoryShare(currentColumns, visuals);
+        var unifiedCategories = ChartDataMapper.BuildUnifiedCategorySeries(
+            currentHours,
+            ChartDataMapper.ToVisualMap(appCategories, ResourceStrings.Uncategorized),
+            ChartDataMapper.ToVisualMap(siteCategories, ResourceStrings.Uncategorized),
+            ResourceStrings.Uncategorized);
+        var (categorySeries, categoryTotalText) = BuildUnifiedCategoryShare(unifiedCategories);
 
         var compare = new double[buckets.Length];
         for (var i = 0; i < compare.Length && i < prevBuckets.Length; i++) compare[i] = prevBuckets[i];
@@ -828,7 +807,7 @@ public partial class DataPageViewModel : DataPageModel
             Cards = cards,
             Habits = habits,
             Bands = bands,
-            Heatmap = BuildHeatmap(dataType, isWeb, spans, periodSpans, buckets, start, end),
+            Heatmap = BuildHeatmap(dataType, spans, periodSpans, buckets, start, end),
             HourSeries = hourSeries,
             HourLabels = labels,
             CompareValues = compare,
@@ -836,7 +815,7 @@ public partial class DataPageViewModel : DataPageModel
             BucketTotalText = InsightBuilder.FormatDuration(totalSeconds),
             CategorySeries = categorySeries,
             CategoryTotalText = categoryTotalText,
-            CategoryCaption = isWeb ? ResourceStrings.Website : ResourceStrings.App
+            CategoryCaption = ResourceStrings.Total
         };
     }
 
@@ -883,32 +862,6 @@ public partial class DataPageViewModel : DataPageModel
         _ => ResourceStrings.CategoryVsPrevious
     };
 
-    /// <summary>把「分类 × 时段」矩阵按列求和，得到每个时段的总时长</summary>
-    private static double[] BucketTotals(IReadOnlyList<ColumnDataModel> columns, int dataType, DateTime rangeStart)
-    {
-        if (columns.Count == 0) return [];
-
-        var length = columns.Max(c => c.Values?.Length ?? 0);
-        if (length == 0) return [];
-
-        var sums = new double[length];
-        foreach (var column in columns)
-        {
-            var values = column.Values;
-            if (values == null) continue;
-            for (var i = 0; i < values.Length && i < length; i++) sums[i] += values[i];
-        }
-
-        // 网站年的矩阵是按天的（365 列），柱图要的是 12 个月
-        if (dataType != 3 || length <= 12) return sums;
-
-        var months = new double[12];
-        for (var i = 0; i < length; i++)
-            months[rangeStart.AddDays(i).Month - 1] += sums[i];
-
-        return months;
-    }
-
     private static string[] BucketLabels(int dataType, int count, DateTime rangeStart)
     {
         var labels = new string[Math.Max(0, count)];
@@ -942,61 +895,24 @@ public partial class DataPageViewModel : DataPageModel
     private static string MonthName(int index) =>
         Application.Current?.Resources[$"{index + 1}Month"] as string ?? $"{index + 1}";
 
-    /// <summary>分类 id → 显示名 / 颜色（颜色已按当前主题算过对比度）</summary>
-    private async Task<Dictionary<int, CategoryVisual>> GetCategoryVisualsAsync(bool isWeb, CancellationToken ct)
+    private static (IReadOnlyList<ChartsDataModel> Series, string TotalText) BuildUnifiedCategoryShare(
+        IReadOnlyList<ChartsDataModel> unifiedSeries)
     {
-        var map = new Dictionary<int, CategoryVisual>();
-
-        if (isWeb)
-        {
-            foreach (var item in await _webDataService.GetWebSiteCategoriesAsync(ct))
-                map[item.ID] = new CategoryVisual(item.Name ?? ResourceStrings.Uncategorized,
-                    ChartColorHelper.Resolve(item.Color, item.IsSystem));
-        }
-        else
-        {
-            foreach (var item in await _categoryService.GetCategoriesAsync(ct))
-                map[item.ID] = new CategoryVisual(item.Name ?? ResourceStrings.Uncategorized,
-                    ChartColorHelper.Resolve(item.Color, item.IsSystem));
-        }
-
-        return map;
-    }
-
-    private static (IReadOnlyList<ChartsDataModel> Series, string TotalText) BuildCategoryShare(
-        IReadOnlyList<ColumnDataModel> columns, IReadOnlyDictionary<int, CategoryVisual> visuals)
-    {
-        var totals = new Dictionary<int, double>();
-        foreach (var column in columns)
-        {
-            var sum = column.Values?.Sum() ?? 0;
-            if (sum <= 0) continue;
-
-            totals[column.CategoryID] = totals.TryGetValue(column.CategoryID, out var existing)
-                ? existing + sum
-                : sum;
-        }
-
-        var total = totals.Values.Sum();
+        var positive = unifiedSeries.Where(m => m.Value > 0).OrderByDescending(m => m.Value).ToList();
+        var total = positive.Sum(m => m.Value);
         if (total <= 0) return ([], string.Empty);
 
-        var ordered = totals.OrderByDescending(x => x.Value).ToList();
-        var series = new List<ChartsDataModel>();
-        var unknown = new CategoryVisual(ResourceStrings.Uncategorized, ChartColorHelper.Resolve(null, true));
-
-        foreach (var (id, value) in ordered.Take(CategoryShareTopCount))
-        {
-            var visual = visuals.TryGetValue(id, out var found) ? found : unknown;
-            series.Add(new ChartsDataModel
+        var series = positive.Take(CategoryShareTopCount)
+            .Select(m => new ChartsDataModel
             {
-                Name = visual.Name,
-                Color = visual.Color,
-                Value = value,
-                Tag = InsightBuilder.FormatDuration(value)
-            });
-        }
+                Name = m.Name,
+                Color = m.Color,
+                Value = m.Value,
+                Tag = InsightBuilder.FormatDuration(m.Value)
+            })
+            .ToList();
 
-        var rest = ordered.Skip(CategoryShareTopCount).Sum(x => x.Value);
+        var rest = positive.Skip(CategoryShareTopCount).Sum(m => m.Value);
         if (rest > 0)
         {
             series.Add(new ChartsDataModel
@@ -1013,7 +929,7 @@ public partial class DataPageViewModel : DataPageModel
 
     #region 热力图
 
-    private HeatmapData BuildHeatmap(int dataType, bool isWeb,
+    private HeatmapData BuildHeatmap(int dataType,
         IReadOnlyList<(DateTime Start, DateTime End, string Name)> namedSpans,
         IReadOnlyList<(DateTime Start, DateTime End)> spans,
         IReadOnlyList<double> dayBuckets,
@@ -1021,7 +937,7 @@ public partial class DataPageViewModel : DataPageModel
     {
         return dataType switch
         {
-            0 => BuildNameHourHeatmap(namedSpans, rangeStart, rangeEnd, isWeb),
+            0 => BuildNameHourHeatmap(namedSpans, rangeStart, rangeEnd),
             2 => BuildMonthCalendarHeatmap(dayBuckets, rangeStart),
             3 => BuildMonthDayHeatmap(spans, rangeStart, rangeEnd),
             _ => BuildWeekHourHeatmap(spans, rangeStart, rangeEnd)
@@ -1093,7 +1009,7 @@ public partial class DataPageViewModel : DataPageModel
     /// <summary>日视图：当天用得最多的几个应用 / 站点 × 小时</summary>
     private static HeatmapData BuildNameHourHeatmap(
         IReadOnlyList<(DateTime Start, DateTime End, string Name)> spans,
-        DateTime rangeStart, DateTime rangeEnd, bool isWeb)
+        DateTime rangeStart, DateTime rangeEnd)
     {
         var grid = InsightBuilder.NameHourGrid(spans, rangeStart, rangeEnd);
         if (grid.Count == 0) return HeatmapData.Empty;
@@ -1140,7 +1056,7 @@ public partial class DataPageViewModel : DataPageModel
         {
             Rows = result,
             ColumnLabels = Enumerable.Range(0, 24).Select(i => i.ToString()).ToArray(),
-            Caption = isWeb ? ResourceStrings.InsightHeatmapBySite : ResourceStrings.InsightHeatmapByApp,
+            Caption = ResourceStrings.InsightHeatmapByApp,
             PeakText = $"{peakName} {peakHour:00}:00 · {InsightBuilder.FormatDuration(peakValue)}",
             MaxValue = max
         };

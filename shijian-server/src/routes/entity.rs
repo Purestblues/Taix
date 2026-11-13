@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::models::entity::{
     BrowserOptionModel, EntityHoursModel, EntityListModel, EntitySummaryModel, MergeGroupListModel,
+    MergeGroupModel,
 };
 use crate::response::ApiResponse;
 use crate::services::config::ConfigService;
@@ -67,6 +68,25 @@ struct RenameGroupRequest {
     name: String,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CreateGroupRequest {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    primary_ref: String,
+    members: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateGroupRequest {
+    group_id: i64,
+    name: Option<String>,
+    primary_ref: Option<String>,
+    members: Option<Vec<String>>,
+}
+
 pub fn router() -> Router<SqlitePool> {
     Router::new()
         .route("/api/entity/list", get(get_entity_list))
@@ -74,6 +94,8 @@ pub fn router() -> Router<SqlitePool> {
         .route("/api/entity/summary", get(get_entity_summary))
         .route("/api/entity/browsers", get(get_browsers))
         .route("/api/entity/merge-groups", get(get_merge_groups))
+        .route("/api/entity/merge-groups/create", post(create_group))
+        .route("/api/entity/merge-groups/update", post(update_group))
         .route("/api/entity/merge-groups/dissolve", post(dissolve_group))
         .route("/api/entity/merge-groups/rename", post(rename_group))
         .route("/api/entity/merge-groups/restore", post(restore_groups))
@@ -172,6 +194,42 @@ async fn get_merge_groups(State(pool): State<SqlitePool>) -> Json<ApiResponse<Me
         Ok(data) => Json(ApiResponse::ok(data)),
         Err(e) => Json(ApiResponse {
             code: 500,
+            message: e.to_string(),
+            data: None,
+        }),
+    }
+}
+
+async fn create_group(
+    State(pool): State<SqlitePool>,
+    Json(req): Json<CreateGroupRequest>,
+) -> Json<ApiResponse<MergeGroupModel>> {
+    match EntityService::create_group(&pool, &req.name, &req.primary_ref, &req.members).await {
+        Ok(data) => Json(ApiResponse::ok(data)),
+        Err(e) => Json(ApiResponse {
+            code: 400,
+            message: e.to_string(),
+            data: None,
+        }),
+    }
+}
+
+async fn update_group(
+    State(pool): State<SqlitePool>,
+    Json(req): Json<UpdateGroupRequest>,
+) -> Json<ApiResponse<MergeGroupModel>> {
+    match EntityService::update_group(
+        &pool,
+        req.group_id,
+        req.name.as_deref(),
+        req.primary_ref.as_deref(),
+        req.members.as_deref(),
+    )
+    .await
+    {
+        Ok(data) => Json(ApiResponse::ok(data)),
+        Err(e) => Json(ApiResponse {
+            code: 400,
             message: e.to_string(),
             data: None,
         }),
