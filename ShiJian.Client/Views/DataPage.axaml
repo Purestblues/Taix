@@ -514,10 +514,12 @@
                     </Border>
                 </Grid>
 
-                <!-- 右侧洞察栏：C 使用习惯 / D 热力图 / E 分类占比 -->
-                <Grid Grid.Column="1" Width="400" Margin="14,0,0,0"
-                      IsVisible="{Binding IsInsightVisible}"
-                      RowDefinitions="Auto,*,Auto">
+                <!-- 右侧洞察栏：C 使用习惯 / D 热力图 / E 分类占比（外包 ScrollViewer 防止年度 12 行热力图在紧凑窗口被压缩） -->
+                <ScrollViewer Grid.Column="1" Width="400" Margin="14,0,0,0"
+                              IsVisible="{Binding IsInsightVisible}"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                <Grid RowDefinitions="Auto,Auto,Auto">
 
                     <!-- C：使用习惯 -->
                     <Border Classes="insightCard">
@@ -645,6 +647,7 @@
                         </StackPanel>
                     </Border>
                 </Grid>
+                </ScrollViewer>
             </Grid>
         </Grid>
 

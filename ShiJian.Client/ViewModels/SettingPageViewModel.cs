@@ -361,6 +361,11 @@ public class SettingPageViewModel : SettingPageModel
             selected[0].IsPrimary = true;
         }
 
+        if (selected.Count >= 2 && !string.IsNullOrEmpty(MergeEditorError))
+        {
+            MergeEditorError = string.Empty;
+        }
+
         MergeEditorSelectedMembers.Clear();
         foreach (var item in selected)
         {

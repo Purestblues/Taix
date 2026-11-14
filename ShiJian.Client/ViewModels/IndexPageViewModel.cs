@@ -86,8 +86,8 @@ public partial class IndexPageViewModel : IndexPageModel
     private void InitializeStaticData()
     {
         var config = _appConfig.GetConfig();
-        FrequentUseNum = config.General.IndexPageFrequentUseNum + 1;
-        MoreNum = config.General.IndexPageMoreNum + 1;
+        FrequentUseNum = Math.Max(0, config.General.IndexPageFrequentUseNum + 1);
+        MoreNum = Math.Max(0, config.General.IndexPageMoreNum + 1);
 
         PeriodOptions =
         [
@@ -213,6 +213,53 @@ public partial class IndexPageViewModel : IndexPageModel
     }
 
     /// <summary>
+    /// 切分首页「最为频繁」与「更多」榜单，采用显式索引切片避开 .NET 10 LINQ
+    /// IListSkipTakeIterator 在空序列或不足 frequentUseNum 项时与 Concat 组合抛 ArgumentOutOfRangeException。
+    /// </summary>
+    internal static (List<ChartsDataModel> AppFrequent, List<ChartsDataModel> WebFrequent, List<ChartsDataModel> More)
+        BuildOverviewRankings(
+            IReadOnlyList<ChartsDataModel> appChartData,
+            IReadOnlyList<ChartsDataModel> webChartData,
+            int frequentUseNum,
+            int moreNum)
+    {
+        var frequentCount = Math.Max(0, frequentUseNum);
+        var moreCount = Math.Max(0, moreNum);
+
+        var appTake = Math.Min(frequentCount, appChartData.Count);
+        var appFrequent = new List<ChartsDataModel>(appTake);
+        for (var i = 0; i < appTake; i++)
+            appFrequent.Add(appChartData[i]);
+
+        var webTake = Math.Min(frequentCount, webChartData.Count);
+        var webFrequent = new List<ChartsDataModel>(webTake);
+        for (var i = 0; i < webTake; i++)
+            webFrequent.Add(webChartData[i]);
+
+        var more = new List<ChartsDataModel>();
+        if (moreCount <= 0)
+            return (appFrequent, webFrequent, more);
+
+        var remainingCount = Math.Max(0, appChartData.Count - appTake) + Math.Max(0, webChartData.Count - webTake);
+        if (remainingCount == 0)
+            return (appFrequent, webFrequent, more);
+
+        var candidates = new List<ChartsDataModel>(remainingCount);
+        for (var i = appTake; i < appChartData.Count; i++)
+            candidates.Add(appChartData[i]);
+        for (var i = webTake; i < webChartData.Count; i++)
+            candidates.Add(webChartData[i]);
+
+        foreach (var item in candidates.OrderByDescending(x => x.Value))
+        {
+            if (more.Count >= moreCount) break;
+            more.Add(item);
+        }
+
+        return (appFrequent, webFrequent, more);
+    }
+
+    /// <summary>
     /// 一次取齐榜单 + 概览 + 图表所需数据。
     /// 榜单接口已经把每个应用 / 网站的时长带回来了，总数与数量直接在本地算，
     /// 不再为「一个数字」单独发请求（首屏 16 个请求 → 10 个，再加 1 个对比周期数据）。
@@ -236,23 +283,23 @@ public partial class IndexPageViewModel : IndexPageModel
         HasEntityError = false;
         EntityErrorText = string.Empty;
 
-        await Task.WhenAll(pageCountTask, prevPageCountTask, categoriesTask);
-        cancellationToken.ThrowIfCancellationRequested();
-
         EntityListModel? entity;
         EntityListModel? prevEntity;
         EntityHoursModel? hours;
         EntityHoursModel? prevHours;
         try
         {
+            await Task.WhenAll(pageCountTask, prevPageCountTask, categoriesTask);
+            cancellationToken.ThrowIfCancellationRequested();
+
             entity = await entityTask;
             prevEntity = await prevEntityTask;
             hours = await hoursTask;
             prevHours = await prevHoursTask;
         }
-        catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // 实体接口是新东西：服务端没升级时这里是 404，不能表现成「今天没用电脑」
+            // 实体接口不可用、网络抖动或服务端异常时显示明确错误提示，避免概览页静默空白
             HasEntityError = true;
             EntityErrorText = ChartDataMapper.FormatEntityLoadError(ex);
             Logger.Warn($"实体表加载失败：{ex.Message}");
@@ -269,16 +316,14 @@ public partial class IndexPageViewModel : IndexPageModel
 
         var appChartData = appRows.Select(ToChartRow).ToList();
         WeekData = appChartData;
-        AppFrequentUseData = appChartData.Take(FrequentUseNum).ToList();
 
         var webChartData = siteRows.Select(ToChartRow).ToList();
-        WebFrequentUseData = webChartData.Take(FrequentUseNum).ToList();
 
-        MoreData = appChartData.Skip(FrequentUseNum)
-            .Concat(webChartData.Skip(FrequentUseNum))
-            .OrderByDescending(x => x.Value)
-            .Take(MoreNum)
-            .ToList();
+        var (appFrequent, webFrequent, moreData) = BuildOverviewRankings(
+            appChartData, webChartData, FrequentUseNum, MoreNum);
+        AppFrequentUseData = appFrequent;
+        WebFrequentUseData = webFrequent;
+        MoreData = moreData;
 
         // 概览卡片：总额取实体表的总额
         TotalTime = entity?.TotalSeconds ?? 0;

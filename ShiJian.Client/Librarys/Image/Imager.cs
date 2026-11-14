@@ -28,6 +28,12 @@ public class Imager
             bitmap = GetDefaultBitmap();
             return true;
         }
+        var failureKey = NormalizeFailureKey(filePath);
+        if (Cache.IsFailed(failureKey))
+        {
+            bitmap = null;
+            return false;
+        }
         return Cache.TryGet(BuildCacheKey(filePath, decodeWidth, decodeHeight), out bitmap);
     }
 
@@ -39,7 +45,8 @@ public class Imager
     public static bool IsFailed(string filePath, int decodeWidth = 0, int decodeHeight = 0)
     {
         if (string.IsNullOrWhiteSpace(filePath)) return false;
-        return Cache.IsFailed(BuildCacheKey(filePath, decodeWidth, decodeHeight));
+        return Cache.IsFailed(NormalizeFailureKey(filePath))
+            || Cache.IsFailed(BuildCacheKey(filePath, decodeWidth, decodeHeight));
     }
 
     public static async Task<Bitmap> LoadAsync(string filePath, string? defaultPath = null, int decodeWidth = 0, int decodeHeight = 0, bool noCache = false, CancellationToken cancellationToken = default)
@@ -48,12 +55,13 @@ public class Imager
             return GetDefaultBitmap(defaultPath);
 
         var cacheKey = BuildCacheKey(filePath, decodeWidth, decodeHeight);
+        var failureKey = NormalizeFailureKey(filePath);
+
+        if (!noCache && (Cache.IsFailed(failureKey) || Cache.IsFailed(cacheKey)))
+            return GetDefaultBitmap(defaultPath);
 
         if (!noCache && Cache.TryGet(cacheKey, out var cachedBitmap))
             return cachedBitmap;
-
-        if (!noCache && Cache.IsFailed(cacheKey))
-            return GetDefaultBitmap(defaultPath);
 
         var sw = Stopwatch.StartNew();
         Logger.Debug($"[Imager] 开始异步加载: {filePath}, decode=({decodeWidth}x{decodeHeight})");
@@ -66,17 +74,17 @@ public class Imager
             if (bytes == null)
             {
                 Logger.Debug($"[Imager] 文件不存在或无法读取: {filePath}");
-                Cache.MarkFailed(cacheKey);
+                Cache.MarkFailed(failureKey);
                 return GetDefaultBitmap(defaultPath);
             }
 
-            // WebFavicons 里有一批 0 字节的下载失败产物，送进解码器会抛异常、刷满日志，
-            // 直接当作“该站点没有图标”处理
-            if (bytes.Length == 0)
+            // WebFavicons 里有一批 0 字节或 HTML/404 文本的下载失败产物，直接按文件维度标记失败并降级，
+            // 避免在多尺寸 DecodeWidth 下反复送入解码器触发 NullReferenceException 并刷日志
+            if (bytes.Length == 0 || !IsSupportedImageHeader(bytes))
             {
-                Logger.Debug($"[Imager] 跳过 0 字节文件: {filePath}");
+                Logger.Debug($"[Imager] 跳过无效或非图片文件: {filePath}, size={bytes.Length} bytes");
                 if (!noCache)
-                    Cache.MarkFailed(cacheKey);
+                    Cache.MarkFailed(failureKey);
                 return GetDefaultBitmap(defaultPath);
             }
 
@@ -86,7 +94,6 @@ public class Imager
             await DecodeSemaphore.WaitAsync(cancellationToken);
             try
             {
-                cancellationToken.ThrowIfCancellationRequested();
                 cancellationToken.ThrowIfCancellationRequested();
                 bitmap = await Task.Run(() => BytesToBitmap(bytes, decodeWidth, decodeHeight, cancellationToken), cancellationToken);
                 Logger.Debug($"[Imager] 解码完成 [{sw.ElapsedMilliseconds}ms]: {filePath}, pixel={bitmap.PixelSize.Width}x{bitmap.PixelSize.Height}");
@@ -102,7 +109,7 @@ public class Imager
                 Logger.Debug($"[Imager] 加载完成(无缓存) [{sw.ElapsedMilliseconds}ms]: {filePath}");
                 return bitmap;
             }
-            var result = Cache.Add(cacheKey, bitmap);
+            var result = Cache.Add(cacheKey, bitmap, failureKey);
             Logger.Debug($"[Imager] 加载完成 [{sw.ElapsedMilliseconds}ms]: {filePath}");
             return result;
         }
@@ -113,12 +120,63 @@ public class Imager
         }
         catch (Exception ex)
         {
-            // 损坏的 ico/png 会让解码器抛异常，属于可预期的数据问题，不值得当错误刷日志
+            // 损坏的 ico/png 会让解码器抛异常，属于可预期的数据问题，按文件维度记住失败状态
             Logger.Debug($"[Imager] 图片无法解码，已降级: {filePath} ({ex.GetType().Name})");
             if (!noCache)
-                Cache.MarkFailed(cacheKey);
+                Cache.MarkFailed(failureKey);
             return GetDefaultBitmap(defaultPath);
         }
+    }
+
+    internal static string NormalizeFailureKey(string filePath)
+        => filePath.Trim().Replace('\\', '/');
+
+    internal static bool IsSupportedImageHeader(ReadOnlySpan<byte> bytes)
+    {
+        if (bytes.Length < 4) return false;
+
+        // PNG: 89 50 4E 47 0D 0A 1A 0A
+        if (bytes.Length >= 8 &&
+            bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47 &&
+            bytes[4] == 0x0D && bytes[5] == 0x0A && bytes[6] == 0x1A && bytes[7] == 0x0A)
+            return true;
+
+        // JPEG: FF D8 FF
+        if (bytes[0] == 0xFF && bytes[1] == 0xD8 && bytes[2] == 0xFF)
+            return true;
+
+        // GIF: GIF8
+        if (bytes[0] == (byte)'G' && bytes[1] == (byte)'I' && bytes[2] == (byte)'F' && bytes[3] == (byte)'8')
+            return true;
+
+        // BMP: BM
+        if (bytes.Length >= 14 && bytes[0] == (byte)'B' && bytes[1] == (byte)'M')
+            return true;
+
+        // WEBP: RIFF....WEBP
+        if (bytes.Length >= 12 &&
+            bytes[0] == (byte)'R' && bytes[1] == (byte)'I' && bytes[2] == (byte)'F' && bytes[3] == (byte)'F' &&
+            bytes[8] == (byte)'W' && bytes[9] == (byte)'E' && bytes[10] == (byte)'B' && bytes[11] == (byte)'P')
+            return true;
+
+        // ICO (00 00 01 00) / CUR (00 00 02 00), count > 0
+        if (bytes.Length >= 6 &&
+            bytes[0] == 0x00 && bytes[1] == 0x00 &&
+            (bytes[2] == 0x01 || bytes[2] == 0x02) && bytes[3] == 0x00 &&
+            (bytes[4] != 0 || bytes[5] != 0))
+            return true;
+
+        // TIFF: II*\0 / MM\0*
+        if ((bytes[0] == (byte)'I' && bytes[1] == (byte)'I' && bytes[2] == 0x2A && bytes[3] == 0x00) ||
+            (bytes[0] == (byte)'M' && bytes[1] == (byte)'M' && bytes[2] == 0x00 && bytes[3] == 0x2A))
+            return true;
+
+        // AVIF / HEIF / HEIC: ....ftyp
+        if (bytes.Length >= 12 &&
+            bytes[4] == (byte)'f' && bytes[5] == (byte)'t' && bytes[6] == (byte)'y' && bytes[7] == (byte)'p')
+            return true;
+
+        return false;
     }
 
     public static Bitmap GetDefaultBitmap(string? defaultPath = null)
@@ -291,9 +349,11 @@ public class Imager
 
         public bool IsFailed(string key) => _failed.ContainsKey(key);
 
-        public Bitmap Add(string key, Bitmap bitmap)
+        public Bitmap Add(string key, Bitmap bitmap, string? failureKey = null)
         {
             _failed.TryRemove(key, out _);
+            if (!string.IsNullOrEmpty(failureKey))
+                _failed.TryRemove(failureKey, out _);
 
             lock (_lock)
             {

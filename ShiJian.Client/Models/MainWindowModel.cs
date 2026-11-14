@@ -25,7 +25,9 @@ public class MainWindowModel : UINotifyPropertyChanged
     private double _navigationWidth = 220;
 
 
-    private NavigationItemModel _navSelectedItem;
+    private NavigationItemModel? _navSelectedItem;
+
+    private bool _isSettingSelected;
 
     private PageContainer _pageContainer;
     private IServiceProvider _serviceProvider;
@@ -138,12 +140,23 @@ public class MainWindowModel : UINotifyPropertyChanged
         }
     }
 
-    public NavigationItemModel NavSelectedItem
+    public NavigationItemModel? NavSelectedItem
     {
         get => _navSelectedItem;
         set
         {
             _navSelectedItem = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool IsSettingSelected
+    {
+        get => _isSettingSelected;
+        set
+        {
+            if (_isSettingSelected == value) return;
+            _isSettingSelected = value;
             OnPropertyChanged();
         }
     }

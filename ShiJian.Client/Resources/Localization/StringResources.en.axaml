@@ -218,9 +218,9 @@
     <system:String x:Key="SearchResults">Results</system:String>
     <system:String x:Key="SearchResultCount">{0} items</system:String>
     <system:String x:Key="SearchTipEnter">Enter to open</system:String>
-    <system:String x:Key="SearchTipNav">↑↓ to navigate</system:String>
+    <system:String x:Key="SearchTipNav">to navigate</system:String>
     <system:String x:Key="SearchTipExpand">expand/collapse</system:String>
-    <system:String x:Key="SearchTipClose">Esc to close</system:String>
+    <system:String x:Key="SearchTipClose">to close</system:String>
 
     <system:String x:Key="TimeRangeSelectionError">Time range selection error</system:String>
     <system:String x:Key="DeleteConfirmation">Delete Confirmation</system:String>
@@ -540,6 +540,8 @@ Choose restore mode (an automatic local rollback point is saved before import):<
     <system:String x:Key="WebDavTitle">WebDAV Cloud Sync</system:String>
     <system:String x:Key="WebDavSubtitle">Sync .shijian-backup snapshots to WebDAV servers (Nextcloud, Jianguoyun, etc.) with cross-device merge</system:String>
     <system:String x:Key="WebDavEnable">Enable WebDAV auto sync</system:String>
+    <system:String x:Key="ToggleOn">On</system:String>
+    <system:String x:Key="ToggleOff">Off</system:String>
     <system:String x:Key="WebDavServerUrl">Server URL</system:String>
     <system:String x:Key="WebDavServerUrlPlaceholder">e.g. https://dav.jianguoyun.com/dav/</system:String>
     <system:String x:Key="WebDavRemoteFolder">Remote Folder</system:String>

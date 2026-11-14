@@ -481,16 +481,25 @@ public class ColumnChartCanvas : Control
                 context.DrawRectangle(liftBrush, null, barRect, barRadius, barRadius);
         }
 
-        // 绘制参考线
+        // 绘制参考线与右端数值标签（先解算标签纵坐标碰撞，再画不穿透标签矩形的虚线）
         var grayBrush = new SolidColorBrush(Color.Parse("#FF8A8A8A"));
-
-        DrawRefLine(context, _owner.Maximum, chartHeight, colNameBottomMargin, width, grayBrush);
-        var midY = chartHeight / 2 + colNameBottomMargin;
-        DrawRefLine(context, _owner.Median, chartHeight, midY, width, grayBrush);
         var avg = tempValueArr.Average();
         var avgText = _owner.CoverValue(avg);
-        var avgY = chartHeight - (avg / maxValue * chartHeight) + colNameBottomMargin;
-        DrawRefLine(context, avgText, chartHeight, avgY, width, new SolidColorBrush(themeColor));
+        var avgY = maxValue > 0
+            ? chartHeight - (avg / maxValue * chartHeight) + colNameBottomMargin
+            : chartHeight + colNameBottomMargin;
+        var midY = chartHeight / 2 + colNameBottomMargin;
+
+        DrawReferenceLines(
+            context,
+            chartHeight,
+            colNameBottomMargin,
+            width,
+            [
+                (_owner.Maximum, colNameBottomMargin, grayBrush, 0),
+                (_owner.Median, midY, grayBrush, 2),
+                (avgText, avgY, new SolidColorBrush(themeColor), 1)
+            ]);
 
         if (hasSelection)
             StrokeColumnBand(context, selectedIndex, height, selectedHalo, SelectedHaloWidth, selectedStroke);
@@ -548,21 +557,116 @@ public class ColumnChartCanvas : Control
     private static double GetBandRadius(Rect rect) =>
         Math.Min(BandRadius, Math.Min(rect.Width, rect.Height) / 2);
 
-    private void DrawRefLine(DrawingContext context, string text, double chartHeight, double yFromTop, double canvasWidth, IBrush color)
+    internal readonly record struct ReferenceLabelSlot(double LineY, double Height, int Priority);
+
+    /// <summary>
+    /// 为同一右侧纵轴的多条参考线分配互不重叠的文本 Top 坐标，
+    /// 保持虚线仍在真实数值线处，仅避让文本标签本身。
+    /// </summary>
+    internal static double[] ResolveReferenceLabelPositions(
+        IReadOnlyList<ReferenceLabelSlot> slots,
+        double minY,
+        double maxY,
+        double minGap = 2.0)
     {
-        if (string.IsNullOrEmpty(text)) return;
+        if (slots.Count == 0) return [];
 
-        var formattedText = CreateFormattedText(text, 12, color);
-        var textX = canvasWidth - formattedText.Width;
-        var textY = yFromTop - formattedText.Height / 2;
+        var resolved = new double[slots.Count];
+        if (maxY < minY) maxY = minY;
 
-        if (textY < 0) textY = 0;
-        if (textY + formattedText.Height > chartHeight + 5) textY = chartHeight + 5 - formattedText.Height;
+        var ordered = new List<(int Index, double LineY, double Height, int Priority, double Top)>(slots.Count);
+        for (var i = 0; i < slots.Count; i++)
+        {
+            var slot = slots[i];
+            var maxTop = Math.Max(minY, maxY - slot.Height);
+            var desiredTop = Math.Clamp(slot.LineY - slot.Height / 2, minY, maxTop);
+            ordered.Add((i, slot.LineY, slot.Height, slot.Priority, desiredTop));
+        }
 
-        context.DrawText(formattedText, new Point(textX, textY));
+        ordered.Sort((a, b) =>
+        {
+            var cmp = a.Top.CompareTo(b.Top);
+            if (cmp != 0) return cmp;
+            cmp = a.LineY.CompareTo(b.LineY);
+            return cmp != 0 ? cmp : a.Priority.CompareTo(b.Priority);
+        });
 
-        var dashPen = new Pen(color, 1.0, new DashStyle(new[] { 2.0, 5.0 }, 0));
-        context.DrawLine(dashPen, new Point(5, yFromTop), new Point(canvasWidth - 5 - formattedText.Width, yFromTop));
+        // 自上而下推开碰撞项
+        for (var i = 1; i < ordered.Count; i++)
+        {
+            var prev = ordered[i - 1];
+            var cur = ordered[i];
+            var minAllowed = prev.Top + prev.Height + minGap;
+            if (cur.Top < minAllowed)
+                ordered[i] = cur with { Top = minAllowed };
+        }
+
+        // 若底部溢出，从底向上回拉
+        var lastIdx = ordered.Count - 1;
+        var last = ordered[lastIdx];
+        if (last.Top + last.Height > maxY)
+        {
+            ordered[lastIdx] = last with { Top = Math.Max(minY, maxY - last.Height) };
+            for (var i = lastIdx - 1; i >= 0; i--)
+            {
+                var next = ordered[i + 1];
+                var cur = ordered[i];
+                var maxAllowed = next.Top - minGap - cur.Height;
+                if (cur.Top > maxAllowed)
+                    ordered[i] = cur with { Top = Math.Max(minY, maxAllowed) };
+            }
+        }
+
+        foreach (var item in ordered)
+            resolved[item.Index] = Math.Max(minY, item.Top);
+
+        return resolved;
+    }
+
+    private void DrawReferenceLines(
+        DrawingContext context,
+        double chartHeight,
+        double colNameBottomMargin,
+        double canvasWidth,
+        IReadOnlyList<(string Text, double LineY, IBrush Color, int Priority)> items)
+    {
+        var active = new List<(FormattedText FormattedText, double LineY, IBrush Color, int Priority)>(items.Count);
+        foreach (var item in items)
+        {
+            if (string.IsNullOrEmpty(item.Text)) continue;
+            active.Add((CreateFormattedText(item.Text, 12, item.Color), item.LineY, item.Color, item.Priority));
+        }
+
+        if (active.Count == 0) return;
+
+        var slots = active.Select(a => new ReferenceLabelSlot(a.LineY, a.FormattedText.Height, a.Priority)).ToList();
+        var maxY = Math.Max(chartHeight + colNameBottomMargin, chartHeight + 5);
+        var labelTops = ResolveReferenceLabelPositions(slots, 0, maxY);
+
+        for (var i = 0; i < active.Count; i++)
+        {
+            var item = active[i];
+            var labelTop = labelTops[i];
+            var textX = Math.Max(0, canvasWidth - item.FormattedText.Width);
+            context.DrawText(item.FormattedText, new Point(textX, labelTop));
+
+            // 避开所有与当前参考线在同一水平带内的标签文本，避免虚线穿字
+            var maxBlockedWidth = 0.0;
+            for (var j = 0; j < active.Count; j++)
+            {
+                var otherTop = labelTops[j];
+                var otherBottom = otherTop + active[j].FormattedText.Height;
+                if (item.LineY >= otherTop - 1 && item.LineY <= otherBottom + 1)
+                    maxBlockedWidth = Math.Max(maxBlockedWidth, active[j].FormattedText.Width);
+            }
+
+            var lineEndX = canvasWidth - 5 - maxBlockedWidth;
+            if (lineEndX > 5)
+            {
+                var dashPen = new Pen(item.Color, 1.0, new DashStyle(new[] { 2.0, 5.0 }, 0));
+                context.DrawLine(dashPen, new Point(5, item.LineY), new Point(lineEndX, item.LineY));
+            }
+        }
     }
 
     private static FormattedText CreateFormattedText(string text, double size, IBrush foreground,

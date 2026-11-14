@@ -64,6 +64,8 @@ public class HeatGrid : Control
     private const double Gap = 2;
     private const double ColumnLabelHeight = 15;
     private const double MinLabelSpacing = 26;
+    private const double MinRowCellHeight = 14;
+    private const double IdealRowCellHeight = 16;
 
     private static readonly IBrush FallbackAccent = new SolidColorBrush(Color.Parse("#C08AC9"));
 
@@ -73,6 +75,8 @@ public class HeatGrid : Control
     {
         AffectsRender<HeatGrid>(RowsProperty, ColumnLabelsProperty, MaxValueProperty, AccentBrushProperty,
             TextBrushProperty, MutedTextBrushProperty, HoverBrushProperty, EmptyTextProperty, RowLabelWidthProperty,
+            MaxCellHeightProperty, SquareCellsProperty);
+        AffectsMeasure<HeatGrid>(RowsProperty, ColumnLabelsProperty, RowLabelWidthProperty,
             MaxCellHeightProperty, SquareCellsProperty);
     }
 
@@ -144,9 +148,54 @@ public class HeatGrid : Control
 
     protected override Size MeasureOverride(Size availableSize)
     {
+        var rows = Rows?.Where(r => r?.Cells is { Count: > 0 }).ToList() ?? [];
+        var labels = ColumnLabels ?? [];
+        var columnCount = rows.Count > 0 ? Math.Max(rows.Max(r => r.Cells.Count), labels.Length) : labels.Length;
+        return MeasurePreferredSize(availableSize, rows.Count, columnCount, MaxCellHeight, SquareCells, RowLabelWidth);
+    }
+
+    internal static Size MeasurePreferredSize(
+        Size availableSize,
+        int rowCount,
+        int columnCount,
+        double maxCellHeight,
+        bool squareCells,
+        double rowLabelWidth)
+    {
         var width = double.IsInfinity(availableSize.Width) ? 320 : availableSize.Width;
-        var height = double.IsInfinity(availableSize.Height) ? 200 : availableSize.Height;
+        if (rowCount <= 0)
+        {
+            var emptyHeight = double.IsInfinity(availableSize.Height) ? 160 : availableSize.Height;
+            return new Size(width, emptyHeight);
+        }
+
+        double targetCellHeight;
+        if (squareCells && columnCount > 0)
+        {
+            var effectiveLabelWidth = Math.Clamp(rowLabelWidth, 0, width / 3);
+            var plotWidth = Math.Max(0, width - effectiveLabelWidth);
+            var cellWidth = Math.Max(MinRowCellHeight, (plotWidth - Gap * (columnCount - 1)) / columnCount);
+            targetCellHeight = Math.Clamp(cellWidth, MinRowCellHeight, Math.Max(MinRowCellHeight, maxCellHeight));
+        }
+        else
+        {
+            targetCellHeight = Math.Clamp(IdealRowCellHeight, MinRowCellHeight, Math.Max(MinRowCellHeight, maxCellHeight));
+        }
+
+        var minNeededHeight = rowCount * MinRowCellHeight + Gap * Math.Max(0, rowCount - 1) + ColumnLabelHeight;
+        var preferredHeight = rowCount * targetCellHeight + Gap * Math.Max(0, rowCount - 1) + ColumnLabelHeight;
+
+        var height = double.IsInfinity(availableSize.Height)
+            ? Math.Max(140, preferredHeight)
+            : Math.Max(minNeededHeight, availableSize.Height);
+
         return new Size(width, height);
+    }
+
+    internal static int ComputeRowLabelStep(double rowPitch, double labelHeight)
+    {
+        if (rowPitch <= 0 || labelHeight <= 0) return 1;
+        return Math.Max(1, (int)Math.Ceiling((labelHeight + 1) / rowPitch));
     }
 
     public override void Render(DrawingContext context)
@@ -194,11 +243,18 @@ public class HeatGrid : Control
 
         DrawColumnLabels(context, labels, rowLabelWidth, cellWidth, height);
 
+        var rowLabelStep = 1;
+        if (rowLabelWidth > 0 && rows.Count > 0)
+        {
+            var sampleLabel = MakeText(rows[0].Label, 10, MutedTextBrush ?? TextBrush);
+            rowLabelStep = ComputeRowLabelStep(cellHeight + Gap, sampleLabel.Height);
+        }
+
         for (var row = 0; row < rows.Count; row++)
         {
             var y = offsetY + row * (cellHeight + Gap);
 
-            if (rowLabelWidth > 0)
+            if (rowLabelWidth > 0 && row % rowLabelStep == 0)
             {
                 var text = MakeText(rows[row].Label, 10, MutedTextBrush ?? TextBrush);
                 context.DrawText(text, new Point(rowLabelWidth - text.Width - 6,

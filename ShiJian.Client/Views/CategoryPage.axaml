@@ -586,6 +586,7 @@
                                                 HorizontalAlignment="Left" VerticalAlignment="Top">
                                             <base:Img Width="22" Height="22" DecodeWidth="24" Radius="6"
                                                       URL="{Binding Icon}"
+                                                      FallbackText="{Binding FallbackText}"
                                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"

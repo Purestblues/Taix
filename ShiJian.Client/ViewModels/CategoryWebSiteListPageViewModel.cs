@@ -11,6 +11,7 @@ using ShiJian.Client.Controls.Window;
 using ShiJian.Client.Events;
 using ShiJian.Client.Foundation;
 using ShiJian.Client.Foundation.Rx;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Models;
 using ShiJian.Client.Shared.Librarys;
 using ShiJian.Client.Servicers.Interfaces;
@@ -70,7 +71,8 @@ public class CategoryWebSiteListPageViewModel : CategoryWebSiteListPageModel
         DelCommand = AsyncRelayCommand.CreateFromTask<object>(OnDelAsync).DisposeWith(Disposables);
 
         _searchSubscription = ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.SearchInput)
-            .Throttle(TimeSpan.FromMilliseconds(500))
+            .Skip(1)
+            .Throttle(TimeSpan.FromMilliseconds(150))
             .ObserveOn(AvaloniaContextScheduler.Instance)
             .Subscribe(DoSearch);
         _searchSubscription.DisposeWith(Disposables);
@@ -112,30 +114,53 @@ public class CategoryWebSiteListPageViewModel : CategoryWebSiteListPageModel
     {
         var unsetList = await _webDataService.GetUnSetCategoryWebSitesAsync();
         cancellationToken.ThrowIfCancellationRequested();
-        var combinedList = (unsetList ?? []).Concat(CategoryWebSiteList ?? [])
-            .OrderByDescending(m => m.CategoryID == Category.ID)
-            .ThenBy(m => m.Title)
-            .ToList();
-
-        var optionList = new List<OptionModel>();
-        foreach (var site in combinedList)
-        {
-            optionList.Add(new OptionModel
-            {
-                IsChecked = site.CategoryID == Category.ID,
-                OptionValue = new SelectItemModel
-                {
-                    Name = $"{site.Title} - {site.Domain}",
-                    Img = site.IconFile
-                },
-                WebSite = site
-            });
-        }
+        var optionList = BuildChooserOptions(unsetList, CategoryWebSiteList, Category?.ID ?? 0);
         _webSiteOptionsTemp = optionList;
 
         WebSiteOptionList.Clear();
         foreach (var item in _webSiteOptionsTemp)
             WebSiteOptionList.Add(item);
+    }
+
+    internal static List<OptionModel> BuildChooserOptions(
+        IEnumerable<WebSiteModel>? unsetList,
+        IEnumerable<WebSiteModel>? currentCategoryList,
+        int categoryId)
+    {
+        var combinedList = (unsetList ?? [])
+            .Concat(currentCategoryList ?? [])
+            .Where(s => s != null && (!string.IsNullOrWhiteSpace(s.Title) || !string.IsNullOrWhiteSpace(s.Domain)))
+            .GroupBy(s => s.ID)
+            .Select(g => g.First())
+            .OrderByDescending(m => m.CategoryID == categoryId)
+            .ThenBy(m => m.Title, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(m => m.Domain, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+
+        var optionList = new List<OptionModel>(combinedList.Count);
+        foreach (var site in combinedList)
+        {
+            optionList.Add(new OptionModel
+            {
+                IsChecked = site.CategoryID == categoryId,
+                OptionValue = new SelectItemModel
+                {
+                    Name = FormatSiteOptionName(site),
+                    Img = site.IconFile
+                },
+                WebSite = site
+            });
+        }
+        return optionList;
+    }
+
+    private static string FormatSiteOptionName(WebSiteModel site)
+    {
+        var title = (site.Title ?? string.Empty).Trim();
+        var domain = (site.Domain ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(title)) return domain;
+        if (string.IsNullOrEmpty(domain) || string.Equals(title, domain, StringComparison.OrdinalIgnoreCase)) return title;
+        return $"{title} - {domain}";
     }
 
     private async Task OnDelAsync(object obj)
@@ -166,18 +191,23 @@ public class CategoryWebSiteListPageViewModel : CategoryWebSiteListPageModel
 
     private void DoSearch(string? keyword)
     {
-        if (string.IsNullOrEmpty(keyword))
-        {
-            SyncToList(_webSiteOptionsTemp);
-            return;
-        }
-
-        var filtered = _webSiteOptionsTemp
-            .Where(m =>
-                (!string.IsNullOrEmpty(m.WebSite.Title) && WildcardHelper.IsMatch(m.WebSite.Title, keyword)) ||
-                (!string.IsNullOrEmpty(m.WebSite.Domain) && WildcardHelper.IsMatch(m.WebSite.Domain, keyword)))
-            .ToList();
+        var filtered = FilterChooserOptions(_webSiteOptionsTemp, keyword);
         SyncToList(filtered);
+    }
+
+    internal static List<OptionModel> FilterChooserOptions(List<OptionModel> source, string? keyword)
+    {
+        var trimmed = (keyword ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmed))
+            return source;
+
+        return source
+            .Where(m => CategoryEntityViewHelper.MatchesSearchWithAlias(
+                trimmed,
+                m.WebSite.Title,
+                m.WebSite.Domain,
+                m.WebSite.Alias))
+            .ToList();
     }
 
     private void SyncToList(List<OptionModel> targetList)
@@ -196,7 +226,7 @@ public class CategoryWebSiteListPageViewModel : CategoryWebSiteListPageModel
         {
             if (toAdd.Contains(item))
             {
-                WebSiteOptionList.Insert(insertIndex, item);
+                WebSiteOptionList.Insert(Math.Min(insertIndex, WebSiteOptionList.Count), item);
             }
             insertIndex++;
         }

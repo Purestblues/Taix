@@ -346,6 +346,11 @@ public class SettingPageTests
                 .ToList();
             Assert.True(modalScrolls.Count >= 2);
             Assert.All(modalScrolls, sv => Assert.True(sv.ClipToBounds));
+
+            var toggles = page.GetVisualDescendants()
+                .OfType<ShiJian.Client.Controls.Toggle.Toggle>()
+                .ToList();
+            Assert.Contains(toggles, t => t.OnText == "开" && t.OffText == "关");
         }
         finally
         {
@@ -353,11 +358,54 @@ public class SettingPageTests
         }
     }
 
+    [Fact]
+    public void SettingPageViewModel_MergeGroupErrorClearsWhenTwoMembersSelected()
+    {
+        var apps = new IReadOnlyCollection<ShiJian.Client.Shared.Models.AppModel>[]
+        {
+            new List<ShiJian.Client.Shared.Models.AppModel>
+            {
+                new() { ID = 1, Name = "Code", Description = "Visual Studio Code", TotalTime = 1200 },
+                new() { ID = 2, Name = "devenv", Description = "Visual Studio", TotalTime = 600 }
+            }
+        }[0];
+        var vm = CreateViewModel(
+            appDataHandlers: new Dictionary<string, Func<object?[], object?>>
+            {
+                [nameof(ShiJian.Client.Shared.Servicers.Interfaces.IAppData.GetAllAppsAsync)] =
+                    _ => Task.FromResult<IReadOnlyCollection<ShiJian.Client.Shared.Models.AppModel>>(apps)
+            },
+            webSiteDataHandlers: new Dictionary<string, Func<object?[], object?>>
+            {
+                [nameof(ShiJian.Client.Shared.Servicers.Interfaces.IWebSiteData.GetAllWebSitesAsync)] =
+                    _ => Task.FromResult<IReadOnlyCollection<ShiJian.Client.Shared.Models.Web.WebSiteModel>>([])
+            });
+
+        vm.OpenCreateMergeGroupCommand.Execute(null);
+        Assert.True(vm.MergeEditorVisible);
+        Assert.Equal(2, vm.MergeEditorCandidates.Count);
+
+        vm.MergeEditorName = "IDE 套件";
+        vm.ToggleMergeCandidateCommand.Execute(vm.MergeEditorCandidates[0]);
+        vm.SaveMergeGroupCommand.Execute(null);
+
+        Assert.True(vm.HasMergeEditorError);
+        Assert.False(string.IsNullOrEmpty(vm.MergeEditorError));
+
+        vm.ToggleMergeCandidateCommand.Execute(vm.MergeEditorCandidates[1]);
+
+        Assert.Equal(2, vm.MergeEditorSelectedMembers.Count);
+        Assert.False(vm.HasMergeEditorError);
+        Assert.Equal(string.Empty, vm.MergeEditorError);
+    }
+
     private static ShiJian.Client.ViewModels.SettingPageViewModel CreateViewModel(
         Dictionary<string, Func<object?[], object?>>? dialogHandlers = null,
         Dictionary<string, Func<object?[], object?>>? dataHandlers = null,
         Dictionary<string, Func<object?[], object?>>? webDataHandlers = null,
-        Dictionary<string, Func<object?[], object?>>? apiHandlers = null)
+        Dictionary<string, Func<object?[], object?>>? apiHandlers = null,
+        Dictionary<string, Func<object?[], object?>>? appDataHandlers = null,
+        Dictionary<string, Func<object?[], object?>>? webSiteDataHandlers = null)
     {
         var config = new ConfigModel();
         var appConfig = StubProxy<ShiJian.Client.Shared.Servicers.Interfaces.IAppConfig>.Create(new Dictionary<string, Func<object?[], object?>>
@@ -368,8 +416,8 @@ public class SettingPageTests
         var toast = StubProxy<ShiJian.Client.Servicers.Interfaces.IToastService>.Create(new());
         var data = StubProxy<ShiJian.Client.Shared.Servicers.Interfaces.IData>.Create(dataHandlers ?? []);
         var webData = StubProxy<ShiJian.Client.Shared.Servicers.Interfaces.IWebData>.Create(webDataHandlers ?? []);
-        var appData = StubProxy<ShiJian.Client.Shared.Servicers.Interfaces.IAppData>.Create(new());
-        var webSiteData = StubProxy<ShiJian.Client.Shared.Servicers.Interfaces.IWebSiteData>.Create(new());
+        var appData = StubProxy<ShiJian.Client.Shared.Servicers.Interfaces.IAppData>.Create(appDataHandlers ?? []);
+        var webSiteData = StubProxy<ShiJian.Client.Shared.Servicers.Interfaces.IWebSiteData>.Create(webSiteDataHandlers ?? []);
         var dialog = StubProxy<ShiJian.Client.Servicers.Interfaces.IDialogService>.Create(dialogHandlers ?? []);
         var process = StubProxy<ShiJian.Client.Servicers.Interfaces.IProcessService>.Create(new());
         var uiServicer = StubProxy<ShiJian.Client.Servicers.IUIServicer>.Create(new());

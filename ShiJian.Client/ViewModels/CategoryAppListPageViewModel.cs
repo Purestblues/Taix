@@ -60,6 +60,13 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
             if (e.PropertyName == nameof(MainSearchInput))
                 FilterMainData();
         };
+
+        ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.SearchInput)
+            .Skip(1)
+            .Throttle(TimeSpan.FromMilliseconds(150))
+            .ObserveOn(AvaloniaContextScheduler.Instance)
+            .Subscribe(keyword => _ = OnSearchAsync(keyword))
+            .DisposeWith(Disposables);
     }
 
     public ICommand ShowChooseCommand { get; }
@@ -99,12 +106,6 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
     private Task OnSearchAsync(object? obj)
     {
         var keyword = obj?.ToString() ?? SearchInput;
-
-        if (keyword == "vscode")
-            keyword = "Visual Studio Code";
-        else if (keyword == "ps")
-            keyword = "Photoshop";
-
         return SearchAsync(keyword);
     }
 
@@ -200,62 +201,86 @@ public class CategoryAppListPageViewModel : CategoryAppListPageModel
 
         if (Category == null) return;
         var allApps = await _appDataService.GetAllAppsAsync();
-        foreach (var item in allApps)
-        {
-            var app = new ChooseAppModel
-            {
-                App = item,
-                IsChoosed = item.CategoryID == Category.Data.ID,
-                Value =
-                {
-                    Name = item.GetDisplayName(),
-                    Img = item.IconFile
-                }
-            };
-
-            if (app.IsChoosed || item.Category?.IsSystem == true) _appList.Add(app);
-        }
-
-        _appList = _appList
-            .OrderByDescending(m => m.IsChoosed)
-            .ThenBy(m => m.App.Description)
-            .ToList();
+        _appList = BuildCandidateOptions(allApps, Category.Data.ID);
         AppList = _appList;
     }
 
-    private Task SearchAsync(string keyword)
+    internal static List<ChooseAppModel> BuildCandidateOptions(IEnumerable<AppModel>? allApps, int categoryId)
     {
-        if (string.IsNullOrEmpty(keyword))
+        if (allApps == null) return [];
+
+        var seenIds = new HashSet<int>();
+        var seenDisplayKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var result = new List<ChooseAppModel>();
+
+        // 已选中或累计时长高的记录优先作为代表，消除空白项与同进程/同名重复卡片
+        var ordered = allApps
+            .Where(a => a != null && seenIds.Add(a.ID))
+            .Where(a => a.CategoryID == categoryId || a.Category?.IsSystem == true)
+            .OrderByDescending(a => a.CategoryID == categoryId)
+            .ThenByDescending(a => a.TotalTime)
+            .ThenBy(a => a.ID);
+
+        foreach (var item in ordered)
         {
-            AppList = _appList;
-            return Task.CompletedTask;
+            var displayName = (item.GetDisplayName() ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(displayName)) continue;
+
+            var processName = (item.Name ?? string.Empty).Trim();
+            var dedupeKey = $"{displayName}\0{processName}";
+            if (!seenDisplayKeys.Add(dedupeKey)) continue;
+
+            result.Add(new ChooseAppModel
+            {
+                App = item,
+                IsChoosed = item.CategoryID == categoryId,
+                Value =
+                {
+                    Name = displayName,
+                    Img = item.IconFile
+                }
+            });
         }
 
-        keyword = keyword.ToLower();
-        var filtered = _appList.Where(item =>
-            (item.App.Description != null && item.App.Description.ToLower().Contains(keyword)) ||
-            (item.App.Name != null && item.App.Name.ToLower().Contains(keyword))
-        ).ToList();
+        return result
+            .OrderByDescending(m => m.IsChoosed)
+            .ThenBy(m => m.Value.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToList();
+    }
 
-        AppList = filtered;
+    internal static List<ChooseAppModel> FilterCandidateOptions(List<ChooseAppModel> source, string? keyword)
+    {
+        var trimmed = (keyword ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmed))
+            return source;
+
+        return source.Where(item => CategoryEntityViewHelper.MatchesSearchWithAlias(
+            trimmed,
+            item.App.Alias,
+            item.App.Description,
+            item.App.Name,
+            item.Value.Name)).ToList();
+    }
+
+    private Task SearchAsync(string? keyword)
+    {
+        AppList = FilterCandidateOptions(_appList, keyword);
         return Task.CompletedTask;
     }
 
     private void FilterMainData()
     {
-        if (string.IsNullOrEmpty(MainSearchInput))
+        var trimmed = (MainSearchInput ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmed))
         {
             Data = MainPageOriginalData;
             return;
         }
 
-        var keyword = MainSearchInput.ToLower();
-        var filtered = MainPageOriginalData.Where(m =>
-            (m.Alias != null && m.Alias.ToLower().Contains(keyword)) ||
-            (m.Description != null && m.Description.ToLower().Contains(keyword)) ||
-            (m.Name != null && m.Name.ToLower().Contains(keyword))
-        ).ToList();
-
-        Data = filtered;
+        Data = MainPageOriginalData.Where(m => CategoryEntityViewHelper.MatchesSearchWithAlias(
+            trimmed,
+            m.Alias,
+            m.Description,
+            m.Name)).ToList();
     }
 }

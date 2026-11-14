@@ -48,6 +48,39 @@ public static class CategoryEntityViewHelper
         ["ps"] = "Photoshop",
     };
 
+    public static string? ResolveSearchAlias(string? keyword)
+    {
+        var trimmed = (keyword ?? string.Empty).Trim();
+        return !string.IsNullOrEmpty(trimmed) && AliasHints.TryGetValue(trimmed, out var alias)
+            ? alias
+            : null;
+    }
+
+    public static bool MatchesSearch(string? text, string? query)
+    {
+        var trimmed = (query ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmed)) return true;
+        if (string.IsNullOrEmpty(text)) return false;
+
+        if (text.Contains(trimmed, StringComparison.OrdinalIgnoreCase)) return true;
+        return (trimmed.Contains('*') || trimmed.Contains('?'))
+            && WildcardHelper.IsMatch(text, trimmed);
+    }
+
+    public static bool MatchesSearchWithAlias(string? query, params string?[] fields)
+    {
+        var trimmed = (query ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(trimmed)) return true;
+
+        var alias = ResolveSearchAlias(trimmed);
+        foreach (var field in fields)
+        {
+            if (MatchesSearch(field, trimmed)) return true;
+            if (alias != null && MatchesSearch(field, alias)) return true;
+        }
+        return false;
+    }
+
     public static List<CategoryEntityRow> BuildAppRows(
         IReadOnlyCollection<AppModel> apps,
         IReadOnlyList<CategoryModel> categories,
@@ -270,9 +303,6 @@ public static class CategoryEntityViewHelper
         EntitySortMode sortMode)
     {
         var query = (keyword ?? string.Empty).Trim();
-        var aliased = !string.IsNullOrEmpty(query) && AliasHints.TryGetValue(query, out var mapped)
-            ? mapped
-            : null;
 
         IEnumerable<CategoryEntityRow> filtered = rows;
         if (filterMode == EntityFilterMode.Uncategorized)
@@ -282,7 +312,8 @@ public static class CategoryEntityViewHelper
 
         if (!string.IsNullOrEmpty(query))
         {
-            filtered = filtered.Where(r => Matches(r, query) || (aliased != null && Matches(r, aliased)));
+            filtered = filtered.Where(r => MatchesSearchWithAlias(
+                query, r.Name, r.Subtitle, r.CategoryName, r.MemberTooltip));
         }
 
         return sortMode switch
@@ -308,16 +339,6 @@ public static class CategoryEntityViewHelper
                 .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList()
         };
-    }
-
-    private static bool Matches(CategoryEntityRow row, string keyword)
-    {
-        if (row.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)) return true;
-        if (row.Subtitle.Contains(keyword, StringComparison.OrdinalIgnoreCase)) return true;
-        if (row.CategoryName.Contains(keyword, StringComparison.OrdinalIgnoreCase)) return true;
-        if (!string.IsNullOrEmpty(row.MemberTooltip) &&
-            row.MemberTooltip.Contains(keyword, StringComparison.OrdinalIgnoreCase)) return true;
-        return WildcardHelper.IsMatch(row.Name, keyword) || WildcardHelper.IsMatch(row.Subtitle, keyword);
     }
 
     private static Dictionary<int, int> BuildTodaySecondsMap(EntityListModel? entityList, bool isSite)

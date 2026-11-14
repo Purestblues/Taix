@@ -269,18 +269,29 @@
                                                    Width="22" Height="22"
                                                    VerticalAlignment="Center"
                                                    Command="{Binding GoPreviousCommand, RelativeSource={RelativeSource TemplatedParent}}" />
-                                <Border Padding="8,5"
-                                        CornerRadius="6"
+                                <Button Padding="8,5"
                                         MinWidth="96"
                                         Background="Transparent"
-                                        Cursor="Hand">
-                                    <Interaction.Behaviors>
-                                        <EventTriggerBehavior EventName="PointerPressed">
-                                            <InvokeCommandAction
-                                                Command="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:DateSelect}},
-										Path=ShowSelectCommand}" />
-                                        </EventTriggerBehavior>
-                                    </Interaction.Behaviors>
+                                        Cursor="Hand"
+                                        Command="{Binding ShowSelectCommand, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Padding="{TemplateBinding Padding}"
+                                                    MinWidth="{TemplateBinding MinWidth}"
+                                                    CornerRadius="6"
+                                                    Background="{TemplateBinding Background}">
+                                                <ContentPresenter Content="{TemplateBinding Content}"
+                                                                  ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                                  HorizontalContentAlignment="Center"
+                                                                  VerticalContentAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                    <Button.Styles>
+                                        <Style Selector="Button:pointerover">
+                                            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+                                        </Style>
+                                    </Button.Styles>
                                     <StackPanel Orientation="Horizontal"
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center">
@@ -289,7 +300,7 @@
                                         <TextBlock Foreground="{DynamicResource StandardTextBrush}"
                                                    Text="{TemplateBinding DateStr}" VerticalAlignment="Center" Margin="5,0,0,0" />
                                     </StackPanel>
-                                </Border>
+                                </Button>
                                 <button:IconButton Icon="ChevronRight" FontSize="10"
                                                    Width="24" Height="24"
                                                    VerticalAlignment="Center"

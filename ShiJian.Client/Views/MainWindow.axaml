@@ -286,7 +286,8 @@
                         <na:NavigationItem Icon="Settings"
                                            SelectedIcon="SettingsSolid"
                                            Title="{DynamicResource SideSetting}"
-                                           Uri="SettingsPage"
+                                           Uri="SettingPage"
+                                           IsSelected="{Binding IsSettingSelected, Mode=OneWay}"
                                            Command="{Binding GotoPageCommand}"
                                            CommandParameter="SettingPage" />
                     </na:Navigation.BottomExtContent>
@@ -360,7 +361,7 @@
                                 Margin="6,0,0,0"
                                 VerticalAlignment="Center"
                                 Command="{Binding CloseCommand}"
-                                ToolTip.Tip="{DynamicResource SearchTipClose}">
+                                ToolTip.Tip="{DynamicResource Close}">
                             <TextBlock Text="esc"
                                        FontSize="10"
                                        FontWeight="SemiBold"

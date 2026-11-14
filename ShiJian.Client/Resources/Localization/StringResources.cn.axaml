@@ -230,9 +230,9 @@
     <system:String x:Key="SearchResults">搜索结果</system:String>
     <system:String x:Key="SearchResultCount">共 {0} 项</system:String>
     <system:String x:Key="SearchTipEnter">回车 跳转</system:String>
-    <system:String x:Key="SearchTipNav">↑↓ 选择</system:String>
+    <system:String x:Key="SearchTipNav">选择</system:String>
     <system:String x:Key="SearchTipExpand">展开/收起</system:String>
-    <system:String x:Key="SearchTipClose">Esc 关闭</system:String>
+    <system:String x:Key="SearchTipClose">关闭</system:String>
 
 
     <system:String x:Key="TimeRangeSelectionError">时间范围选择错误</system:String>
@@ -554,6 +554,8 @@
     <system:String x:Key="WebDavTitle">WebDAV 云同步</system:String>
     <system:String x:Key="WebDavSubtitle">将 .shijian-backup 快照自动同步至坚果云、Nextcloud 等标准 WebDAV 网盘，并支持跨设备增量合并</system:String>
     <system:String x:Key="WebDavEnable">启用 WebDAV 自动同步</system:String>
+    <system:String x:Key="ToggleOn">开</system:String>
+    <system:String x:Key="ToggleOff">关</system:String>
     <system:String x:Key="WebDavServerUrl">服务器地址</system:String>
     <system:String x:Key="WebDavServerUrlPlaceholder">例如 https://dav.jianguoyun.com/dav/</system:String>
     <system:String x:Key="WebDavRemoteFolder">远端目录</system:String>

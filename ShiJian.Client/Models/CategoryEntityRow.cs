@@ -22,6 +22,8 @@ public class CategoryEntityRow : ModelBase
 
     public string? Icon { get; init; }
 
+    public string FallbackText => IsSite && !string.IsNullOrWhiteSpace(Subtitle) ? Subtitle : Name;
+
     public int TodaySeconds { get; init; }
 
     public int TotalSeconds { get; init; }

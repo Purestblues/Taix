@@ -11,7 +11,7 @@
 | --- | --- |
 | 发布 | [`v1.3.4-fork.9`](https://github.com/Purestblues/shijian/releases/tag/v1.3.4-fork.9)（Setup.exe / 绿色版 zip / macOS dmg，均由 GitHub Actions 产出）；仓库已改为 [Purestblues/shijian](https://github.com/Purestblues/shijian) |
 | 验证程度 | Windows 客户端逐项实测；macOS 产物只验证过「能构建」，未实机运行 |
-| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）122 个用例；CI 里先跑测试再打包 |
+| 自动化测试 | `ShiJian.Tests`（xunit v3 + Avalonia.Headless）190 个用例；CI 里先跑测试再打包 |
 | 上游同步 | 已停：2026-11 改名后不再 rebase 上游（基线仍是 v1.3.4） |
 | 代码规模 | 客户端 308 个 `.cs`、69 个 `.axaml`，0 处 TODO/FIXME |
 
@@ -255,21 +255,21 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       1. [x] 默认永久保留（移除界面 1 年保留选项与服务端 `AppSessions` 过期清理，已实现，未发版）；
       2. [x] 支持数据自由导入/导出（`.shijian-backup` 基于 SQLite `VACUUM INTO` 一致性快照 + `manifest.json` + SHA-256 校验 + 图标打包，支持 `merge`/`replace` 与导入前本地自动回滚快照，保留可选 CSV 表格导出）；
       3. [x] 新增 WebDAV 云同步功能（支持坚果云/Nextcloud 等标准 WebDAV 服务器测试连接、手动/启动/每小时/每天定时同步、跨设备增量合并与云端历史选择恢复）。
-- [ ] **N14** 全站 UI 设计语言重做：重做卡片设计、圆角、材质、Dock 栏样式、字体与配色等整体设计语言（待功能结构与 `M7.5` 实测缺陷收口定型后单开大版本推进）
+- [ ] **N14** 全站 UI 设计语言重做：重做卡片设计、圆角、材质、Dock 栏样式、字体与配色等整体设计语言（`M7.5` 实测缺陷已收口，待单开大版本推进）
 
-### M7.5 · `/gui-verify` 全功能实测缺陷收口（`fork.14.5`，待开工）
+### M7.5 · `/gui-verify` 全功能实测缺陷收口（`fork.14.5`，已完成，未发版）
 
-> 对应 2026-11-14 全功能模拟点击与输入验证报告（完整上下文与改进方案见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md) 第九节）。
+> 对应 2026-11-14 全功能模拟点击与输入验证报告（完整上下文与改进方案见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md) 第九节），已完成修复、回归测试与 `/gui-verify` 实机复验。
 
-- [ ] **G14 [P0]** 修复概览页「今日」`IndexPageViewModel.LoadRangeAsync`（第 277 行 `Skip`/`Take`）偶发 `ArgumentOutOfRangeException`：加非负边界兜底、排查并发状态竞争、补全异常提示兜底与单测
-- [ ] **G15 [P1]** 修复统计页 `ColumnChart`（`ChartPage.axaml:239`）固定 `Height="310"` 裁切多行图例：改为随图例行数自适应高度
-- [ ] **G16 [P1]** 修复 `ColumnChart` 参考线（`midY` / `avgY` / `Maximum`）标签垂直碰撞重叠：引入最小行距避让逻辑
-- [ ] **G17 [P1]** 修复详细页年视图 `HeatGrid` 12 行（`1月`–`12月`）行高过密与标签挤压：设定最小行高或合理高度分配策略
-- [ ] **G18 [P1]** 修复 `选择应用` / `选择站点` 弹窗搜索：站点侧改用默认子串 `Contains` 匹配、应用侧对齐实时防抖过滤，并清洗空名称与重复项
-- [ ] **G19 [P1]** 修复侧边栏高亮不同步：统一设置项 `Uri="SettingPage"`，并在 `MainViewModel` 监听页面路由同步清除或切换主导航激活态
-- [ ] **G20 [P2]** 修复概览页「自定义」日期 `DateSelect` 居中胶囊点击弹出日历面板问题
-- [ ] **G21 [P2]** 排查并统一「分类 → 应用与网站」图标管线与 `Imager` 损坏 `.ico` 缓存降级（减少日志噪音、统一首字母色块回退）
-- [ ] **G22 [P2]** 收口 3 处界面状态/文案细节：① 合并组选满 2 项清除红字报错；② WebDAV 开关补齐中文 `OnText`/`OffText` 绑定；③ `Ctrl+K` 底栏去除重复键名文本
+- [x] **G14 [P0]** 修复概览页「今日」`IndexPageViewModel.LoadRangeAsync`（`BuildOverviewRankings` `Skip`/`Take`）偶发 `ArgumentOutOfRangeException`：加非负与区间边界兜底、异常提示兜底与单测
+- [x] **G15 [P1]** 修复统计页 `ColumnChart` 固定高度裁切多行图例：放开 `Height` 自适应并随图例行数扩展容器高度
+- [x] **G16 [P1]** 修复 `ColumnChart` 参考线（`midY` / `avgY` / `Maximum`）标签垂直碰撞重叠：引入标签避让偏移逻辑
+- [x] **G17 [P1]** 修复详细页年视图 `HeatGrid` 12 行（`1月`–`12月`）行高过密与标签挤压：设定最小可读行高与滚动布局配合
+- [x] **G18 [P1]** 修复 `选择应用` / `选择站点` 弹窗搜索：站点与分类弹窗统一支持子串实时过滤，并在构建候选项时清洗空白名称与重复项
+- [x] **G19 [P1]** 修复侧边栏高亮不同步：统一设置项导航标识与 `MainViewModel.SyncNavigationSelection`，切换设置页/二级详情页/`Ctrl+K` 跳页时正确同步或清除高亮
+- [x] **G20 [P2]** 修复概览页「自定义」日期 `DateSelect` 居中胶囊点击弹出日历面板问题
+- [x] **G21 [P2]** 统一「分类 → 应用与网站」实体图标回退并优化 `Imager` 无效文件预校验与失败键缓存，消除 `NullReferenceException` 降级日志噪音
+- [x] **G22 [P2]** 收口 3 处界面状态/文案细节：① 合并组选满 2 项即时清除红字报错；② WebDAV 开关补齐中文 `OnText`（`开`）/ `OffText`（`关`）；③ `Ctrl+K` 底栏去除重复键名文本
 
 ### M4 · 工程化（3/4 完成）
 

@@ -8,6 +8,9 @@
         <Setter Property="FontSize" Value="14" />
         <Setter Property="Background" Value="Transparent" />
         <Styles>
+            <Style Selector="controls|ColumnChart[IsShowCategory=True] /template/ Border#ChartBorder">
+                <Setter Property="MinHeight" Value="230" />
+            </Style>
             <Style Selector="controls|ColumnChart[IsShowCategory=True] /template/ Grid#CategoryLegend">
                 <Setter Property="IsVisible" Value="True" />
             </Style>
@@ -128,11 +131,10 @@
 
                     <!-- category legend -->
                     <Grid Grid.Row="2" IsHitTestVisible="False" Focusable="False"
-                          Margin="0,5,0,0" x:Name="CategoryLegend" IsVisible="False"
-                          Height="70">
+                          Margin="0,8,0,0" x:Name="CategoryLegend" IsVisible="False">
                         <ListBox ItemsSource="{TemplateBinding ColumnInfoList}"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 ScrollViewer.VerticalScrollBarVisibility="Hidden">
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
                             <ListBox.ItemsPanel>
                                 <ItemsPanelTemplate>
                                     <WrapPanel />
@@ -144,7 +146,7 @@
                                         <ControlTemplate>
                                             <Border>
                                                 <ScrollViewer HorizontalScrollBarVisibility="Disabled"
-                                                              VerticalScrollBarVisibility="Hidden">
+                                                              VerticalScrollBarVisibility="Disabled">
                                                     <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}" />
                                                 </ScrollViewer>
                                             </Border>

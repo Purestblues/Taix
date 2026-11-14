@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -59,11 +60,32 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
 #endif
 
         ObservablePropertyChangedExtensions.WhenPropertyChanged(this, x => x.Uri)
-            .Where(uri => uri == nameof(IndexPage))
-            .Subscribe(_ => Data = null)
+            .Subscribe(uri =>
+            {
+                if (uri == nameof(IndexPage)) Data = null;
+                SyncNavigationSelection(uri);
+            })
             .DisposeWith(_disposables);
 
         InitNavigation();
+    }
+
+    /// <summary>
+    /// 根据当前页面 Uri 同步左侧边栏高亮状态：主导航页激活对应图标，设置页激活底部设置项，
+    /// 详情页或子页面（如 Ctrl+K 跳转 DetailPage、分类下钻列表）清空侧栏主导航高亮。
+    /// </summary>
+    internal void SyncNavigationSelection(string? uri)
+    {
+        IsSettingSelected = string.Equals(uri, nameof(SettingPage), StringComparison.Ordinal);
+
+        var matching = string.IsNullOrEmpty(uri)
+            ? null
+            : Items?.FirstOrDefault(item => string.Equals(item.Uri, uri, StringComparison.Ordinal));
+
+        if (!ReferenceEquals(NavSelectedItem, matching))
+        {
+            NavSelectedItem = matching;
+        }
     }
 
     private void StartConnectionMonitoring()
