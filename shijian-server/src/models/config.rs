@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 /// - v4: 添加 WindowGradientScheme, IsSaveWindowSize, InactiveThreshold, MaxSoundDuration
 /// - v5: 添加 MotionMode（客户端动效开关，0 跟随系统 / 1 始终开启 / 2 始终关闭）
 /// - v6: 添加 DefaultBrowser（历史站点记录没有浏览器标识时归属给谁）
-pub const CURRENT_CONFIG_VERSION: u32 = 6;
+/// - v7: 添加 WebDav 云同步配置（N15）
+pub const CURRENT_CONFIG_VERSION: u32 = 7;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -25,6 +26,8 @@ pub struct ConfigModel {
     pub behavior: BehaviorModel,
     #[serde(rename = "Shortcut")]
     pub shortcut: ShortcutModel,
+    #[serde(rename = "WebDav")]
+    pub webdav: WebDavModel,
 }
 
 impl Default for ConfigModel {
@@ -34,6 +37,7 @@ impl Default for ConfigModel {
             general: GeneralModel::default(),
             behavior: BehaviorModel::default(),
             shortcut: ShortcutModel::default(),
+            webdav: WebDavModel::default(),
         }
     }
 }
@@ -62,6 +66,18 @@ impl ConfigModel {
             || self.behavior.max_sound_duration > 480
             || self.behavior.max_sound_duration % 15 != 0 {
             return Err("声音持续时间必须在 15 到 480 分钟之间，且为 15 的倍数".to_string());
+        }
+
+        let webdav_url = self.webdav.url.trim();
+        if !webdav_url.is_empty()
+            && !webdav_url.starts_with("http://")
+            && !webdav_url.starts_with("https://")
+        {
+            return Err("WebDAV 地址必须以 http:// 或 https:// 开头".to_string());
+        }
+
+        if self.webdav.enabled && webdav_url.is_empty() {
+            return Err("启用 WebDAV 云同步前请先填写服务器地址".to_string());
         }
 
         Ok(())
@@ -188,6 +204,46 @@ impl Default for ShortcutModel {
             refresh: "F5".to_string(),
             search: "Ctrl+K".to_string(),
             navigate_back: "Alt+Left".to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct WebDavModel {
+    #[serde(rename = "Enabled")]
+    pub enabled: bool,
+    #[serde(rename = "Url")]
+    pub url: String,
+    #[serde(rename = "Username")]
+    pub username: String,
+    #[serde(rename = "Password")]
+    pub password: String,
+    #[serde(rename = "RemoteFolder")]
+    pub remote_folder: String,
+    /// 同步策略: "manual" | "startup" | "hourly" | "daily"
+    #[serde(rename = "SyncMode")]
+    pub sync_mode: String,
+    #[serde(rename = "MergeOnSync")]
+    pub merge_on_sync: bool,
+    #[serde(rename = "LastSyncAtUtc")]
+    pub last_sync_at_utc: String,
+    #[serde(rename = "LastSyncStatus")]
+    pub last_sync_status: String,
+}
+
+impl Default for WebDavModel {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: String::new(),
+            username: String::new(),
+            password: String::new(),
+            remote_folder: "ShiJian".to_string(),
+            sync_mode: "manual".to_string(),
+            merge_on_sync: true,
+            last_sync_at_utc: String::new(),
+            last_sync_status: String::new(),
         }
     }
 }

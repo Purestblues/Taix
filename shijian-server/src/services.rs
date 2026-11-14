@@ -1,6 +1,8 @@
 pub mod app_data;
 pub mod app_timer;
 pub mod auto_category;
+pub mod backup;
+pub mod backup_zip;
 pub mod category;
 pub mod category_summary;
 pub mod config;
@@ -9,3 +11,4 @@ pub mod data;
 pub mod entity;
 pub mod web_data;
 pub mod web_domain;
+pub mod webdav;

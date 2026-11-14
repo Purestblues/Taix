@@ -13,6 +13,7 @@ namespace ShiJian.Client;
 [JsonSerializable(typeof(GeneralModel))]
 [JsonSerializable(typeof(BehaviorModel))]
 [JsonSerializable(typeof(ShortcutModel))]
+[JsonSerializable(typeof(WebDavModel))]
 [JsonSerializable(typeof(List<string>))]
 [JsonSerializable(typeof(ObservableCollection<string>))]
 [JsonSerializable(typeof(GithubRelease.GithubModel))]

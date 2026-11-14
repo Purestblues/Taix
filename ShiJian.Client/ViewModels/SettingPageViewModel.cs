@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using ShiJian.Client.Controls.Base;
@@ -9,12 +12,14 @@ using ShiJian.Client.Controls.Window;
 using ShiJian.Client.Foundation;
 using ShiJian.Client.Foundation.Rx;
 using ShiJian.Client.Librarys;
+using ShiJian.Client.Librarys.Api;
 using ShiJian.Client.Logging;
 using ShiJian.Client.Models;
 using ShiJian.Client.Platform.Abstractions.Primitives;
 using ShiJian.Client.Servicers.Interfaces;
 using ShiJian.Client.Servicers.Updater;
 using ShiJian.Client.Shared.Event;
+using ShiJian.Client.Shared.Helpers;
 using ShiJian.Client.Shared.Models.Config;
 using ShiJian.Client.Shared.Models.Data;
 using ShiJian.Client.Shared.Servicers.Interfaces;
@@ -35,10 +40,13 @@ public class SettingPageViewModel : SettingPageModel
     private readonly IEntityData _entityData;
     private readonly INavigationService _navigationService;
     private readonly IStateService _stateService;
+    private readonly IShiJianApiClient _apiClient;
 
     /// <summary>与 <c>BrowserOptions</c> 一一对应的浏览器标识（第一项是空串 = 自动推荐）</summary>
     private readonly List<string> _browserReferences = [];
     private bool _isLoadingBrowsers;
+    private bool _isLoadingWebDav;
+    private CancellationTokenSource? _webDavSaveDebounceCts;
     private readonly IToastService _toastService;
     private readonly ConfigModel _config;
     private List<MergeCandidateRow> _allMergeCandidates = [];
@@ -57,7 +65,8 @@ public class SettingPageViewModel : SettingPageModel
         IAppMergeService appMergeService,
         IEntityData entityData,
         INavigationService navigationService,
-        IStateService stateService)
+        IStateService stateService,
+        IShiJianApiClient apiClient)
     {
         _appConfig = appConfig;
         _toastService = toastService;
@@ -72,11 +81,20 @@ public class SettingPageViewModel : SettingPageModel
         _entityData = entityData;
         _navigationService = navigationService;
         _stateService = stateService;
+        _apiClient = apiClient;
         _config = appConfig.GetConfig();
 
         OpenURL = AsyncRelayCommand.Create<object>(OnOpenURL).DisposeWith(Disposables);
         DelDataCommand = AsyncRelayCommand.CreateFromTask<object>(OnDelDataAsync).DisposeWith(Disposables);
         ExportDataCommand = AsyncRelayCommand.CreateFromTask<object>(OnExportDataAsync).DisposeWith(Disposables);
+        ExportCsvCommand = AsyncRelayCommand.CreateFromTask<object>(OnExportCsvAsync).DisposeWith(Disposables);
+        ImportBackupCommand = AsyncRelayCommand.CreateFromTask<object>(OnImportBackupAsync).DisposeWith(Disposables);
+        TestWebDavCommand = AsyncRelayCommand.CreateFromTask(OnTestWebDavAsync).DisposeWith(Disposables);
+        SyncWebDavCommand = AsyncRelayCommand.CreateFromTask(OnSyncWebDavAsync).DisposeWith(Disposables);
+        LoadWebDavBackupsCommand = AsyncRelayCommand.CreateFromTask(OnLoadWebDavBackupsAsync).DisposeWith(Disposables);
+        RestoreWebDavMergeCommand = AsyncRelayCommand.CreateFromTask<object>(item => OnRestoreWebDavBackupAsync(item, "merge")).DisposeWith(Disposables);
+        RestoreWebDavReplaceCommand = AsyncRelayCommand.CreateFromTask<object>(item => OnRestoreWebDavBackupAsync(item, "replace")).DisposeWith(Disposables);
+        CloseWebDavRemoteModalCommand = AsyncRelayCommand.Create<object>(_ => { WebDavRemoteModalVisible = false; }).DisposeWith(Disposables);
         CheckUpdate = AsyncRelayCommand.CreateFromTask(OnCheckUpdateAsync).DisposeWith(Disposables);
         DissolveMergeGroupCommand = AsyncRelayCommand.CreateFromTask<object>(OnDissolveMergeGroupAsync).DisposeWith(Disposables);
         ResetMergeGroupsCommand = AsyncRelayCommand.CreateFromTask<object>(OnResetMergeGroupsAsync).DisposeWith(Disposables);
@@ -98,6 +116,14 @@ public class SettingPageViewModel : SettingPageModel
             FilterMergeCandidates();
             return Task.CompletedTask;
         });
+
+        WhenPropertyChanged(this, x => x.WebDavEnabled, _ => OnWebDavImmediateSettingChangedAsync());
+        WhenPropertyChanged(this, x => x.WebDavMergeOnSync, _ => OnWebDavImmediateSettingChangedAsync());
+        WhenPropertyChanged(this, x => x.SelectedWebDavSyncMode, _ => OnWebDavImmediateSettingChangedAsync());
+        WhenPropertyChanged(this, x => x.WebDavUrl, _ => OnWebDavDebouncedTextChangedAsync());
+        WhenPropertyChanged(this, x => x.WebDavRemoteFolder, _ => OnWebDavDebouncedTextChangedAsync());
+        WhenPropertyChanged(this, x => x.WebDavUsername, _ => OnWebDavDebouncedTextChangedAsync());
+        WhenPropertyChanged(this, x => x.WebDavPassword, _ => OnWebDavDebouncedTextChangedAsync());
     }
 
     public ICommand DissolveMergeGroupCommand { get; }
@@ -497,6 +523,14 @@ public class SettingPageViewModel : SettingPageModel
     public ICommand CheckUpdate { get; }
     public ICommand DelDataCommand { get; }
     public ICommand ExportDataCommand { get; }
+    public ICommand ExportCsvCommand { get; }
+    public ICommand ImportBackupCommand { get; }
+    public ICommand TestWebDavCommand { get; }
+    public ICommand SyncWebDavCommand { get; }
+    public ICommand LoadWebDavBackupsCommand { get; }
+    public ICommand RestoreWebDavMergeCommand { get; }
+    public ICommand RestoreWebDavReplaceCommand { get; }
+    public ICommand CloseWebDavRemoteModalCommand { get; }
 
     private void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
     {
@@ -508,6 +542,7 @@ public class SettingPageViewModel : SettingPageModel
             if (TabbarData.Count > 3) TabbarData[3] = ResourceStrings.SettingTabData;
             if (TabbarData.Count > 4) TabbarData[4] = ResourceStrings.SettingTabAbout;
             OnPropertyChanged(nameof(TabbarData));
+            RefreshWebDavSyncModeOptions();
         }
 
         // 别处编辑了 Shortcut 也同步刷新本地输入框
@@ -516,6 +551,11 @@ public class SettingPageViewModel : SettingPageModel
             OnPropertyChanged(nameof(RefreshShortcut));
             OnPropertyChanged(nameof(SearchShortcut));
             OnPropertyChanged(nameof(NavigateBackShortcut));
+        }
+
+        if (e.HasAnyChange("WebDav.Enabled", "WebDav.Url", "WebDav.SyncMode", "WebDav.LastSyncAtUtc"))
+        {
+            LoadWebDavFromConfig();
         }
     }
 
@@ -535,6 +575,129 @@ public class SettingPageViewModel : SettingPageModel
         DelDataEndMonthDate = DateTime.Now;
         ExportDataStartMonthDate = DateTime.Now;
         ExportDataEndMonthDate = DateTime.Now;
+        RefreshWebDavSyncModeOptions();
+        LoadWebDavFromConfig();
+    }
+
+    private static readonly string[] WebDavSyncModes = ["manual", "startup", "hourly", "daily"];
+
+    private void RefreshWebDavSyncModeOptions()
+    {
+        var currentKey = ResolveWebDavSyncModeKey();
+        _isLoadingWebDav = true;
+        try
+        {
+            var options = new List<SelectItemModel>
+            {
+                new() { Id = 0, Name = ResourceStrings.WebDavSyncModeManual },
+                new() { Id = 1, Name = ResourceStrings.WebDavSyncModeStartup },
+                new() { Id = 2, Name = ResourceStrings.WebDavSyncModeHourly },
+                new() { Id = 3, Name = ResourceStrings.WebDavSyncModeDaily }
+            };
+            WebDavSyncModeOptions = options;
+            var idx = Array.FindIndex(WebDavSyncModes, m => string.Equals(m, currentKey, StringComparison.OrdinalIgnoreCase));
+            SelectedWebDavSyncMode = options[idx < 0 ? 0 : idx];
+            UpdateWebDavStatusText();
+        }
+        finally
+        {
+            _isLoadingWebDav = false;
+        }
+    }
+
+    private string ResolveWebDavSyncModeKey()
+    {
+        if (SelectedWebDavSyncMode != null && SelectedWebDavSyncMode.Id >= 0 && SelectedWebDavSyncMode.Id < WebDavSyncModes.Length)
+            return WebDavSyncModes[SelectedWebDavSyncMode.Id];
+        return _config.WebDav?.SyncMode ?? "manual";
+    }
+
+    private void LoadWebDavFromConfig()
+    {
+        _isLoadingWebDav = true;
+        try
+        {
+            _config.WebDav ??= new WebDavModel();
+            var dav = _config.WebDav;
+            WebDavEnabled = dav.Enabled;
+            WebDavUrl = dav.Url ?? string.Empty;
+            WebDavRemoteFolder = string.IsNullOrWhiteSpace(dav.RemoteFolder) ? "ShiJian" : dav.RemoteFolder;
+            WebDavUsername = dav.Username ?? string.Empty;
+            WebDavPassword = dav.Password ?? string.Empty;
+            WebDavMergeOnSync = dav.MergeOnSync;
+            var idx = Array.FindIndex(WebDavSyncModes, m => string.Equals(m, dav.SyncMode ?? "manual", StringComparison.OrdinalIgnoreCase));
+            if (WebDavSyncModeOptions.Count > 0)
+                SelectedWebDavSyncMode = WebDavSyncModeOptions[idx < 0 ? 0 : idx];
+            UpdateWebDavStatusText();
+        }
+        finally
+        {
+            _isLoadingWebDav = false;
+        }
+    }
+
+    private void ApplyWebDavFieldsToConfig()
+    {
+        _config.WebDav ??= new WebDavModel();
+        _config.WebDav.Enabled = WebDavEnabled;
+        _config.WebDav.Url = WebDavUrl?.Trim() ?? string.Empty;
+        _config.WebDav.RemoteFolder = string.IsNullOrWhiteSpace(WebDavRemoteFolder) ? "ShiJian" : WebDavRemoteFolder.Trim();
+        _config.WebDav.Username = WebDavUsername?.Trim() ?? string.Empty;
+        _config.WebDav.Password = WebDavPassword ?? string.Empty;
+        _config.WebDav.SyncMode = ResolveWebDavSyncModeKey();
+        _config.WebDav.MergeOnSync = WebDavMergeOnSync;
+    }
+
+    private async Task OnWebDavImmediateSettingChangedAsync()
+    {
+        if (_isLoadingWebDav) return;
+        ApplyWebDavFieldsToConfig();
+        await _appConfig.SaveAsync();
+    }
+
+    private async Task OnWebDavDebouncedTextChangedAsync()
+    {
+        if (_isLoadingWebDav) return;
+        ApplyWebDavFieldsToConfig();
+
+        _webDavSaveDebounceCts?.Cancel();
+        _webDavSaveDebounceCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _webDavSaveDebounceCts = cts;
+        try
+        {
+            await Task.Delay(450, cts.Token);
+            ApplyWebDavFieldsToConfig();
+            await _appConfig.SaveAsync();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task FlushWebDavConfigAsync()
+    {
+        _webDavSaveDebounceCts?.Cancel();
+        _webDavSaveDebounceCts?.Dispose();
+        _webDavSaveDebounceCts = null;
+        ApplyWebDavFieldsToConfig();
+        await _appConfig.SaveAsync();
+    }
+
+    private void UpdateWebDavStatusText()
+    {
+        var dav = _config.WebDav;
+        if (dav == null || string.IsNullOrWhiteSpace(dav.LastSyncAtUtc))
+        {
+            WebDavStatusText = ResourceStrings.WebDavNeverSynced;
+            return;
+        }
+
+        var displayTime = DateTimeOffset.TryParse(dav.LastSyncAtUtc, out var dto)
+            ? dto.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture)
+            : dav.LastSyncAtUtc;
+        var status = string.IsNullOrWhiteSpace(dav.LastSyncStatus) ? "OK" : dav.LastSyncStatus;
+        WebDavStatusText = string.Format(ResourceStrings.WebDavLastSyncFormat, displayTime, status);
     }
 
     private async Task OnDelDataAsync(object obj)
@@ -556,10 +719,44 @@ public class SettingPageViewModel : SettingPageModel
         }
     }
 
+    /// <summary>主导出动作：生成 `.shijian-backup`（SQLite VACUUM INTO + SHA-256 + manifest + 图标包）</summary>
     private async Task OnExportDataAsync(object obj)
     {
         try
         {
+            var suggestedName = $"shijian-backup-{DateTime.Now:yyyyMMdd-HHmm}.shijian-backup";
+            var filePath = await _dialogService.ShowSaveFilePickerAsync(
+                suggestedName,
+                ".shijian-backup",
+                ResourceStrings.BackupFileFilter,
+                ["*.shijian-backup"],
+                ResourceStrings.ExportData);
+            if (string.IsNullOrEmpty(filePath)) return;
+
+            var (data, _) = await _apiClient.ExportBackupAsync(
+                includeIcons: true,
+                appVersion: AppVersionHelper.GetDisplayVersion());
+            await File.WriteAllBytesAsync(filePath, data);
+            _toastService.Success(string.Format(ResourceStrings.BackupExportSuccess, Path.GetFileName(filePath)));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Toast(string.Format(ResourceStrings.BackupExportFailed, ex.Message), ToastType.Error, IconTypes.IncidentTriangle);
+        }
+    }
+
+    /// <summary>可选表格导出：按选定月份范围导出应用与网页明细为 CSV</summary>
+    private async Task OnExportCsvAsync(object obj)
+    {
+        try
+        {
+            if (ExportDataStartMonthDate > ExportDataEndMonthDate)
+            {
+                _toastService.Toast(ResourceStrings.TimeRangeSelectionError, ToastType.Error, IconTypes.IncidentTriangle);
+                return;
+            }
+
             var folder = await _dialogService.ShowFolderPickerAsync();
             if (string.IsNullOrEmpty(folder)) return;
 
@@ -576,6 +773,213 @@ public class SettingPageViewModel : SettingPageModel
         }
     }
 
+    /// <summary>从 `.shijian-backup` 校验完整性并执行 merge / replace 导入恢复（导入前服务端自动生成本地回滚点）</summary>
+    private async Task OnImportBackupAsync(object obj)
+    {
+        try
+        {
+            var filePath = await _dialogService.ShowOpenFilePickerAsync(
+                ResourceStrings.BackupFileFilter,
+                ["*.shijian-backup"],
+                ResourceStrings.ChooseBackupFile);
+            if (string.IsNullOrEmpty(filePath)) return;
+
+            var bytes = await File.ReadAllBytesAsync(filePath);
+            var inspect = await _apiClient.InspectBackupAsync(bytes);
+            if (!inspect.Valid || !inspect.Compatible)
+            {
+                var reason = !string.IsNullOrWhiteSpace(inspect.CompatibilityNote)
+                    ? inspect.CompatibilityNote
+                    : (!inspect.Sha256Verified ? "SHA-256 mismatch" : "Integrity check failed");
+                _toastService.Toast(string.Format(ResourceStrings.BackupInvalidFile, reason), ToastType.Error, IconTypes.IncidentTriangle);
+                return;
+            }
+
+            var createdAt = DateTimeOffset.TryParse(inspect.Manifest.CreatedAtUtc, out var dto)
+                ? dto.LocalDateTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.CurrentCulture)
+                : inspect.Manifest.CreatedAtUtc;
+            var counts = inspect.Manifest.Counts;
+            var summary = string.Format(
+                ResourceStrings.BackupInspectSummary,
+                createdAt,
+                string.IsNullOrWhiteSpace(inspect.Manifest.DeviceName) ? "-" : inspect.Manifest.DeviceName,
+                inspect.Manifest.AppVersion,
+                inspect.Manifest.SchemaVersion,
+                counts.Apps,
+                counts.DailyLogs,
+                counts.HoursLogs,
+                counts.WebSites,
+                counts.WebBrowseLogs,
+                counts.Categories,
+                FormatByteSize(bytes.LongLength));
+
+            var choice = await _dialogService.ShowActionDialogAsync(
+                ResourceStrings.BackupInspectTitle,
+                summary,
+                [ResourceStrings.BackupModeMerge, ResourceStrings.BackupModeReplace, ResourceStrings.Cancel]);
+            if (choice is not (0 or 1)) return;
+
+            var mode = choice == 0 ? "merge" : "replace";
+            var result = await _apiClient.ImportBackupAsync(bytes, mode);
+            await RefreshAfterImportAsync();
+
+            var modeLabel = mode == "merge" ? ResourceStrings.BackupModeMerge : ResourceStrings.BackupModeReplace;
+            _toastService.Success(string.Format(
+                ResourceStrings.BackupImportSuccess,
+                modeLabel,
+                result.Counts.DailyLogs,
+                result.Counts.HoursLogs,
+                result.Counts.WebBrowseLogs));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Toast(string.Format(ResourceStrings.BackupImportFailed, ex.Message), ToastType.Error, IconTypes.IncidentTriangle);
+        }
+    }
+
+    private async Task OnTestWebDavAsync()
+    {
+        if (string.IsNullOrWhiteSpace(WebDavUrl))
+        {
+            _toastService.Toast(ResourceStrings.WebDavUrlRequired, ToastType.Error, IconTypes.IncidentTriangle);
+            return;
+        }
+
+        WebDavBusy = true;
+        try
+        {
+            await FlushWebDavConfigAsync();
+            var res = await _apiClient.TestWebDavAsync(new WebDavTestRequest
+            {
+                Url = WebDavUrl.Trim(),
+                Username = WebDavUsername?.Trim() ?? string.Empty,
+                Password = WebDavPassword ?? string.Empty,
+                RemoteFolder = string.IsNullOrWhiteSpace(WebDavRemoteFolder) ? "ShiJian" : WebDavRemoteFolder.Trim()
+            });
+            if (res.Ok)
+            {
+                _toastService.Success(string.Format(ResourceStrings.WebDavTestSuccess, res.Message));
+            }
+            else
+            {
+                _toastService.Toast(string.Format(ResourceStrings.WebDavTestFailed, res.Message), ToastType.Error, IconTypes.IncidentTriangle);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Toast(string.Format(ResourceStrings.WebDavTestFailed, ex.Message), ToastType.Error, IconTypes.IncidentTriangle);
+        }
+        finally
+        {
+            WebDavBusy = false;
+        }
+    }
+
+    private async Task OnSyncWebDavAsync()
+    {
+        if (string.IsNullOrWhiteSpace(WebDavUrl))
+        {
+            _toastService.Toast(ResourceStrings.WebDavUrlRequired, ToastType.Error, IconTypes.IncidentTriangle);
+            return;
+        }
+
+        WebDavBusy = true;
+        try
+        {
+            await FlushWebDavConfigAsync();
+            var res = await _apiClient.SyncWebDavAsync(WebDavMergeOnSync, AppVersionHelper.GetDisplayVersion());
+            _config.WebDav.LastSyncAtUtc = res.SyncedAtUtc;
+            _config.WebDav.LastSyncStatus = res.Message;
+            UpdateWebDavStatusText();
+            if (res.MergedFiles.Count > 0)
+                await RefreshAfterImportAsync();
+
+            _toastService.Success(string.Format(ResourceStrings.WebDavSyncSuccess, res.MergedFiles.Count, res.UploadedFile));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Toast(string.Format(ResourceStrings.WebDavSyncFailed, ex.Message), ToastType.Error, IconTypes.IncidentTriangle);
+        }
+        finally
+        {
+            WebDavBusy = false;
+        }
+    }
+
+    private async Task OnLoadWebDavBackupsAsync()
+    {
+        if (string.IsNullOrWhiteSpace(WebDavUrl))
+        {
+            _toastService.Toast(ResourceStrings.WebDavUrlRequired, ToastType.Error, IconTypes.IncidentTriangle);
+            return;
+        }
+
+        WebDavBusy = true;
+        try
+        {
+            await FlushWebDavConfigAsync();
+            var list = await _apiClient.GetWebDavBackupsAsync();
+            WebDavRemoteBackups = new System.Collections.ObjectModel.ObservableCollection<RemoteBackupItem>(list);
+            OnPropertyChanged(nameof(HasWebDavRemoteBackups));
+            WebDavRemoteModalVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Toast(string.Format(ResourceStrings.WebDavTestFailed, ex.Message), ToastType.Error, IconTypes.IncidentTriangle);
+        }
+        finally
+        {
+            WebDavBusy = false;
+        }
+    }
+
+    private async Task OnRestoreWebDavBackupAsync(object? parameter, string mode)
+    {
+        if (parameter is not RemoteBackupItem item || string.IsNullOrWhiteSpace(item.FileName)) return;
+
+        WebDavBusy = true;
+        try
+        {
+            var result = await _apiClient.RestoreWebDavBackupAsync(item.FileName, mode);
+            WebDavRemoteModalVisible = false;
+            await RefreshAfterImportAsync();
+
+            var modeLabel = mode == "merge" ? ResourceStrings.BackupModeMerge : ResourceStrings.BackupModeReplace;
+            _toastService.Success(string.Format(
+                ResourceStrings.BackupImportSuccess,
+                modeLabel,
+                result.Counts.DailyLogs,
+                result.Counts.HoursLogs,
+                result.Counts.WebBrowseLogs));
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Toast(string.Format(ResourceStrings.BackupImportFailed, ex.Message), ToastType.Error, IconTypes.IncidentTriangle);
+        }
+        finally
+        {
+            WebDavBusy = false;
+        }
+    }
+
+    private async Task RefreshAfterImportAsync()
+    {
+        await LoadBrowsersAsync();
+        await LoadMergeGroupsAsync();
+    }
+
+    private static string FormatByteSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+        return $"{bytes / (1024.0 * 1024.0):F2} MB";
+    }
+
     private Task OnCheckUpdateAsync() => _updateCheckerService.ManualCheckForUpdatesAsync();
 
     private void OnOpenURL(object obj)
@@ -587,6 +991,8 @@ public class SettingPageViewModel : SettingPageModel
 
     public override void Dispose()
     {
+        _webDavSaveDebounceCts?.Cancel();
+        _webDavSaveDebounceCts?.Dispose();
         _appConfig.ConfigChanged -= OnConfigChanged;
         base.Dispose();
     }

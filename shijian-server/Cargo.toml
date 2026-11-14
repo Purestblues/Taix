@@ -31,6 +31,11 @@ attohttpc = { version = "0.28", default-features = false, features = ["tls-nativ
 resvg = { version = "0.47", default-features = false }
 regex = "1"
 shijian-plugin-manifest = { path = "../shijian-plugin-manifest" }
+base64 = "0.22"
+crc32fast = "1.5"
+flate2 = "1.1"
+roxmltree = "0.21"
+sha2 = "0.10"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

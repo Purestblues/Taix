@@ -12,6 +12,8 @@
              xmlns:SettingPanel="using:ShiJian.Client.Controls.SettingPanel"
              xmlns:input="using:ShiJian.Client.Controls.Input"
              xmlns:base="using:ShiJian.Client.Controls.Base"
+             xmlns:toggle="using:ShiJian.Client.Controls.Toggle"
+             xmlns:data="using:ShiJian.Client.Shared.Models.Data"
              x:Class="ShiJian.Client.Views.SettingPage">
 
     <Grid Margin="24" RowDefinitions="Auto,*">
@@ -227,7 +229,7 @@
 
                             <Border Classes="data-divider" />
 
-                            <!-- 导出数据 -->
+                            <!-- 导出完整备份 (.shijian-backup) -->
                             <Border Classes="data-row">
                                 <Border.Styles>
                                     <Style Selector="Border.data-row:pointerover">
@@ -237,7 +239,47 @@
                                 <Grid Classes="data-row-grid" ColumnDefinitions="*,Auto" ColumnSpacing="20">
                                     <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="3">
                                         <TextBlock Classes="data-title" Text="{DynamicResource ExportData}" />
-                                        <TextBlock Classes="data-desc" Text="{DynamicResource ExportTo}" />
+                                        <TextBlock Classes="data-desc" Text="{DynamicResource ExportTo}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Btn:Button Grid.Column="1" Icon="Share" Content="{DynamicResource Export}"
+                                                Padding="14,0" Height="32" VerticalAlignment="Center"
+                                                Command="{Binding ExportDataCommand}" />
+                                </Grid>
+                            </Border>
+
+                            <Border Classes="data-divider" />
+
+                            <!-- 导入备份 (.shijian-backup) -->
+                            <Border Classes="data-row">
+                                <Border.Styles>
+                                    <Style Selector="Border.data-row:pointerover">
+                                        <Setter Property="Background" Value="{DynamicResource SettingPanelHoverBrush}" />
+                                    </Style>
+                                </Border.Styles>
+                                <Grid Classes="data-row-grid" ColumnDefinitions="*,Auto" ColumnSpacing="20">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="3">
+                                        <TextBlock Classes="data-title" Text="{DynamicResource ImportBackup}" />
+                                        <TextBlock Classes="data-desc" Text="{DynamicResource ImportBackupDesc}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Btn:Button Grid.Column="1" Icon="Folder" Content="{DynamicResource ChooseBackupFile}"
+                                                Padding="14,0" Height="32" VerticalAlignment="Center"
+                                                Command="{Binding ImportBackupCommand}" />
+                                </Grid>
+                            </Border>
+
+                            <Border Classes="data-divider" />
+
+                            <!-- 可选表格导出 (CSV) -->
+                            <Border Classes="data-row">
+                                <Border.Styles>
+                                    <Style Selector="Border.data-row:pointerover">
+                                        <Setter Property="Background" Value="{DynamicResource SettingPanelHoverBrush}" />
+                                    </Style>
+                                </Border.Styles>
+                                <Grid Classes="data-row-grid" ColumnDefinitions="*,Auto" ColumnSpacing="20">
+                                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="3">
+                                        <TextBlock Classes="data-title" Text="{DynamicResource ExportCsv}" />
+                                        <TextBlock Classes="data-desc" Text="{DynamicResource ExportCsvDesc}" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -248,8 +290,8 @@
                                             <select:DateSelect Date="{Binding ExportDataEndMonthDate,Mode=TwoWay}" Margin="10,0"
                                                                SelectType="Month" />
                                         </StackPanel>
-                                        <Btn:Button Icon="Share" Content="{DynamicResource Export}"
-                                                    Width="80" Command="{Binding ExportDataCommand}" />
+                                        <Btn:Button Icon="ReportDocument" Content="{DynamicResource ExportCsv}"
+                                                    Padding="12,0" Height="32" Command="{Binding ExportCsvCommand}" />
                                     </StackPanel>
                                 </Grid>
                             </Border>
@@ -284,6 +326,98 @@
                                     </StackPanel>
                                 </Grid>
                             </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- WebDAV 云同步（N15.3） -->
+                    <Border Background="{DynamicResource CardBgBrush}"
+                            CornerRadius="{StaticResource RadiusMedium}"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
+                            BorderThickness="1"
+                            Padding="16,14">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
+                                    <TextBlock Text="{DynamicResource WebDavTitle}" FontSize="14" />
+                                    <TextBlock Text="{DynamicResource WebDavSubtitle}" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="{DynamicResource WebDavEnable}" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                                    <toggle:Toggle IsChecked="{Binding WebDavEnabled, Mode=TwoWay}" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="*,12,220" RowDefinitions="Auto,10,Auto" >
+                                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="{DynamicResource WebDavServerUrl}" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}" />
+                                    <input:InputBox Text="{Binding WebDavUrl, Mode=TwoWay}"
+                                                    Placeholder="{DynamicResource WebDavServerUrlPlaceholder}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="{DynamicResource WebDavRemoteFolder}" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}" />
+                                    <input:InputBox Text="{Binding WebDavRemoteFolder, Mode=TwoWay}"
+                                                    Placeholder="/ShiJian" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4">
+                                    <TextBlock Text="{DynamicResource WebDavUsername}" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}" />
+                                    <input:InputBox Text="{Binding WebDavUsername, Mode=TwoWay}" />
+                                </StackPanel>
+                                <StackPanel Grid.Row="2" Grid.Column="2" Spacing="4">
+                                    <TextBlock Text="{DynamicResource WebDavPassword}" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}" />
+                                    <input:InputBox Text="{Binding WebDavPassword, Mode=TwoWay}"
+                                                    PasswordChar="*" />
+                                </StackPanel>
+                            </Grid>
+
+                            <Grid ColumnDefinitions="Auto,16,*,Auto" ColumnSpacing="12">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="{DynamicResource WebDavSyncMode}" FontSize="12"
+                                               Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
+                                    <select:Select Options="{Binding WebDavSyncModeOptions}"
+                                                   SelectedItem="{Binding SelectedWebDavSyncMode, Mode=TwoWay}"
+                                                   MinWidth="150" />
+                                </StackPanel>
+                                <CheckBox Grid.Column="2"
+                                          IsChecked="{Binding WebDavMergeOnSync, Mode=TwoWay}"
+                                          Content="{DynamicResource WebDavMergeOnSync}"
+                                          FontSize="12"
+                                          VerticalAlignment="Center" />
+                            </Grid>
+
+                            <Border Height="1" Background="{DynamicResource SettingPanelSpliteLineBrush}" />
+
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding WebDavStatusText}"
+                                           FontSize="12"
+                                           Foreground="{DynamicResource SubTextBrush}"
+                                           TextTrimming="CharacterEllipsis"
+                                           VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                                    <Btn:Button Icon="Accept"
+                                                Content="{DynamicResource WebDavTestConnection}"
+                                                Padding="12,0" Height="30" FontSize="12"
+                                                IsEnabled="{Binding WebDavNotBusy}"
+                                                Command="{Binding TestWebDavCommand}" />
+                                    <Btn:Button Icon="DateTimeMirrored"
+                                                Content="{DynamicResource WebDavRemoteBackups}"
+                                                Padding="12,0" Height="30" FontSize="12"
+                                                IsEnabled="{Binding WebDavNotBusy}"
+                                                Command="{Binding LoadWebDavBackupsCommand}" />
+                                    <Btn:Button Icon="StockUp"
+                                                Content="{DynamicResource WebDavSyncNow}"
+                                                Padding="12,0" Height="30" FontSize="12"
+                                                IsEnabled="{Binding WebDavNotBusy}"
+                                                Command="{Binding SyncWebDavCommand}" />
+                                </StackPanel>
+                            </Grid>
                         </StackPanel>
                     </Border>
 
@@ -546,7 +680,7 @@
                                         Margin="0,0,0,8" />
 
                         <!-- 候选应用 + 网站列表 -->
-                        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" ClipToBounds="True">
                             <ItemsControl ItemsSource="{Binding MergeEditorCandidates}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="models:MergeCandidateRow">
@@ -605,6 +739,90 @@
                                     Content="{DynamicResource Save}"
                                     Width="90" Height="32"
                                     Command="{Binding SaveMergeGroupCommand}" />
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- WebDAV 云端备份历史弹窗（N15.3） -->
+        <Grid Grid.RowSpan="2"
+              IsVisible="{Binding WebDavRemoteModalVisible}"
+              Background="#66000000"
+              ZIndex="210">
+            <Border HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Width="620" MaxHeight="520"
+                    Background="{DynamicResource CardBgBrush}"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="20">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                        <TextBlock Grid.Column="0"
+                                   Text="{DynamicResource WebDavRemoteModalTitle}"
+                                   FontSize="16" FontWeight="SemiBold"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Background="Transparent" BorderThickness="0" Padding="6"
+                                Command="{Binding CloseWebDavRemoteModalCommand}">
+                            <base:Icon IconType="ChromeClose" FontSize="12" />
+                        </Button>
+                    </Grid>
+
+                    <Panel Grid.Row="1">
+                        <TextBlock Text="{DynamicResource WebDavRemoteEmpty}"
+                                   FontSize="13"
+                                   Foreground="{DynamicResource SubTextBrush}"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center"
+                                   IsVisible="{Binding !HasWebDavRemoteBackups}" />
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      ClipToBounds="True"
+                                      IsVisible="{Binding HasWebDavRemoteBackups}">
+                            <ItemsControl ItemsSource="{Binding WebDavRemoteBackups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="data:RemoteBackupItem">
+                                        <Border Padding="10,8"
+                                                Margin="0,0,0,6"
+                                                Background="{DynamicResource WindowBackground}"
+                                                CornerRadius="8"
+                                                BorderBrush="{DynamicResource SettingPanelSpliteLineBrush}"
+                                                BorderThickness="1">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                                                <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding FileName}" FontSize="13"
+                                                               TextTrimming="CharacterEllipsis" />
+                                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                                        <TextBlock Text="{Binding DeviceName}" FontSize="11"
+                                                                   Foreground="{DynamicResource SubTextBrush}" />
+                                                        <TextBlock Text="{Binding LastModified}" FontSize="11"
+                                                                   Foreground="{DynamicResource SubTextBrush}" />
+                                                    </StackPanel>
+                                                </StackPanel>
+                                                <Btn:Button Grid.Column="1"
+                                                            Content="{DynamicResource WebDavMergeRestore}"
+                                                            Padding="10,0" Height="28" FontSize="12"
+                                                            Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).RestoreWebDavMergeCommand}"
+                                                            CommandParameter="{Binding}" />
+                                                <Btn:Button Grid.Column="2"
+                                                            Content="{DynamicResource WebDavReplaceRestore}"
+                                                            Padding="10,0" Height="28" FontSize="12"
+                                                            Background="{DynamicResource DangerBrush}"
+                                                            Foreground="{DynamicResource OnAccentBrush}"
+                                                            Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).RestoreWebDavReplaceCommand}"
+                                                            CommandParameter="{Binding}" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Panel>
+
+                    <Grid Grid.Row="2" HorizontalAlignment="Right" Margin="0,12,0,0">
+                        <Btn:Button Content="{DynamicResource WebDavCloseModal}"
+                                    Width="90" Height="32"
+                                    Command="{Binding CloseWebDavRemoteModalCommand}" />
                     </Grid>
                 </Grid>
             </Border>

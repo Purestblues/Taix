@@ -60,6 +60,50 @@ public class UIServicer : IUIServicer, IDialogService
         return result?.Count > 0 ? result[0].Path.LocalPath : null;
     }
 
+    public async Task<string?> ShowSaveFilePickerAsync(
+        string suggestedFileName,
+        string defaultExtension,
+        string filterName,
+        string[] patterns,
+        string? title = null)
+    {
+        var window = GetMainWindow();
+        if (window == null) throw new InvalidOperationException("MainWindow is not available.");
+
+        var file = await window.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = title,
+            SuggestedFileName = suggestedFileName,
+            DefaultExtension = defaultExtension,
+            ShowOverwritePrompt = true,
+            FileTypeChoices =
+            [
+                new FilePickerFileType(filterName) { Patterns = patterns }
+            ]
+        });
+        return file?.Path.LocalPath;
+    }
+
+    public async Task<string?> ShowOpenFilePickerAsync(
+        string filterName,
+        string[] patterns,
+        string? title = null)
+    {
+        var window = GetMainWindow();
+        if (window == null) throw new InvalidOperationException("MainWindow is not available.");
+
+        var files = await window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType(filterName) { Patterns = patterns }
+            ]
+        });
+        return files?.Count > 0 ? files[0].Path.LocalPath : null;
+    }
+
     public async Task<CategoryResult?> ShowCreateCategoryDialogAsync(
         string title,
         string defaultName = null,

@@ -100,4 +100,15 @@ public interface IShiJianApiClient
     Task DissolveEntityMergeGroupAsync(int groupId);
     Task RenameEntityMergeGroupAsync(int groupId, string name);
     Task RestoreEntityMergeGroupsAsync();
+
+    // Backup & WebDAV（N15）
+    Task<(byte[] Data, string SuggestedFileName)> ExportBackupAsync(bool includeIcons = true, string? appVersion = null);
+    Task<BackupInspectResult> InspectBackupAsync(byte[] archiveBytes);
+    Task<BackupImportResult> ImportBackupAsync(byte[] archiveBytes, string mode = "merge");
+    Task<List<RollbackItem>> GetBackupRollbacksAsync();
+    Task<BackupImportResult> RollbackBackupAsync(string fileName);
+    Task<WebDavTestResult> TestWebDavAsync(WebDavTestRequest request);
+    Task<WebDavSyncResult> SyncWebDavAsync(bool? mergeOnSync = null, string? appVersion = null);
+    Task<List<RemoteBackupItem>> GetWebDavBackupsAsync();
+    Task<BackupImportResult> RestoreWebDavBackupAsync(string fileName, string mode = "merge");
 }

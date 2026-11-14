@@ -269,6 +269,29 @@ public static class ResourceStrings
     public static string InsightEntities => GetStringValue("InsightEntities");
     public static string CategoryHasEntities => GetStringValue("CategoryHasEntities");
     public static string ViewCategorySummary => GetStringValue("ViewCategorySummary");
+    public static string ExportData => GetStringValue("ExportData");
+    public static string BackupFileFilter => GetStringValue("BackupFileFilter");
+    public static string BackupExportSuccess => GetStringValue("BackupExportSuccess");
+    public static string BackupExportFailed => GetStringValue("BackupExportFailed");
+    public static string ChooseBackupFile => GetStringValue("ChooseBackupFile");
+    public static string BackupInspectTitle => GetStringValue("BackupInspectTitle");
+    public static string BackupInspectSummary => GetStringValue("BackupInspectSummary");
+    public static string BackupModeMerge => GetStringValue("BackupModeMerge");
+    public static string BackupModeReplace => GetStringValue("BackupModeReplace");
+    public static string BackupImportSuccess => GetStringValue("BackupImportSuccess");
+    public static string BackupImportFailed => GetStringValue("BackupImportFailed");
+    public static string BackupInvalidFile => GetStringValue("BackupInvalidFile");
+    public static string WebDavSyncModeManual => GetStringValue("WebDavSyncModeManual");
+    public static string WebDavSyncModeStartup => GetStringValue("WebDavSyncModeStartup");
+    public static string WebDavSyncModeHourly => GetStringValue("WebDavSyncModeHourly");
+    public static string WebDavSyncModeDaily => GetStringValue("WebDavSyncModeDaily");
+    public static string WebDavNeverSynced => GetStringValue("WebDavNeverSynced");
+    public static string WebDavLastSyncFormat => GetStringValue("WebDavLastSyncFormat");
+    public static string WebDavTestSuccess => GetStringValue("WebDavTestSuccess");
+    public static string WebDavTestFailed => GetStringValue("WebDavTestFailed");
+    public static string WebDavSyncSuccess => GetStringValue("WebDavSyncSuccess");
+    public static string WebDavSyncFailed => GetStringValue("WebDavSyncFailed");
+    public static string WebDavUrlRequired => GetStringValue("WebDavUrlRequired");
 
     private static string GetStringValue(string key)
     {

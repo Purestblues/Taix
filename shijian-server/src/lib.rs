@@ -24,6 +24,7 @@ use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
+use services::backup::BackupPaths;
 use services::config::ConfigService;
 
 pub fn parse_data_dir(args: &[String]) -> PathBuf {
@@ -51,6 +52,7 @@ pub fn create_app(
     config_service: Arc<ConfigService>,
     web_enabled_tx: tokio::sync::watch::Sender<bool>,
     plugin_state: Arc<plugins::PluginState>,
+    backup_paths: Arc<BackupPaths>,
     exe_dir: &Path,
 ) -> Router<()> {
     // Origin 校验用；与实际监听地址一致
@@ -82,6 +84,7 @@ pub fn create_app(
         .merge(routes::category::router())
         .merge(routes::category_summary::router())
         .merge(routes::app_timer::router())
+        .merge(routes::backup::router())
         .merge(routes::data::router())
         .merge(routes::entity::router())
         .merge(routes::web_data::router())
@@ -99,5 +102,6 @@ pub fn create_app(
         .layer(axum::extract::Extension(config_service))
         .layer(axum::extract::Extension(web_enabled_tx))
         .layer(axum::extract::Extension(plugin_state))
+        .layer(axum::extract::Extension(backup_paths))
         .with_state(pool)
 }

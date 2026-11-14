@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ShiJian.Client.Controls.Select;
 using ShiJian.Client.PageState;
+using ShiJian.Client.Shared.Models.Data;
 
 namespace ShiJian.Client.Models;
 
@@ -29,6 +30,18 @@ public partial class SettingPageModel : ModelBase
     private SelectItemModel? _selectedBrowser;
     private int _tabbarSelectedIndex;
     private string _version = string.Empty;
+    private bool _webDavEnabled;
+    private string _webDavUrl = string.Empty;
+    private string _webDavRemoteFolder = "/ShiJian";
+    private string _webDavUsername = string.Empty;
+    private string _webDavPassword = string.Empty;
+    private List<SelectItemModel> _webDavSyncModeOptions = [];
+    private SelectItemModel? _selectedWebDavSyncMode;
+    private bool _webDavMergeOnSync = true;
+    private string _webDavStatusText = string.Empty;
+    private bool _webDavBusy;
+    private bool _webDavRemoteModalVisible;
+    private ObservableCollection<RemoteBackupItem> _webDavRemoteBackups = [];
 
     public object? Data
     {
@@ -250,4 +263,140 @@ public partial class SettingPageModel : ModelBase
             OnPropertyChanged();
         }
     }
+
+    public bool WebDavEnabled
+    {
+        get => _webDavEnabled;
+        set
+        {
+            if (_webDavEnabled == value) return;
+            _webDavEnabled = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string WebDavUrl
+    {
+        get => _webDavUrl;
+        set
+        {
+            if (_webDavUrl == value) return;
+            _webDavUrl = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string WebDavRemoteFolder
+    {
+        get => _webDavRemoteFolder;
+        set
+        {
+            if (_webDavRemoteFolder == value) return;
+            _webDavRemoteFolder = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string WebDavUsername
+    {
+        get => _webDavUsername;
+        set
+        {
+            if (_webDavUsername == value) return;
+            _webDavUsername = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string WebDavPassword
+    {
+        get => _webDavPassword;
+        set
+        {
+            if (_webDavPassword == value) return;
+            _webDavPassword = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public List<SelectItemModel> WebDavSyncModeOptions
+    {
+        get => _webDavSyncModeOptions;
+        set
+        {
+            _webDavSyncModeOptions = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public SelectItemModel? SelectedWebDavSyncMode
+    {
+        get => _selectedWebDavSyncMode;
+        set
+        {
+            if (Equals(_selectedWebDavSyncMode, value)) return;
+            _selectedWebDavSyncMode = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool WebDavMergeOnSync
+    {
+        get => _webDavMergeOnSync;
+        set
+        {
+            if (_webDavMergeOnSync == value) return;
+            _webDavMergeOnSync = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string WebDavStatusText
+    {
+        get => _webDavStatusText;
+        set
+        {
+            if (_webDavStatusText == value) return;
+            _webDavStatusText = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public bool WebDavBusy
+    {
+        get => _webDavBusy;
+        set
+        {
+            if (_webDavBusy == value) return;
+            _webDavBusy = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(WebDavNotBusy));
+        }
+    }
+
+    public bool WebDavNotBusy => !_webDavBusy;
+
+    public bool WebDavRemoteModalVisible
+    {
+        get => _webDavRemoteModalVisible;
+        set
+        {
+            if (_webDavRemoteModalVisible == value) return;
+            _webDavRemoteModalVisible = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public ObservableCollection<RemoteBackupItem> WebDavRemoteBackups
+    {
+        get => _webDavRemoteBackups;
+        set
+        {
+            _webDavRemoteBackups = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(HasWebDavRemoteBackups));
+        }
+    }
+
+    public bool HasWebDavRemoteBackups => _webDavRemoteBackups.Count > 0;
 }

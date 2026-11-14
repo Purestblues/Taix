@@ -18,9 +18,13 @@ public partial class SettingPage : UserControl
     private SettingPageViewModel? _boundVm;
 
     public SettingPage()
+        : this(ServiceLocator.GetRequiredService<SettingPageViewModel>())
+    {
+    }
+
+    public SettingPage(SettingPageViewModel vm)
     {
         InitializeComponent();
-        var vm = ServiceLocator.GetRequiredService<SettingPageViewModel>();
         _boundVm = vm;
         vm.PropertyChanged += OnViewModelPropertyChanged;
         DataContext = vm;

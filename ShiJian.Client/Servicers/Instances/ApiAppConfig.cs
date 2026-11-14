@@ -69,7 +69,8 @@ public class ApiAppConfig : IAppConfig
         {
             General = new GeneralModel(),
             Behavior = new BehaviorModel(),
-            Shortcut = new ShortcutModel()
+            Shortcut = new ShortcutModel(),
+            WebDav = new WebDavModel()
         };
         ApplyConfig(fallback);
         _ = LoadFromRemoteAndApplyAsync();
@@ -187,8 +188,9 @@ public class ApiAppConfig : IAppConfig
 
     private void ApplyConfig(ConfigModel config)
     {
-        // 老服务端/老缓存可能缺 Shortcut 字段，归一化后再 apply，避免到处 ?? 兜底
+        // 老服务端/老缓存可能缺 Shortcut / WebDav 字段，归一化后再 apply，避免到处 ?? 兜底
         NormalizeShortcut(config);
+        config.WebDav ??= new WebDavModel();
 
         var previousConfig = _config;
         _config = config;
@@ -201,7 +203,8 @@ public class ApiAppConfig : IAppConfig
             {
                 General = new GeneralModel(),
                 Behavior = new BehaviorModel(),
-                Shortcut = new ShortcutModel()
+                Shortcut = new ShortcutModel(),
+                WebDav = new WebDavModel()
             };
             var changes = DetectChanges(emptyConfig, config);
             args = new ConfigChangedEventArgs(emptyConfig, config, changes);
@@ -235,7 +238,8 @@ public class ApiAppConfig : IAppConfig
             {
                 General = new GeneralModel(),
                 Behavior = new BehaviorModel(),
-                Shortcut = new ShortcutModel()
+                Shortcut = new ShortcutModel(),
+                WebDav = new WebDavModel()
             };
         }
 
@@ -346,6 +350,17 @@ public class ApiAppConfig : IAppConfig
             changes.Add("Shortcut.Search");
         if (oldShortcut.NavigateBack != nextShortcut.NavigateBack)
             changes.Add("Shortcut.NavigateBack");
+
+        var oldWebDav = old.WebDav ?? new WebDavModel();
+        var nextWebDav = next.WebDav ?? new WebDavModel();
+        if (oldWebDav.Enabled != nextWebDav.Enabled)
+            changes.Add("WebDav.Enabled");
+        if (oldWebDav.Url != nextWebDav.Url)
+            changes.Add("WebDav.Url");
+        if (oldWebDav.SyncMode != nextWebDav.SyncMode)
+            changes.Add("WebDav.SyncMode");
+        if (oldWebDav.LastSyncAtUtc != nextWebDav.LastSyncAtUtc)
+            changes.Add("WebDav.LastSyncAtUtc");
 
         return changes;
     }

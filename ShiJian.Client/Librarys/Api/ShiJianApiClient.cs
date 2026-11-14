@@ -483,4 +483,135 @@ public class ShiJianApiClient : IShiJianApiClient
     public Task RestoreEntityMergeGroupsAsync() =>
         PostAsync<EntityRestoreRequest>("api/entity/merge-groups/restore", new EntityRestoreRequest());
 
+    // ---------------------------------------------------------------- Backup & WebDAV（N15）
+
+    public async Task<(byte[] Data, string SuggestedFileName)> ExportBackupAsync(bool includeIcons = true, string? appVersion = null)
+    {
+        var ver = Uri.EscapeDataString(appVersion ?? AppVersionHelper.GetDisplayVersion());
+        var url = $"api/data/backup/export?includeIcons={(includeIcons ? "true" : "false")}&appVersion={ver}";
+        using var response = await _httpClient.GetAsync(url);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(await ReadErrorMessageAsync(response));
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        var suggested = response.Content.Headers.ContentDisposition?.FileNameStar
+            ?? response.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+            ?? $"ShiJian_backup_{DateTime.Now:yyyyMMdd_HHmmss}.shijian-backup";
+        return (bytes, suggested);
+    }
+
+    public async Task<BackupInspectResult> InspectBackupAsync(byte[] archiveBytes)
+    {
+        using var content = new ByteArrayContent(archiveBytes);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        using var response = await _httpClient.PostAsync("api/data/backup/inspect", content);
+        return await ReadApiDataOrThrowAsync<BackupInspectResult>(response);
+    }
+
+    public async Task<BackupImportResult> ImportBackupAsync(byte[] archiveBytes, string mode = "merge")
+    {
+        using var content = new ByteArrayContent(archiveBytes);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        var url = $"api/data/backup/import?mode={Uri.EscapeDataString(mode)}";
+        using var response = await _httpClient.PostAsync(url, content);
+        return await ReadApiDataOrThrowAsync<BackupImportResult>(response);
+    }
+
+    public Task<List<RollbackItem>> GetBackupRollbacksAsync() =>
+        GetAsync<List<RollbackItem>>("api/data/backup/rollbacks");
+
+    public async Task<BackupImportResult> RollbackBackupAsync(string fileName)
+    {
+        var json = JsonSerializer.Serialize(new RollbackRequest { FileName = fileName }, JsonOptions);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync("api/data/backup/rollback", content);
+        return await ReadApiDataOrThrowAsync<BackupImportResult>(response);
+    }
+
+    public async Task<WebDavTestResult> TestWebDavAsync(WebDavTestRequest request)
+    {
+        var json = JsonSerializer.Serialize(request, JsonOptions);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync("api/webdav/test", content);
+        return await ReadApiDataOrThrowAsync<WebDavTestResult>(response);
+    }
+
+    public async Task<WebDavSyncResult> SyncWebDavAsync(bool? mergeOnSync = null, string? appVersion = null)
+    {
+        var req = new WebDavSyncRequest
+        {
+            MergeOnSync = mergeOnSync,
+            AppVersion = appVersion ?? AppVersionHelper.GetDisplayVersion()
+        };
+        var json = JsonSerializer.Serialize(req, JsonOptions);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync("api/webdav/sync", content);
+        return await ReadApiDataOrThrowAsync<WebDavSyncResult>(response);
+    }
+
+    public async Task<List<RemoteBackupItem>> GetWebDavBackupsAsync()
+    {
+        using var response = await _httpClient.GetAsync("api/webdav/backups");
+        return await ReadApiDataOrThrowAsync<List<RemoteBackupItem>>(response);
+    }
+
+    public async Task<BackupImportResult> RestoreWebDavBackupAsync(string fileName, string mode = "merge")
+    {
+        var req = new WebDavRestoreRequest { FileName = fileName, Mode = mode };
+        var json = JsonSerializer.Serialize(req, JsonOptions);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync("api/webdav/restore", content);
+        return await ReadApiDataOrThrowAsync<BackupImportResult>(response);
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2026")]
+    [UnconditionalSuppressMessage("AOT", "IL3050")]
+    private static async Task<TResponse> ReadApiDataOrThrowAsync<TResponse>(HttpResponseMessage response)
+    {
+        var json = await response.Content.ReadAsStringAsync();
+        if (!string.IsNullOrWhiteSpace(json))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<ApiResponse<TResponse>>(json, JsonOptions);
+                if (parsed != null)
+                {
+                    if (parsed.Code != 0)
+                        throw new InvalidOperationException(string.IsNullOrWhiteSpace(parsed.Message) ? $"HTTP {(int)response.StatusCode}" : parsed.Message);
+                    if (response.IsSuccessStatusCode)
+                        return parsed.Data!;
+                }
+            }
+            catch (JsonException)
+            {
+                // 非 JSON 错误体按 HTTP 状态回退
+            }
+        }
+
+        response.EnsureSuccessStatusCode();
+        throw new InvalidOperationException("Empty response");
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2026")]
+    [UnconditionalSuppressMessage("AOT", "IL3050")]
+    private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage response)
+    {
+        var body = await response.Content.ReadAsStringAsync();
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<ApiResponse>(body, JsonOptions);
+                if (!string.IsNullOrWhiteSpace(parsed?.Message))
+                    return parsed.Message;
+            }
+            catch (JsonException)
+            {
+            }
+        }
+        return $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}";
+    }
+
 }

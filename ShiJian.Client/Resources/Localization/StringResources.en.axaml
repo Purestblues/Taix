@@ -93,10 +93,10 @@
     <system:String x:Key="Execute">Execute</system:String>
     <system:String x:Key="OpenSource">GitHub</system:String>
     <system:String x:Key="DeletedAndUnrecoverable">Deleted and Unrecoverable</system:String>
-    <system:String x:Key="ExportData">Export Data</system:String>
-    <system:String x:Key="Export">Export</system:String>
+    <system:String x:Key="ExportData">Export Backup</system:String>
+    <system:String x:Key="Export">Export Backup</system:String>
     <system:String x:Key="Version">Version</system:String>
-    <system:String x:Key="ExportTo">Export as CSV file</system:String>
+    <system:String x:Key="ExportTo">Save a full SQLite snapshot and icon bundle (.shijian-backup) for cross-device merge and restore</system:String>
     <system:String x:Key="CheckUpdate">Check for Updates</system:String>
     <system:String x:Key="Discuss">Feedback</system:String>
     <system:String x:Key="PlugIn">Browser Statistics Plugin</system:String>
@@ -513,4 +513,57 @@
     <system:String x:Key="EntityEmptyHint">No matching items</system:String>
     <system:String x:Key="ChangeCategory">Set category</system:String>
     <system:String x:Key="InsightEntities">Apps &amp; Sites</system:String>
+
+    <!-- N15.2 / N15.3 Backup Package & WebDAV Cloud Sync -->
+    <system:String x:Key="Save">Save</system:String>
+    <system:String x:Key="ExportCsv">Export CSV</system:String>
+    <system:String x:Key="ExportCsvDesc">Export app and web logs within the selected month range as CSV files</system:String>
+    <system:String x:Key="BackupFileFilter">ShiJian Backup (.shijian-backup)</system:String>
+    <system:String x:Key="BackupExportSuccess">Backup saved to {0}</system:String>
+    <system:String x:Key="BackupExportFailed">Backup export failed: {0}</system:String>
+    <system:String x:Key="ImportBackup">Import Backup</system:String>
+    <system:String x:Key="ImportBackupDesc">Verify SHA-256 and SQLite integrity from a .shijian-backup archive, then merge or replace (auto rollback point created)</system:String>
+    <system:String x:Key="ChooseBackupFile">Select Backup</system:String>
+    <system:String x:Key="BackupInspectTitle">Confirm Backup Import</system:String>
+    <system:String x:Key="BackupInspectSummary">Exported: {0}
+Device: {1} (App {2}, DB Schema v{3})
+Counts: {4} apps / {5} daily logs / {6} hourly logs / {7} sites / {8} browse logs / {9} categories
+Archive size: {10}
+
+Choose restore mode (an automatic local rollback point is saved before import):</system:String>
+    <system:String x:Key="BackupModeMerge">Smart Merge (Recommended)</system:String>
+    <system:String x:Key="BackupModeReplace">Full Replace</system:String>
+    <system:String x:Key="BackupImportSuccess">Import finished ({0}): {1} daily logs, {2} hourly logs, {3} browse logs</system:String>
+    <system:String x:Key="BackupImportFailed">Backup import failed: {0}</system:String>
+    <system:String x:Key="BackupInvalidFile">Backup verification failed: {0}</system:String>
+
+    <system:String x:Key="WebDavTitle">WebDAV Cloud Sync</system:String>
+    <system:String x:Key="WebDavSubtitle">Sync .shijian-backup snapshots to WebDAV servers (Nextcloud, Jianguoyun, etc.) with cross-device merge</system:String>
+    <system:String x:Key="WebDavEnable">Enable WebDAV auto sync</system:String>
+    <system:String x:Key="WebDavServerUrl">Server URL</system:String>
+    <system:String x:Key="WebDavServerUrlPlaceholder">e.g. https://dav.jianguoyun.com/dav/</system:String>
+    <system:String x:Key="WebDavRemoteFolder">Remote Folder</system:String>
+    <system:String x:Key="WebDavUsername">Username</system:String>
+    <system:String x:Key="WebDavPassword">App Password</system:String>
+    <system:String x:Key="WebDavSyncMode">Sync Schedule</system:String>
+    <system:String x:Key="WebDavMergeOnSync">Auto-merge newer cloud snapshots on sync</system:String>
+    <system:String x:Key="WebDavTestConnection">Test Connection</system:String>
+    <system:String x:Key="WebDavSyncNow">Sync Now</system:String>
+    <system:String x:Key="WebDavRemoteBackups">Cloud Backups</system:String>
+    <system:String x:Key="WebDavCloseModal">Close</system:String>
+    <system:String x:Key="WebDavSyncModeManual">Manual only</system:String>
+    <system:String x:Key="WebDavSyncModeStartup">On startup</system:String>
+    <system:String x:Key="WebDavSyncModeHourly">Hourly</system:String>
+    <system:String x:Key="WebDavSyncModeDaily">Daily</system:String>
+    <system:String x:Key="WebDavNeverSynced">Never synced</system:String>
+    <system:String x:Key="WebDavLastSyncFormat">Last sync: {0} ({1})</system:String>
+    <system:String x:Key="WebDavTestSuccess">Connected: {0}</system:String>
+    <system:String x:Key="WebDavTestFailed">Connection failed: {0}</system:String>
+    <system:String x:Key="WebDavSyncSuccess">Synced: merged {0} remote archive(s), uploaded {1}</system:String>
+    <system:String x:Key="WebDavSyncFailed">Sync failed: {0}</system:String>
+    <system:String x:Key="WebDavUrlRequired">Please enter the WebDAV server URL first</system:String>
+    <system:String x:Key="WebDavRemoteModalTitle">Remote WebDAV Backups</system:String>
+    <system:String x:Key="WebDavRemoteEmpty">No .shijian-backup archives found in remote folder</system:String>
+    <system:String x:Key="WebDavMergeRestore">Merge</system:String>
+    <system:String x:Key="WebDavReplaceRestore">Replace</system:String>
 </ResourceDictionary>

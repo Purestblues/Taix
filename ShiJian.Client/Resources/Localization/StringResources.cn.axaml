@@ -95,10 +95,10 @@
     <system:String x:Key="Execute">执行</system:String>
     <system:String x:Key="OpenSource">GitHub</system:String>
     <system:String x:Key="DeletedAndUnrecoverable">删除且不可恢复</system:String>
-    <system:String x:Key="ExportData">导出数据</system:String>
-    <system:String x:Key="Export">导出</system:String>
+    <system:String x:Key="ExportData">导出备份</system:String>
+    <system:String x:Key="Export">导出备份</system:String>
     <system:String x:Key="Version">版本号</system:String>
-    <system:String x:Key="ExportTo">导出为csv格式</system:String>
+    <system:String x:Key="ExportTo">保存完整 SQLite 快照与图标包 (.shijian-backup)，支持跨设备合并与完整恢复</system:String>
     <system:String x:Key="CheckUpdate">检查更新</system:String>
     <system:String x:Key="Discuss">问题反馈</system:String>
     <system:String x:Key="PlugIn">浏览器统计插件</system:String>
@@ -527,4 +527,57 @@
     <system:String x:Key="EntityEmptyHint">没有符合条件的项目</system:String>
     <system:String x:Key="ChangeCategory">更换分类</system:String>
     <system:String x:Key="InsightEntities">应用与网站</system:String>
+
+    <!-- N15.2 / N15.3 完整备份包与 WebDAV 云同步 -->
+    <system:String x:Key="Save">保存</system:String>
+    <system:String x:Key="ExportCsv">导出 CSV</system:String>
+    <system:String x:Key="ExportCsvDesc">按选定月份范围导出应用与网页明细为三个 CSV 表格文件</system:String>
+    <system:String x:Key="BackupFileFilter">时见备份包 (.shijian-backup)</system:String>
+    <system:String x:Key="BackupExportSuccess">备份包已保存到 {0}</system:String>
+    <system:String x:Key="BackupExportFailed">备份包导出失败：{0}</system:String>
+    <system:String x:Key="ImportBackup">导入备份</system:String>
+    <system:String x:Key="ImportBackupDesc">从 .shijian-backup 备份包校验 SHA-256 与数据完整性后合并或全量恢复（导入前自动生成本地回滚点）</system:String>
+    <system:String x:Key="ChooseBackupFile">选择备份包</system:String>
+    <system:String x:Key="BackupInspectTitle">确认导入备份包</system:String>
+    <system:String x:Key="BackupInspectSummary">导出时间：{0}
+来源设备：{1}（应用版本 {2}，数据库 Schema v{3}）
+记录统计：应用 {4} 个 / 日记录 {5} 条 / 小时记录 {6} 条 / 网站 {7} 个 / 网页记录 {8} 条 / 分类 {9} 个
+文件大小：{10}
+
+请选择恢复方式（导入前会自动保存一份本地回滚快照）：</system:String>
+    <system:String x:Key="BackupModeMerge">智能合并（推荐）</system:String>
+    <system:String x:Key="BackupModeReplace">全量覆盖恢复</system:String>
+    <system:String x:Key="BackupImportSuccess">导入完成（{0}）：日记录 {1} 条，小时记录 {2} 条，网页记录 {3} 条</system:String>
+    <system:String x:Key="BackupImportFailed">备份导入失败：{0}</system:String>
+    <system:String x:Key="BackupInvalidFile">备份包校验失败：{0}</system:String>
+
+    <system:String x:Key="WebDavTitle">WebDAV 云同步</system:String>
+    <system:String x:Key="WebDavSubtitle">将 .shijian-backup 快照自动同步至坚果云、Nextcloud 等标准 WebDAV 网盘，并支持跨设备增量合并</system:String>
+    <system:String x:Key="WebDavEnable">启用 WebDAV 自动同步</system:String>
+    <system:String x:Key="WebDavServerUrl">服务器地址</system:String>
+    <system:String x:Key="WebDavServerUrlPlaceholder">例如 https://dav.jianguoyun.com/dav/</system:String>
+    <system:String x:Key="WebDavRemoteFolder">远端目录</system:String>
+    <system:String x:Key="WebDavUsername">账号 / 用户名</system:String>
+    <system:String x:Key="WebDavPassword">应用密码</system:String>
+    <system:String x:Key="WebDavSyncMode">自动同步频率</system:String>
+    <system:String x:Key="WebDavMergeOnSync">同步时先自动合并云端更新</system:String>
+    <system:String x:Key="WebDavTestConnection">测试连接</system:String>
+    <system:String x:Key="WebDavSyncNow">立即同步</system:String>
+    <system:String x:Key="WebDavRemoteBackups">云端备份历史</system:String>
+    <system:String x:Key="WebDavCloseModal">关闭</system:String>
+    <system:String x:Key="WebDavSyncModeManual">仅手动同步</system:String>
+    <system:String x:Key="WebDavSyncModeStartup">启动时自动同步</system:String>
+    <system:String x:Key="WebDavSyncModeHourly">每小时同步</system:String>
+    <system:String x:Key="WebDavSyncModeDaily">每天同步</system:String>
+    <system:String x:Key="WebDavNeverSynced">尚未同步</system:String>
+    <system:String x:Key="WebDavLastSyncFormat">上次同步：{0}（{1}）</system:String>
+    <system:String x:Key="WebDavTestSuccess">连接成功：{0}</system:String>
+    <system:String x:Key="WebDavTestFailed">连接失败：{0}</system:String>
+    <system:String x:Key="WebDavSyncSuccess">同步完成，已合并 {0} 份云端快照并上传 {1}</system:String>
+    <system:String x:Key="WebDavSyncFailed">同步失败：{0}</system:String>
+    <system:String x:Key="WebDavUrlRequired">请先填写 WebDAV 服务器地址</system:String>
+    <system:String x:Key="WebDavRemoteModalTitle">WebDAV 云端备份历史</system:String>
+    <system:String x:Key="WebDavRemoteEmpty">云端目录中暂无 .shijian-backup 备份文件</system:String>
+    <system:String x:Key="WebDavMergeRestore">合并恢复</system:String>
+    <system:String x:Key="WebDavReplaceRestore">覆盖恢复</system:String>
 </ResourceDictionary>

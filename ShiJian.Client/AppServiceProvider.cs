@@ -73,7 +73,7 @@ internal partial class AppServiceProvider
     {
         var client = new HttpClient();
         client.BaseAddress = new Uri(ServerEndpoints.ServerUrl);
-        client.Timeout = TimeSpan.FromSeconds(6);
+        client.Timeout = TimeSpan.FromSeconds(120);
         return client;
     }
 

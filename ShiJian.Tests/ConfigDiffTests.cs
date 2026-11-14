@@ -100,4 +100,35 @@ public class ConfigDiffTests
         Assert.NotNull(changes);
         Assert.DoesNotContain("Shortcut.Refresh", changes);
     }
+
+    [Fact]
+    public void WebDavChanges_AreReported()
+    {
+        var oldConfig = CreateConfig();
+        var newConfig = CreateConfig();
+        newConfig.WebDav.Enabled = true;
+        newConfig.WebDav.Url = "https://dav.example.com/dav/";
+        newConfig.WebDav.SyncMode = "hourly";
+        newConfig.WebDav.LastSyncAtUtc = "2026-11-14T03:00:00Z";
+
+        var changes = ApiAppConfig.DetectChanges(oldConfig, newConfig);
+
+        Assert.Contains("WebDav.Enabled", changes);
+        Assert.Contains("WebDav.Url", changes);
+        Assert.Contains("WebDav.SyncMode", changes);
+        Assert.Contains("WebDav.LastSyncAtUtc", changes);
+    }
+
+    [Fact]
+    public void NullWebDav_DoesNotThrow()
+    {
+        var oldConfig = CreateConfig();
+        var newConfig = CreateConfig();
+        newConfig.WebDav = null!;
+
+        var changes = ApiAppConfig.DetectChanges(oldConfig, newConfig);
+
+        Assert.NotNull(changes);
+        Assert.DoesNotContain("WebDav.Url", changes);
+    }
 }
