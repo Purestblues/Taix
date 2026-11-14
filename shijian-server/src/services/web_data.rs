@@ -12,6 +12,7 @@ use crate::error::AppError;
 use crate::models::request::{AddUrlBrowseTimeRequest, UpdateSitesCategoryRequest};
 use crate::models::log::{ColumnDataModel, InfrastructureDataModel};
 use crate::models::web::{WebBrowseLogModel, WebSiteCategoryModel, WebSiteJoinCols, WebSiteModel, WebUrlModel, WEB_SITE_JOIN_COLS_SQL};
+use crate::services::category::CategoryService;
 use crate::services::config::ConfigService;
 use crate::services::web_domain::{
     clean_title, extract_domain, extract_domain_scheme, extract_site_name, host_without_port,
@@ -179,8 +180,14 @@ impl WebDataService {
                     }
                     id
                 } else {
-                    let matched_category_id = match_url_for_new_site(&domain).await;
-                    let category_id = matched_category_id.unwrap_or(get_system_category_id_cached().await);
+                    let matched_category_id = match match_url_for_new_site(&domain).await {
+                        Some(id) => Some(id),
+                        None => CategoryService::match_category_for_domain(&mut *tx, &domain).await,
+                    };
+                    let category_id = match matched_category_id {
+                        Some(id) => id,
+                        None => CategoryService::get_system_category_id(&mut *tx).await?,
+                    };
                     sqlx::query("INSERT INTO WebSiteModels (Title, Domain, CategoryID) VALUES (?, ?, ?)")
                         .bind(&site_title).bind(&domain).bind(category_id).execute(&mut *tx).await?.last_insert_rowid()
                 }
@@ -1441,7 +1448,7 @@ fn is_browser_internal_page(url: &str, title: Option<&str>) -> bool {
 
 fn build_url_match_rules_from_categories(categories: &[WebSiteCategoryModel]) -> Vec<CompiledUrlMatchRule> {
     const MAX_PATTERN_LEN: usize = 256;
-    const MAX_PATTERNS_PER_CATEGORY: usize = 20;
+    const MAX_PATTERNS_PER_CATEGORY: usize = 200;
 
     categories
         .iter()
@@ -1612,11 +1619,6 @@ async fn match_url_for_new_site(domain: &str) -> Option<i64> {
     }
 
     None
-}
-
-async fn get_system_category_id_cached() -> i64 {
-    let cache = system_category_id_cache().read().await;
-    cache.as_ref().copied().unwrap_or(0)
 }
 
 async fn load_system_category_id(pool: &SqlitePool) -> Result<i64, AppError> {

@@ -7,21 +7,21 @@ namespace ShiJian.Client.Shared.Models.Config;
 /// </summary>
 public class GeneralModel
 {
-    [Config(Options = "跟随系统|浅色|深色|蔚蓝", Name = "主题模式", Description = "设置界面的显示主题", Group = "界面",
+    [Config(Options = "跟随系统|浅色|深色|蔚蓝", Name = "主题模式", Description = "设置界面的显示主题", Group = "外观",
         CultureCode = CultureCode.ZhCn)]
     [Config(Options = "Follow System|Light|Dark|Azure", Name = "Theme Mode",
-        Description = "Set the interface theme", Group = "Interface", CultureCode = CultureCode.EnUs)]
+        Description = "Set the interface theme", Group = "Appearance", CultureCode = CultureCode.EnUs)]
     public int Theme { get; set; } = 0;
 
 
-    [Config(Name = "主题颜色", Description = "", Group = "界面", CultureCode = CultureCode.ZhCn)]
-    [Config(Name = "Theme Color", Description = "", Group = "Interface", CultureCode = CultureCode.EnUs)]
+    [Config(Name = "主题颜色", Description = "", Group = "外观", CultureCode = CultureCode.ZhCn)]
+    [Config(Name = "Theme Color", Description = "", Group = "Appearance", CultureCode = CultureCode.EnUs)]
     public string ThemeColor { get; set; } = "#FFA05DB1";
 
-    [Config(Options = "自动|中|English", Name = "语言", Description = "设置程序首选的显示语言", Group = "界面",
+    [Config(Options = "自动|中|English", Name = "语言", Description = "设置程序首选的显示语言", Group = "基础",
         OptionsChangedRefresh = true, CultureCode = CultureCode.ZhCn)]
     [Config(Options = "Auto|中|English", Name = "Language",
-        Description = "Set the preferred display language for the program", Group = "Interface",
+        Description = "Set the preferred display language for the program", Group = "Basics",
         OptionsChangedRefresh = true, CultureCode = CultureCode.EnUs)]
     public int Language { get; set; }
 
@@ -56,35 +56,35 @@ public class GeneralModel
 
     [Config(Name = "网站浏览统计",
         Description = "统计浏览器的网站访问数据，支持：Google Chrome、MSEdge或任何能够安装Chrome拓展的浏览器。请点击 “关于 > 浏览器统计插件” 了解如何安装和使用此功能。",
-        Group = "功能", CultureCode = CultureCode.ZhCn)]
+        Group = "采集与统计", CultureCode = CultureCode.ZhCn)]
     [Config(Name = "Web Browsing Statistics",
         Description =
             "Statistics for website visits in the browser, supporting: Google Chrome, MSEdge, or any browser that can install Chrome extensions. Click \"About > Browser Statistics Plugin\" to learn how to install and use this feature.",
-        Group = "Features", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
+        Group = "Tracking", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
     public bool IsWebEnabled { get; set; } = false;
 
-    [Config(Name = "系统托盘", Description = "修改后需重启 shijian-shell 进程生效", Group = "界面", CultureCode = CultureCode.ZhCn)]
-    [Config(Name = "System Tray", Description = "Requires restarting shijian-shell process to take effect", Group = "Interface", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
+    [Config(Name = "系统托盘", Description = "修改后需重启 shijian-shell 进程生效", Group = "基础", CultureCode = CultureCode.ZhCn)]
+    [Config(Name = "System Tray", Description = "Requires restarting shijian-shell process to take effect", Group = "Basics", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
     public bool IsEnableTray { get; set; } = true;
 
-    [Config(Name = "保存窗口大小", Description = "重启软件时恢复上次窗口尺寸", Group = "界面", CultureCode = CultureCode.ZhCn)]
-    [Config(Name = "Save Window Size", Description = "Restore the last window size when restarting", Group = "Interface", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
+    [Config(Name = "保存窗口大小", Description = "重启软件时恢复上次窗口尺寸", Group = "概览页", CultureCode = CultureCode.ZhCn)]
+    [Config(Name = "Save Window Size", Description = "Restore the last window size when restarting", Group = "Overview", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
     public bool IsSaveWindowSize { get; set; } = false;
 
     /// <summary>
     /// 动效：0 跟随系统（系统开了「减少动画」就关掉）、1 始终开启、2 始终关闭。
     /// </summary>
     [Config(Options = "跟随系统|始终开启|始终关闭", Name = "界面动效",
-        Description = "关闭后页面进场、图表生长、悬停过渡等动效不再播放", Group = "界面", CultureCode = CultureCode.ZhCn)]
+        Description = "关闭后页面进场、图表生长、悬停过渡等动效不再播放", Group = "外观", CultureCode = CultureCode.ZhCn)]
     [Config(Options = "Follow System|Always On|Always Off", Name = "Interface Motion",
-        Description = "When off, page transitions, chart growth and hover transitions are disabled", Group = "Interface",
+        Description = "When off, page transitions, chart growth and hover transitions are disabled", Group = "Appearance",
         CultureCode = CultureCode.EnUs)]
     public int MotionMode { get; set; } = 0;
 
     public int DataRetentionDays { get; set; } = 31;
 
-    [Config(Options = "禁用|渐变1|渐变2|渐变3", Name = "窗口渐变", Group = "界面", CultureCode = CultureCode.ZhCn)]
-    [Config(Options = "Off|Gradient 1|Gradient 2|Gradient 3", Name = "Window Gradient", Group = "Interface", CultureCode = CultureCode.EnUs)]
+    [Config(Options = "禁用|渐变1|渐变2|渐变3", Name = "窗口渐变", Group = "外观", CultureCode = CultureCode.ZhCn)]
+    [Config(Options = "Off|Gradient 1|Gradient 2|Gradient 3", Name = "Window Gradient", Group = "Appearance", CultureCode = CultureCode.EnUs)]
     public int WindowGradientScheme { get; set; } = 3;
 
     public string SyncUrl { get; set; } = string.Empty;

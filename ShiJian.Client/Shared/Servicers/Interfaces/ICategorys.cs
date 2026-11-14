@@ -25,5 +25,7 @@ public interface ICategorys
 
     Task<int> ApplyDirectoryMatchAsync(string[]? patterns = null);
 
+    Task<int> ApplyAutoClassifyAsync();
+
     void RefreshCache();
 }

@@ -1,10 +1,12 @@
 use sqlx::SqlitePool;
+use std::collections::HashMap;
 use tokio::sync::RwLock;
 use tracing::{debug, info};
 
 use crate::error::AppError;
 use crate::models::category::CategoryModel;
 use crate::models::request::{CreateCategoryRequest, UpdateCategoryRequest};
+use crate::services::auto_category;
 
 static CATEGORY_CACHE: std::sync::OnceLock<RwLock<Option<Vec<CategoryModel>>>> = std::sync::OnceLock::new();
 static DIR_MATCH_CACHE: std::sync::OnceLock<RwLock<Option<Vec<(i64, Vec<String>)>>>> = std::sync::OnceLock::new();
@@ -404,6 +406,182 @@ impl CategoryService {
         }
         tx.commit().await?;
 
+        Ok(updated)
+    }
+
+    /// 按分类名解析未删预设分类 ID（若已被用户删除/重命名则返回 None）
+    pub async fn resolve_category_id_by_name<'e, E>(
+        executor: E,
+        name: &str,
+    ) -> Result<Option<i64>, AppError>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        let id: Option<i64> = sqlx::query_scalar(
+            "SELECT ID FROM CategoryModels WHERE Name = ? AND IsSystem = 0 LIMIT 1",
+        )
+        .bind(name)
+        .fetch_optional(executor)
+        .await?;
+
+        Ok(id)
+    }
+
+    /// 在已有事务/连接上为应用匹配分类：目录规则优先，未命中则按内置应用规则匹配
+    pub async fn match_category_for_app_conn(
+        conn: &mut sqlx::SqliteConnection,
+        name: &str,
+        description: Option<&str>,
+        file: Option<&str>,
+        publisher: Option<&str>,
+    ) -> Option<i64> {
+        if let Some(path) = file.filter(|p| !p.trim().is_empty()) {
+            if let Ok(dir_cats) = sqlx::query_as::<_, CategoryModel>(
+                "SELECT * FROM CategoryModels WHERE IsSystem = 0 AND IsDirectoryMatch = 1",
+            )
+            .fetch_all(&mut *conn)
+            .await
+            {
+                let rules = build_match_rules(&dir_cats);
+                if let Some(id) = match_against_rules(&rules, path) {
+                    return Some(id);
+                }
+            }
+        }
+
+        let preset_name = auto_category::match_builtin_app(name, description, file, publisher)?;
+        Self::resolve_category_id_by_name(&mut *conn, preset_name)
+            .await
+            .ok()
+            .flatten()
+    }
+
+    /// 为应用匹配分类（Pool 便捷入口）：目录规则优先，未命中则按内置应用规则匹配
+    pub async fn match_category_for_app(
+        pool: &SqlitePool,
+        name: &str,
+        description: Option<&str>,
+        file: Option<&str>,
+        publisher: Option<&str>,
+    ) -> Option<i64> {
+        if let Some(id) = Self::match_category_by_path(pool, file).await {
+            return Some(id);
+        }
+
+        let preset_name = auto_category::match_builtin_app(name, description, file, publisher)?;
+        Self::resolve_category_id_by_name(pool, preset_name)
+            .await
+            .ok()
+            .flatten()
+    }
+
+    /// 按内置域名规则为新网站匹配预设分类 ID
+    pub async fn match_category_for_domain<'e, E>(executor: E, domain: &str) -> Option<i64>
+    where
+        E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
+    {
+        let preset_name = auto_category::match_builtin_domain(domain)?;
+        Self::resolve_category_id_by_name(executor, preset_name)
+            .await
+            .ok()
+            .flatten()
+    }
+
+    /// 批量对仍处于「未分类」（或 CategoryID <= 0）的应用与网站应用目录匹配 + 内置自动归类规则（不覆盖用户手动分类）
+    pub async fn backfill_builtin_categories_tx(
+        conn: &mut sqlx::SqliteConnection,
+    ) -> Result<usize, AppError> {
+        let Some(sys_id) = sqlx::query_scalar::<_, i64>(
+            "SELECT ID FROM CategoryModels WHERE IsSystem = 1 LIMIT 1",
+        )
+        .fetch_optional(&mut *conn)
+        .await?
+        else {
+            return Ok(0);
+        };
+
+        let non_sys_cats: Vec<CategoryModel> =
+            sqlx::query_as("SELECT * FROM CategoryModels WHERE IsSystem = 0")
+                .fetch_all(&mut *conn)
+                .await?;
+        if non_sys_cats.is_empty() {
+            return Ok(0);
+        }
+
+        let name_to_id: HashMap<String, i64> = non_sys_cats
+            .iter()
+            .filter_map(|c| c.name.as_ref().map(|n| (n.clone(), c.id)))
+            .collect();
+        let dir_rules = build_match_rules(&non_sys_cats);
+
+        let apps: Vec<(i64, String, Option<String>, Option<String>, Option<String>)> =
+            sqlx::query_as(
+                "SELECT ID, Name, Description, File, Publisher FROM AppModels WHERE CategoryID = ? OR CategoryID <= 0",
+            )
+            .bind(sys_id)
+            .fetch_all(&mut *conn)
+            .await?;
+
+        let mut updated = 0usize;
+        for (app_id, name, desc, file, publisher) in apps {
+            let dir_matched = file
+                .as_deref()
+                .and_then(|path| match_against_rules(&dir_rules, path));
+            let cat_id = dir_matched.or_else(|| {
+                auto_category::match_builtin_app(
+                    &name,
+                    desc.as_deref(),
+                    file.as_deref(),
+                    publisher.as_deref(),
+                )
+                .and_then(|preset| name_to_id.get(preset).copied())
+            });
+
+            if let Some(target_cat_id) = cat_id {
+                let res = sqlx::query(
+                    "UPDATE AppModels SET CategoryID = ? WHERE ID = ? AND (CategoryID = ? OR CategoryID <= 0)",
+                )
+                .bind(target_cat_id)
+                .bind(app_id)
+                .bind(sys_id)
+                .execute(&mut *conn)
+                .await?;
+                updated += res.rows_affected() as usize;
+            }
+        }
+
+        let sites: Vec<(i64, String)> = sqlx::query_as(
+            "SELECT ID, Domain FROM WebSiteModels WHERE CategoryID = ? OR CategoryID <= 0",
+        )
+        .bind(sys_id)
+        .fetch_all(&mut *conn)
+        .await?;
+
+        for (site_id, domain) in sites {
+            if let Some(target_cat_id) = auto_category::match_builtin_domain(&domain)
+                .and_then(|preset| name_to_id.get(preset).copied())
+            {
+                let res = sqlx::query(
+                    "UPDATE WebSiteModels SET CategoryID = ? WHERE ID = ? AND (CategoryID = ? OR CategoryID <= 0)",
+                )
+                .bind(target_cat_id)
+                .bind(site_id)
+                .bind(sys_id)
+                .execute(&mut *conn)
+                .await?;
+                updated += res.rows_affected() as usize;
+            }
+        }
+
+        Ok(updated)
+    }
+
+    /// 手动触发一键智能归类：先执行自定义 URL 规则，再为所有未分类应用与网站套用目录及内置规则
+    pub async fn apply_auto_classify(pool: &SqlitePool) -> Result<usize, AppError> {
+        let mut updated = crate::services::web_data::WebDataService::apply_url_match(pool, None).await?;
+        let mut tx = pool.begin().await?;
+        updated += Self::backfill_builtin_categories_tx(&mut tx).await?;
+        tx.commit().await?;
         Ok(updated)
     }
 }

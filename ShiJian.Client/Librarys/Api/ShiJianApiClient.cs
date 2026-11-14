@@ -231,6 +231,9 @@ public class ShiJianApiClient : IShiJianApiClient
         return PostAsync<int, ApplyMatchRequest>("api/category/apply-directory-match", new ApplyMatchRequest { Patterns = patterns });
     }
 
+    public Task<int> ApplyAutoClassifyAsync() =>
+        PostEmptyAsync<int>("api/category/apply-auto-classify");
+
     public Task<CategorySummaryModel> GetCategorySummaryAsync(int categoryId, DateTime start, DateTime end, DateTime? prevStart = null, DateTime? prevEnd = null, CancellationToken cancellationToken = default) =>
         GetAsync<CategorySummaryModel>(
             TzQuery(SummaryQuery($"api/category/{categoryId}/summary", start, end, prevStart, prevEnd)),

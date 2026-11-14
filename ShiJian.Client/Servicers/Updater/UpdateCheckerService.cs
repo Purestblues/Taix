@@ -1,9 +1,9 @@
 using System;
 using System.Diagnostics;
-using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Threading;
+using ShiJian.Client.Librarys;
 using ShiJian.Client.Logging;
 using ShiJian.Client.ViewModels;
 
@@ -65,7 +65,7 @@ public class UpdateCheckerService
     private async Task<(GithubRelease release, GithubRelease.VersionInfo? info)> GetReleaseInfoAsync()
     {
         var currentVersion = GetCurrentVersion();
-        var release = new GithubRelease("https://api.github.com/repos/nlick47/shijian/releases/latest", currentVersion);
+        var release = new GithubRelease("https://api.github.com/repos/Purestblues/shijian/releases/latest", currentVersion);
         var info = await release.GetRequestAsync();
         return (release, info);
     }
@@ -75,9 +75,9 @@ public class UpdateCheckerService
 #if DEBUG
         var envVersion = Environment.GetEnvironmentVariable("SHIJIAN_DEBUG_VERSION");
         if (!string.IsNullOrWhiteSpace(envVersion))
-            return envVersion.Trim();
+            return AppVersionHelper.NormalizeTagVersion(envVersion);
 #endif
-        return Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? string.Empty;
+        return AppVersionHelper.GetDisplayVersion();
     }
 
     private async Task ShowUpdateDialogAsync()

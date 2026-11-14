@@ -12,7 +12,6 @@ use crate::services::category::CategoryService;
 use crate::services::config::ConfigService;
 
 const DEDUP_RETENTION_DAYS: i64 = 7;
-const DEFAULT_SESSION_RETENTION_DAYS: i64 = 31;
 
 const CLEANUP_INTERVAL: StdDuration = StdDuration::from_secs(constants::SECS_PER_DAY as u64);
 
@@ -165,15 +164,16 @@ impl AppTimerService {
             }
         }
 
-        let app_id = match sqlx::query_as::<_, (i64,)>("SELECT ID FROM AppModels WHERE Name = ?")
+        let app_id = match sqlx::query_as::<_, (i64, i64)>("SELECT ID, CategoryID FROM AppModels WHERE Name = ?")
             .bind(&process)
             .fetch_optional(&mut *tx)
             .await?
         {
-            Some((id,)) => {
+            Some((id, current_cat_id)) => {
+                let mut did_backfill = false;
                 // 如果 File、IconFile 或 Description 为空，则用新上报的值填充
                 if req.file.is_some() || req.icon_file.is_some() || req.description.is_some() {
-                    sqlx::query(
+                    let res = sqlx::query(
                         "UPDATE AppModels SET File = COALESCE(File, ?), IconFile = COALESCE(IconFile, ?), Description = COALESCE(Description, ?) WHERE ID = ? AND (File IS NULL OR IconFile IS NULL OR Description IS NULL)",
                     )
                     .bind(&req.file)
@@ -182,20 +182,59 @@ impl AppTimerService {
                     .bind(id)
                     .execute(&mut *tx)
                     .await?;
+                    did_backfill |= res.rows_affected() > 0;
                 }
                 // 发布者单独回填：历史行是 NULL，且只有 monitor 升级后才会带这个字段
                 if let Some(publisher) = req.publisher.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
-                    sqlx::query("UPDATE AppModels SET Publisher = ? WHERE ID = ? AND (Publisher IS NULL OR Publisher = '')")
+                    let res = sqlx::query("UPDATE AppModels SET Publisher = ? WHERE ID = ? AND (Publisher IS NULL OR Publisher = '')")
                         .bind(publisher)
                         .bind(id)
                         .execute(&mut *tx)
                         .await?;
+                    did_backfill |= res.rows_affected() > 0;
+                }
+                // 若刚刚补全了应用元数据且应用仍属于「未分类」，尝试套用目录或内置规则归类
+                if did_backfill {
+                    let sys_id = CategoryService::get_system_category_id(&mut *tx).await?;
+                    if current_cat_id <= 0 || current_cat_id == sys_id {
+                        let meta: Option<(Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
+                            "SELECT Description, File, Publisher FROM AppModels WHERE ID = ?",
+                        )
+                        .bind(id)
+                        .fetch_optional(&mut *tx)
+                        .await?;
+                        if let Some((db_desc, db_file, db_pub)) = meta {
+                            if let Some(matched_cat_id) = CategoryService::match_category_for_app_conn(
+                                &mut *tx,
+                                &process,
+                                db_desc.as_deref(),
+                                db_file.as_deref(),
+                                db_pub.as_deref(),
+                            )
+                            .await
+                            {
+                                sqlx::query("UPDATE AppModels SET CategoryID = ? WHERE ID = ?")
+                                    .bind(matched_cat_id)
+                                    .bind(id)
+                                    .execute(&mut *tx)
+                                    .await?;
+                            }
+                        }
+                    }
                 }
                 id
             }
             None => {
                 info!("update_app_duration: auto-creating AppModel for '{}'", process);
-                let category_id = match CategoryService::match_category_by_path(pool, req.file.as_deref()).await {
+                let category_id = match CategoryService::match_category_for_app_conn(
+                    &mut *tx,
+                    &process,
+                    req.description.as_deref(),
+                    req.file.as_deref(),
+                    req.publisher.as_deref(),
+                )
+                .await
+                {
                     Some(id) => id,
                     None => CategoryService::get_system_category_id(&mut *tx).await?,
                 };
@@ -293,27 +332,9 @@ impl AppTimerService {
         Ok(result.rows_affected())
     }
 
-    async fn cleanup_expired_sessions(pool: &SqlitePool, config_service: &ConfigService) -> Result<u64, sqlx::Error> {
-        let days = match config_service.get_or_load().await {
-            Ok(config) => config.general.data_retention_days.max(1) as i64,
-            Err(_) => DEFAULT_SESSION_RETENTION_DAYS,
-        };
-
-        let result = sqlx::query(
-            r#"
-            DELETE FROM AppSessions
-            WHERE StartTime < datetime('now', '-' || ? || ' days')
-            "#,
-        )
-        .bind(days)
-        .execute(pool)
-        .await?;
-
-        Ok(result.rows_affected())
-    }
-
     // 首次 tick 立即触发，启动时先清一轮；Skip 避免休眠后连续补偿。
-    pub async fn run_cleanup_task(pool: SqlitePool, config_service: Arc<ConfigService>) {
+    // N15a: 取消 1 年记录保留上限，不再自动清理历史 AppSessions。
+    pub async fn run_cleanup_task(pool: SqlitePool, _config_service: Arc<ConfigService>) {
         let mut interval = tokio::time::interval(CLEANUP_INTERVAL);
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
@@ -329,18 +350,6 @@ impl AppTimerService {
                 }
                 Err(e) => {
                     tracing::error!(error = %e, "failed to clean up expired AppDurationRequests");
-                }
-            }
-
-            match Self::cleanup_expired_sessions(&pool, &config_service).await {
-                Ok(0) => {
-                    tracing::debug!("no expired AppSessions records to clean up");
-                }
-                Ok(rows) => {
-                    tracing::info!(deleted_rows = rows, "cleaned up expired AppSessions");
-                }
-                Err(e) => {
-                    tracing::error!(error = %e, "failed to clean up expired AppSessions");
                 }
             }
 

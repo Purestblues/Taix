@@ -95,6 +95,7 @@ public class CategoryPageViewModel : CategoryPageModel
         RestoreSystemCategoryCommand = AsyncRelayCommand.CreateFromTask<object>(OnRestoreSystemCategoryAsync).DisposeWith(Disposables);
         ApplyDirectoryMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyDirectoryMatchAsync).DisposeWith(Disposables);
         ApplyUrlMatchCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyUrlMatchAsync).DisposeWith(Disposables);
+        ApplyAutoClassifyCommand = AsyncRelayCommand.CreateFromTask<object>(OnApplyAutoClassifyAsync).DisposeWith(Disposables);
         ToggleAppEmptyExpandedCommand = AsyncRelayCommand.Create<object>(_ => IsAppEmptyExpanded = !IsAppEmptyExpanded).DisposeWith(Disposables);
         GotoEntityDetailCommand = AsyncRelayCommand.CreateFromTask<object>(OnGotoEntityDetailAsync).DisposeWith(Disposables);
         AssignEntityCategoryCommand = AsyncRelayCommand.CreateFromTask<object>(OnAssignEntityCategoryAsync).DisposeWith(Disposables);
@@ -163,6 +164,7 @@ public class CategoryPageViewModel : CategoryPageModel
     public ICommand RestoreSystemCategoryCommand { get; }
     public ICommand ApplyDirectoryMatchCommand { get; }
     public ICommand ApplyUrlMatchCommand { get; }
+    public ICommand ApplyAutoClassifyCommand { get; }
     public ICommand ToggleAppEmptyExpandedCommand { get; }
     public ICommand GotoEntityDetailCommand { get; }
     public ICommand AssignEntityCategoryCommand { get; }
@@ -244,6 +246,22 @@ public class CategoryPageViewModel : CategoryPageModel
         {
             var count = await _webDataService.ApplyUrlMatchAsync();
             _toastService.Success(string.Format(ResourceStrings.ApplyUrlMatchSuccess, count));
+            await LoadDataCoreAsync(default);
+        }
+        catch (Exception ex)
+        {
+            Logger.Error(ex.Message, ex);
+            _toastService.Error(ResourceStrings.OperationFailedRetry);
+        }
+    }
+
+    private async Task OnApplyAutoClassifyAsync(object _)
+    {
+        try
+        {
+            var count = await _categoryService.ApplyAutoClassifyAsync();
+            _toastService.Success(string.Format(ResourceStrings.AutoClassifySuccess, count));
+            _entitiesLoaded = false;
             await LoadDataCoreAsync(default);
         }
         catch (Exception ex)
@@ -369,7 +387,7 @@ public class CategoryPageViewModel : CategoryPageModel
                 return;
             }
 
-            if (EditUrlPatterns.Count >= 20)
+            if (EditUrlPatterns.Count >= 200)
             {
                 _toastService.Toast(ResourceStrings.UrlPatternLimitReached, ToastType.Warning);
                 return;

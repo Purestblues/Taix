@@ -8,12 +8,12 @@ namespace ShiJian.Client.Shared.Models.Config;
 /// </summary>
 public class BehaviorModel
 {
-    [Config(Name = "睡眠监测", Description = "离开电脑时自动停止统计，重启软件生效。（一般情况不建议关闭）", Group = "偏好",
+    [Config(Name = "睡眠监测", Description = "离开电脑时自动停止统计，重启软件生效。（一般情况不建议关闭）", Group = "监测偏好",
         CultureCode = CultureCode.ZhCn)]
     [Config(Name = "Sleep Monitoring",
         Description =
             "Automatically stops statistics when you leave the computer, takes effect after restarting the software. (Not recommended to disable in general cases)",
-        Group = "Preference", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
+        Group = "Monitoring", ToggleFalseText = "Off", ToggleTrueText = "On", CultureCode = CultureCode.EnUs)]
     public bool IsSleepWatch { get; set; } = true;
 
     [Config(IsCanImportExport = true, Name = "忽略应用", Description = "可以通过进程名称或者通配符进行匹配。* 匹配任意字符，? 匹配单个字符",
@@ -50,17 +50,17 @@ public class BehaviorModel
         CultureCode = CultureCode.EnUs)]
     public List<string> ProcessWhiteList { get; set; } = new();
 
-    [Config(Name = "空闲阈值", Description = "系统无操作多久后自动暂停统计，单位：分钟。重启 shijian-shell 生效", Group = "偏好",
+    [Config(Name = "空闲阈值", Description = "系统无操作多久后自动暂停统计，单位：分钟。重启 shijian-shell 生效", Group = "监测偏好",
         Min = 1, Max = 60, Step = 1, CultureCode = CultureCode.ZhCn)]
     [Config(Name = "Inactive Threshold",
         Description = "How long before idle system pauses tracking, unit: minutes. Restart shijian-shell to apply",
-        Group = "Preference", Min = 1, Max = 60, Step = 1, CultureCode = CultureCode.EnUs)]
+        Group = "Monitoring", Min = 1, Max = 60, Step = 1, CultureCode = CultureCode.EnUs)]
     public int InactiveThreshold { get; set; } = 15;
 
-    [Config(Name = "声音持续时间", Description = "播放声音时保持活跃的最长时间，超过后进入休眠，单位：分钟。重启 shijian-shell 生效", Group = "偏好",
+    [Config(Name = "声音持续时间", Description = "播放声音时保持活跃的最长时间，超过后进入休眠，单位：分钟。重启 shijian-shell 生效", Group = "监测偏好",
         Min = 15, Max = 480, Step = 15, CultureCode = CultureCode.ZhCn)]
     [Config(Name = "Sound Duration",
         Description = "Max time to stay active while sound is playing, then sleep, unit: minutes. Restart shijian-shell to apply",
-        Group = "Preference", Min = 15, Max = 480, Step = 15, CultureCode = CultureCode.EnUs)]
+        Group = "Monitoring", Min = 15, Max = 480, Step = 15, CultureCode = CultureCode.EnUs)]
     public int MaxSoundDuration { get; set; } = 120;
 }

@@ -79,7 +79,18 @@ impl AppDataService {
         let category_id = if category_id > 0 {
             category_id
         } else {
-            CategoryService::get_system_category_id(pool).await?
+            match CategoryService::match_category_for_app(
+                pool,
+                &req.name,
+                req.description.as_deref(),
+                req.file.as_deref(),
+                None,
+            )
+            .await
+            {
+                Some(id) => id,
+                None => CategoryService::get_system_category_id(pool).await?,
+            }
         };
         let id = sqlx::query(
             r#"

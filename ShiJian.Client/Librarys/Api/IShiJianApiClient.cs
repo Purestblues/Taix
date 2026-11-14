@@ -31,6 +31,7 @@ public interface IShiJianApiClient
     Task<CategoryModel> RestoreSystemCategoryAsync(int id);
     Task DeleteCategoryAsync(int id);
     Task<int> ApplyDirectoryMatchAsync(string[]? patterns = null);
+    Task<int> ApplyAutoClassifyAsync();
 
     // CategorySummary
     Task<CategorySummaryModel> GetCategorySummaryAsync(int categoryId, DateTime start, DateTime end, DateTime? prevStart = null, DateTime? prevEnd = null, CancellationToken cancellationToken = default);

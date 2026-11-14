@@ -70,6 +70,11 @@ public static class ResourceStrings
     public static string Data => GetStringValue("Data");
     public static string About => GetStringValue("About");
     public static string Shortcuts => GetStringValue("Shortcuts");
+    public static string SettingTabGeneral => GetStringValue("SettingTabGeneral");
+    public static string SettingTabAppearance => GetStringValue("SettingTabAppearance");
+    public static string SettingTabTracking => GetStringValue("SettingTabTracking");
+    public static string SettingTabData => GetStringValue("SettingTabData");
+    public static string SettingTabAbout => GetStringValue("SettingTabAbout");
     public static string SearchDefaultHint => GetStringValue("SearchDefaultHint");
     public static string SearchResultCount => GetStringValue("SearchResultCount");
     public static string SearchResults => GetStringValue("SearchResults");
@@ -190,6 +195,7 @@ public static class ResourceStrings
     public static string CategoryCreated => GetStringValue("CreationCompleted");
     public static string DirectoryMatch => GetStringValue("DirectoryMatch");
     public static string ApplyDirectoryMatchSuccess => GetStringValue("ApplyDirectoryMatchSuccess");
+    public static string AutoClassifySuccess => GetStringValue("AutoClassifySuccess");
 
     // URL 匹配相关
     public static string UrlMatch => GetStringValue("UrlMatch");

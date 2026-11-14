@@ -224,6 +224,8 @@
             </Grid.RowDefinitions>
             <Grid.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Header="{DynamicResource AutoClassify}" Command="{Binding ApplyAutoClassifyCommand}" />
+                    <Separator />
                     <MenuItem Header="{DynamicResource Refresh}" Command="{Binding RefreshCommand}" />
                 </ContextMenu>
             </Grid.ContextMenu>
@@ -259,6 +261,12 @@
                                        IsShowIcon="False" SelectedItem="{Binding ViewMode,Mode=TwoWay}"
                                        Options="{Binding ViewModeOptions}" />
                     </StackPanel>
+                    <Button:Button Icon="Accept"
+                               Content="{DynamicResource AutoClassify}"
+                               ToolTip.Tip="{DynamicResource AutoClassifyTip}"
+                               Padding="12,0"
+                               Margin="0,0,10,0"
+                               Command="{Binding ApplyAutoClassifyCommand}" />
                     <Button:Button Icon="CalculatorAddition"
                                Content="{DynamicResource NewCategory}"
                                Width="150"

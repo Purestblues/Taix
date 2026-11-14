@@ -11,16 +11,16 @@ public static class ServiceLocator
         _serviceProvider = serviceProvider;
     }
 
-    public static T GetService<T>() where T : class
+    public static T? GetService<T>() where T : class
     {
-        if (_serviceProvider == null) throw new InvalidOperationException("Service provider has not been initialized.");
-
-        return _serviceProvider.GetService(typeof(T)) as T ?? throw new InvalidOperationException();
+        return _serviceProvider?.GetService(typeof(T)) as T;
     }
 
     public static T GetRequiredService<T>() where T : class
     {
-        var service = GetService<T>();
+        if (_serviceProvider == null) throw new InvalidOperationException("Service provider has not been initialized.");
+
+        var service = _serviceProvider.GetService(typeof(T)) as T;
         if (service == null) throw new InvalidOperationException($"Service of type {typeof(T)} not found.");
         return service;
     }

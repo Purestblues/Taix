@@ -72,4 +72,9 @@ public class ApiCategorys : ICategorys
     {
         return await _apiClient.ApplyDirectoryMatchAsync(patterns);
     }
+
+    public async Task<int> ApplyAutoClassifyAsync()
+    {
+        return await _apiClient.ApplyAutoClassifyAsync();
+    }
 }

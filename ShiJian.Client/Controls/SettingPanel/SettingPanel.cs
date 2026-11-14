@@ -40,6 +40,9 @@ public class SettingPanel : TemplatedControl
     public static readonly StyledProperty<SolidColorBrush> SpliteLineBrushProperty =
         AvaloniaProperty.Register<SettingPanel, SolidColorBrush>(nameof(SpliteLineBrush));
 
+    public static readonly StyledProperty<string?> IncludeGroupsProperty =
+        AvaloniaProperty.Register<SettingPanel, string?>(nameof(IncludeGroups));
+
     private readonly string _nosetGroupKey = "noset_group";
 
     private object _data;
@@ -69,6 +72,15 @@ public class SettingPanel : TemplatedControl
         set => SetValue(SpliteLineBrushProperty, value);
     }
 
+    /// <summary>
+    /// 可选的分组过滤与顺序声明（以 <c>|</c> 分隔分组名）；为空时渲染全部分组与未分组项。
+    /// </summary>
+    public string? IncludeGroups
+    {
+        get => GetValue(IncludeGroupsProperty);
+        set => SetValue(IncludeGroupsProperty, value);
+    }
+
     public Dictionary<string, List<string>> SettingData { get; set; }
 
     protected override Type StyleKeyOverride => typeof(SettingPanel);
@@ -77,7 +89,8 @@ public class SettingPanel : TemplatedControl
     {
         base.OnPropertyChanged(change);
         if (change.Property == DataProperty ||
-            change.Property == SpliteLineBrushProperty)
+            change.Property == SpliteLineBrushProperty ||
+            change.Property == IncludeGroupsProperty)
         {
             var control = change.Sender as SettingPanel;
             control?.Render();
@@ -251,6 +264,24 @@ public class SettingPanel : TemplatedControl
                 }
             }
 
+        // 按 IncludeGroups 过滤与排序，或默认渲染全部分组 + 未分组项
+        var includeGroups = IncludeGroups;
+        if (!string.IsNullOrWhiteSpace(includeGroups))
+        {
+            var groupOrder = includeGroups.Split(
+                '|',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var rendered = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var groupName in groupOrder)
+            {
+                if (rendered.Add(groupName) && _configList.TryGetValue(groupName, out var groupConfigs))
+                {
+                    RenderGroup(groupConfigs, groupName);
+                }
+            }
+            return;
+        }
+
         //  渲染已分组的项目
         foreach (var item in _configList)
             if (item.Key != _nosetGroupKey)
@@ -367,15 +398,34 @@ public class SettingPanel : TemplatedControl
         return null;
     }
 
+    private void UpdateSingleProperty(PropertyInfo pi, object? value, bool refresh = false)
+    {
+        var baseData = Data ?? _configData;
+        var copy = baseData != null ? DeepCopy(baseData, baseData.GetType()) ?? _configData : _configData;
+        if (copy == null) return;
+
+        pi.SetValue(copy, value);
+        _configData = copy;
+        if (refresh)
+        {
+            _isCanRender = true;
+            Data = copy;
+            Render();
+        }
+        else
+        {
+            _isCanRender = false;
+            Data = copy;
+        }
+    }
+
     private Control RenderColorConfigControl(ConfigAttribute configAttribute, PropertyInfo pi)
     {
         var control = new ColorSelect();
         control.Color = (string)pi.GetValue(Data);
         control.OnSelected += (e, c) =>
         {
-            pi.SetValue(_configData, control.Color);
-            _isCanRender = false;
-            Data = DeepCopy(_configData, _configData.GetType());
+            UpdateSingleProperty(pi, control.Color);
         };
 
         var item = new SettingPanelItem();
@@ -407,17 +457,7 @@ public class SettingPanel : TemplatedControl
         control.Tag = this;
         control.OnSelectedItemChanged += (e, c) =>
         {
-            pi.SetValue(_configData, control.SelectedItem.Data);
-            Data = DeepCopy(_configData, _configData.GetType());
-            if (configAttribute.OptionsChangedRefresh)
-            {
-                _isCanRender = true;
-                Render();
-            }
-            else
-            {
-                _isCanRender = false;
-            }
+            UpdateSingleProperty(pi, control.SelectedItem.Data, configAttribute.OptionsChangedRefresh);
         };
 
 
@@ -440,9 +480,7 @@ public class SettingPanel : TemplatedControl
         control.Value = Convert.ToDecimal(pi.GetValue(Data));
         control.ValueChanged += (_, args) =>
         {
-            pi.SetValue(_configData, Convert.ToInt32(args.NewValue));
-            _isCanRender = false;
-            Data = DeepCopy(_configData, _configData.GetType());
+            UpdateSingleProperty(pi, Convert.ToInt32(args.NewValue));
         };
 
         var item = new SettingPanelItem();
@@ -458,10 +496,7 @@ public class SettingPanel : TemplatedControl
         inputControl.OffText = configAttribute.ToggleFalseText;
         inputControl.ToggleChanged += (e, c) =>
         {
-            pi.SetValue(_configData, inputControl.IsChecked);
-
-            _isCanRender = false;
-            Data = DeepCopy(_configData, _configData.GetType());
+            UpdateSingleProperty(pi, inputControl.IsChecked);
         };
 
         inputControl.IsChecked = (bool)pi.GetValue(Data);
@@ -485,8 +520,7 @@ public class SettingPanel : TemplatedControl
             {
                 var newData = new List<string>();
                 foreach (var item in listControl.Items) newData.Add(item);
-                pi.SetValue(_configData, newData);
-                Data = DeepCopy(_configData, _configData.GetType());
+                UpdateSingleProperty(pi, newData);
             };
         };
         listControl.Margin = new Thickness(15, 0, 15, 10);
@@ -611,9 +645,9 @@ public class SettingPanel : TemplatedControl
 
                         if (isConfirm)
                         {
-                            pi.SetValue(_configData, data);
                             listControl.Items.Clear();
                             foreach (var item in data) listControl.Items.Add(item);
+                            UpdateSingleProperty(pi, data);
                             view.Toast(Application.Current.FindResource("ImportCompleted") as string,
                                 ToastType.Success);
                         }

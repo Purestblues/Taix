@@ -167,11 +167,14 @@
     <system:String x:Key="ApplyDirectoryMatch">Apply Directory Match</system:String>
     <system:String x:Key="ApplyDirectoryMatchTip">Batch categorize apps based on directory settings</system:String>
     <system:String x:Key="ApplyDirectoryMatchSuccess">{0} apps categorized</system:String>
+    <system:String x:Key="AutoClassify">Auto Classify</system:String>
+    <system:String x:Key="AutoClassifyTip">Automatically classify uncategorized apps and websites using built-in and custom rules</system:String>
+    <system:String x:Key="AutoClassifySuccess">Auto classification finished, updated {0} items</system:String>
     <system:String x:Key="UrlMatch">Wildcard Match</system:String>
     <system:String x:Key="AddUrlPattern">Add Wildcard</system:String>
     <system:String x:Key="UrlPatternPlaceholder">Supports wildcards(* ?) or regex, e.g. *.bilibili.com or ^(www|m)\.google\.com$</system:String>
     <system:String x:Key="UrlPatternTooLong">URL pattern cannot exceed 256 characters</system:String>
-    <system:String x:Key="UrlPatternLimitReached">Maximum 20 URL patterns per category</system:String>
+    <system:String x:Key="UrlPatternLimitReached">Maximum 200 URL patterns per category</system:String>
     <system:String x:Key="UrlPatternExists">URL pattern already exists</system:String>
     <system:String x:Key="ApplyUrlMatchSuccess">{0} websites matched</system:String>
     <system:String x:Key="ReApplyDirectoryMatch">Re-match Directories</system:String>
@@ -183,6 +186,14 @@
     <system:String x:Key="Behavior">Behave</system:String>
     <system:String x:Key="Data">Data</system:String>
     <system:String x:Key="About">About</system:String>
+    <system:String x:Key="SettingTabGeneral">General</system:String>
+    <system:String x:Key="SettingTabAppearance">Appearance</system:String>
+    <system:String x:Key="SettingTabTracking">Tracking &amp; Rules</system:String>
+    <system:String x:Key="SettingTabData">Data</system:String>
+    <system:String x:Key="SettingTabAbout">About</system:String>
+    <system:String x:Key="DataRetentionPermanentTitle">History Retention Policy</system:String>
+    <system:String x:Key="DataRetentionPermanentDesc">All app/website usage summaries and timeline records are retained permanently by default without auto-expiry cleanup</system:String>
+    <system:String x:Key="DataRetentionPermanentBadge">Permanent</system:String>
 
     <!-- Global shortcuts -->
     <system:String x:Key="Shortcuts">Shortcuts</system:String>

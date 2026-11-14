@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.Json;
+using ShiJian.Client.Librarys;
 
 namespace ShiJian.Client.Servicers.Updater;
 
@@ -40,7 +41,14 @@ public class GithubRelease
 
     public bool IsCanUpdate()
     {
-        return !(nowVersion == Info.Version);
+        if (string.IsNullOrWhiteSpace(Info.Version) || string.IsNullOrWhiteSpace(nowVersion))
+        {
+            return false;
+        }
+        return !string.Equals(
+            AppVersionHelper.NormalizeTagVersion(nowVersion),
+            AppVersionHelper.NormalizeTagVersion(Info.Version),
+            StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<VersionInfo?> GetRequestAsync()
@@ -56,7 +64,7 @@ public class GithubRelease
 
             Info.IsPre = data.prerelease;
             Info.Title = data.name;
-            Info.Version = data.tag_name.Replace("v", string.Empty);
+            Info.Version = AppVersionHelper.NormalizeTagVersion(data.tag_name);
             Info.DownloadUrl = data.assets.FirstOrDefault()?.browser_download_url;
             Info.HtmlUrl = data.html_url;
             Info.Content = data.body;

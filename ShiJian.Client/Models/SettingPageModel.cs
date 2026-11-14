@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using ShiJian.Client.Controls.Select;
+using ShiJian.Client.PageState;
 
 namespace ShiJian.Client.Models;
 
-public class SettingPageModel : ModelBase
+[GeneratePageState]
+public partial class SettingPageModel : ModelBase
 {
     private bool _checkUpdateBtnVisibility = true;
     private object? _data;
@@ -48,15 +50,29 @@ public class SettingPageModel : ModelBase
         }
     }
 
+    [PageState]
     public int TabbarSelectedIndex
     {
         get => _tabbarSelectedIndex;
         set
         {
-            _tabbarSelectedIndex = value;
+            var normalized = Math.Clamp(value, 0, 4);
+            if (_tabbarSelectedIndex == normalized) return;
+            _tabbarSelectedIndex = normalized;
             OnPropertyChanged();
+            OnPropertyChanged(nameof(IsTab0Selected));
+            OnPropertyChanged(nameof(IsTab1Selected));
+            OnPropertyChanged(nameof(IsTab2Selected));
+            OnPropertyChanged(nameof(IsTab3Selected));
+            OnPropertyChanged(nameof(IsTab4Selected));
         }
     }
+
+    public bool IsTab0Selected => _tabbarSelectedIndex == 0;
+    public bool IsTab1Selected => _tabbarSelectedIndex == 1;
+    public bool IsTab2Selected => _tabbarSelectedIndex == 2;
+    public bool IsTab3Selected => _tabbarSelectedIndex == 3;
+    public bool IsTab4Selected => _tabbarSelectedIndex == 4;
 
     /// <summary>子母程序合并的自动组（N6）</summary>
     public ObservableCollection<AppMergeGroupRow> MergeGroups

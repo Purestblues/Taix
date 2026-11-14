@@ -1,9 +1,12 @@
 using System;
+using System.ComponentModel;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Data;
 using Avalonia.VisualTree;
+using ShiJian.Client.Librarys;
+using ShiJian.Client.Models;
 using ShiJian.Client.ViewModels;
 
 namespace ShiJian.Client.Views;
@@ -12,11 +15,25 @@ public partial class SettingPage : UserControl
 {
     private IDisposable? _heightBinding;
     private ScrollViewer? _outerScrollViewer;
+    private SettingPageViewModel? _boundVm;
 
     public SettingPage()
     {
         InitializeComponent();
-        DataContext = ServiceLocator.GetRequiredService<SettingPageViewModel>();
+        var vm = ServiceLocator.GetRequiredService<SettingPageViewModel>();
+        _boundVm = vm;
+        vm.PropertyChanged += OnViewModelPropertyChanged;
+        DataContext = vm;
+    }
+
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SettingPageModel.TabbarSelectedIndex)) return;
+        SmoothScroll.CancelAnimation(ContentScrollViewer);
+        if (ContentScrollViewer != null)
+        {
+            ContentScrollViewer.Offset = default;
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -40,6 +57,12 @@ public partial class SettingPage : UserControl
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnDetachedFromVisualTree(e);
+
+        if (_boundVm != null)
+        {
+            _boundVm.PropertyChanged -= OnViewModelPropertyChanged;
+            _boundVm = null;
+        }
 
         _heightBinding?.Dispose();
         _heightBinding = null;

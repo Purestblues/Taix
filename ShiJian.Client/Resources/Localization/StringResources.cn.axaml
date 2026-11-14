@@ -180,11 +180,14 @@
     <system:String x:Key="ApplyDirectoryMatch">应用目录匹配</system:String>
     <system:String x:Key="ApplyDirectoryMatchTip">根据目录配置批量归类应用</system:String>
     <system:String x:Key="ApplyDirectoryMatchSuccess">已归类 {0} 个应用</system:String>
+    <system:String x:Key="AutoClassify">智能归类</system:String>
+    <system:String x:Key="AutoClassifyTip">使用内置规则与目录/网址规则为未分类的应用和网站自动分类</system:String>
+    <system:String x:Key="AutoClassifySuccess">已完成智能归类，共更新 {0} 项</system:String>
     <system:String x:Key="UrlMatch">通配符匹配</system:String>
     <system:String x:Key="AddUrlPattern">添加通配符</system:String>
     <system:String x:Key="UrlPatternPlaceholder">支持通配符(* ?)或正则表达式，如 *.bilibili.com 或 ^(www|m)\.google\.com$</system:String>
     <system:String x:Key="UrlPatternTooLong">URL 规则长度不能超过 256 个字符</system:String>
-    <system:String x:Key="UrlPatternLimitReached">每个分类最多添加 20 条 URL 规则</system:String>
+    <system:String x:Key="UrlPatternLimitReached">每个分类最多添加 200 条 URL 规则</system:String>
     <system:String x:Key="UrlPatternExists">该 URL 规则已存在</system:String>
     <system:String x:Key="ApplyUrlMatchSuccess">已匹配 {0} 个网站</system:String>
     <system:String x:Key="ReApplyDirectoryMatch">重新匹配目录</system:String>
@@ -195,6 +198,14 @@
     <system:String x:Key="Behavior">行为</system:String>
     <system:String x:Key="Data">数据</system:String>
     <system:String x:Key="About">关于</system:String>
+    <system:String x:Key="SettingTabGeneral">常规</system:String>
+    <system:String x:Key="SettingTabAppearance">外观</system:String>
+    <system:String x:Key="SettingTabTracking">统计与规则</system:String>
+    <system:String x:Key="SettingTabData">数据</system:String>
+    <system:String x:Key="SettingTabAbout">关于</system:String>
+    <system:String x:Key="DataRetentionPermanentTitle">历史记录保留策略</system:String>
+    <system:String x:Key="DataRetentionPermanentDesc">所有应用与网站使用时长及时间轴记录默认永久保留，不再受保留天数上限限制</system:String>
+    <system:String x:Key="DataRetentionPermanentBadge">永久保留</system:String>
 
     <!-- 全局快捷键 -->
     <system:String x:Key="Shortcuts">快捷键</system:String>

@@ -24,6 +24,7 @@ public partial class MainWindow : DefaultWindow
     public MainWindow()
     {
         InitializeComponent();
+        SmoothScroll.EnsureRegistered();
         RequestClose += (_, _) => Close();
 
         if (OperatingSystem.IsMacOS())

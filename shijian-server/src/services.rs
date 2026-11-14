@@ -1,5 +1,6 @@
 pub mod app_data;
 pub mod app_timer;
+pub mod auto_category;
 pub mod category;
 pub mod category_summary;
 pub mod config;

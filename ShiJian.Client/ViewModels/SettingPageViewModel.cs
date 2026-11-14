@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using ShiJian.Client.Controls.Base;
@@ -34,6 +33,8 @@ public class SettingPageViewModel : SettingPageModel
     private readonly IProcessService _processService;
     private readonly IAppMergeService _appMergeService;
     private readonly IEntityData _entityData;
+    private readonly INavigationService _navigationService;
+    private readonly IStateService _stateService;
 
     /// <summary>与 <c>BrowserOptions</c> 一一对应的浏览器标识（第一项是空串 = 自动推荐）</summary>
     private readonly List<string> _browserReferences = [];
@@ -54,7 +55,9 @@ public class SettingPageViewModel : SettingPageModel
         IProcessService processService,
         UpdateCheckerService updateCheckerService,
         IAppMergeService appMergeService,
-        IEntityData entityData)
+        IEntityData entityData,
+        INavigationService navigationService,
+        IStateService stateService)
     {
         _appConfig = appConfig;
         _toastService = toastService;
@@ -67,6 +70,8 @@ public class SettingPageViewModel : SettingPageModel
         _updateCheckerService = updateCheckerService;
         _appMergeService = appMergeService;
         _entityData = entityData;
+        _navigationService = navigationService;
+        _stateService = stateService;
         _config = appConfig.GetConfig();
 
         OpenURL = AsyncRelayCommand.Create<object>(OnOpenURL).DisposeWith(Disposables);
@@ -104,12 +109,19 @@ public class SettingPageViewModel : SettingPageModel
     public ICommand SaveMergeGroupCommand { get; }
     public ICommand CloseMergeEditorCommand { get; }
 
-    /// <summary>进设置页时刷新一次（应用表可能在别的页面里改过）</summary>
+    /// <summary>进设置页时恢复分页状态并刷新一次（应用表可能在别的页面里改过）</summary>
     public override async Task OnNavigatedToAsync()
     {
+        TryRestoreState(_navigationService, _stateService);
         await LoadBrowsersAsync();
         await LoadMergeGroupsAsync();
         await base.OnNavigatedToAsync();
+    }
+
+    public override void OnNavigatedFrom()
+    {
+        SaveState(_stateService);
+        base.OnNavigatedFrom();
     }
 
     /// <summary>
@@ -481,91 +493,6 @@ public class SettingPageViewModel : SettingPageModel
         }
     }
 
-    private int _dataRetentionDays;
-    public int DataRetentionDays
-    {
-        get => _dataRetentionDays;
-        set
-        {
-            if (_dataRetentionDays != value)
-            {
-                _dataRetentionDays = value;
-                _config.General.DataRetentionDays = value;
-                _ = _appConfig.SaveAsync();
-                OnPropertyChanged();
-                UpdateSelectedRetentionOption();
-            }
-        }
-    }
-
-    private List<SelectItemModel> _retentionOptions;
-    public List<SelectItemModel> RetentionOptions
-    {
-        get => _retentionOptions;
-        set
-        {
-            _retentionOptions = value;
-            OnPropertyChanged();
-        }
-    }
-
-    private SelectItemModel _selectedRetentionOption;
-    public SelectItemModel SelectedRetentionOption
-    {
-        get => _selectedRetentionOption;
-        set
-        {
-            if (_selectedRetentionOption != value && value != null)
-            {
-                _selectedRetentionOption = value;
-                OnPropertyChanged();
-
-                if (value.Data is int days)
-                {
-                    if (days == -1)
-                    {
-                        // 自定义选项，显示输入框
-                        IsCustomRetention = true;
-                    }
-                    else
-                    {
-                        IsCustomRetention = false;
-                        DataRetentionDays = days;
-                    }
-                }
-            }
-        }
-    }
-
-    private bool _isCustomRetention;
-    public bool IsCustomRetention
-    {
-        get => _isCustomRetention;
-        set
-        {
-            _isCustomRetention = value;
-            OnPropertyChanged();
-        }
-    }
-
-    private void UpdateSelectedRetentionOption()
-    {
-        if (_retentionOptions == null) return;
-
-        var matchingOption = _retentionOptions.Find(o => o.Data is int d && d == _dataRetentionDays);
-        if (matchingOption != null)
-        {
-            IsCustomRetention = false;
-            _selectedRetentionOption = matchingOption;
-        }
-        else
-        {
-            IsCustomRetention = true;
-            _selectedRetentionOption = _retentionOptions.Find(o => o.Data is int d && d == -1);
-        }
-        OnPropertyChanged(nameof(SelectedRetentionOption));
-    }
-
     public ICommand OpenURL { get; }
     public ICommand CheckUpdate { get; }
     public ICommand DelDataCommand { get; }
@@ -575,11 +502,11 @@ public class SettingPageViewModel : SettingPageModel
     {
         if (e.HasChange("General.Language"))
         {
-            if (TabbarData.Count > 0) TabbarData[0] = ResourceStrings.General;
-            if (TabbarData.Count > 1) TabbarData[1] = ResourceStrings.Behavior;
-            if (TabbarData.Count > 2) TabbarData[2] = ResourceStrings.Data;
-            if (TabbarData.Count > 3) TabbarData[3] = ResourceStrings.Shortcuts;
-            if (TabbarData.Count > 4) TabbarData[4] = ResourceStrings.About;
+            if (TabbarData.Count > 0) TabbarData[0] = ResourceStrings.SettingTabGeneral;
+            if (TabbarData.Count > 1) TabbarData[1] = ResourceStrings.SettingTabAppearance;
+            if (TabbarData.Count > 2) TabbarData[2] = ResourceStrings.SettingTabTracking;
+            if (TabbarData.Count > 3) TabbarData[3] = ResourceStrings.SettingTabData;
+            if (TabbarData.Count > 4) TabbarData[4] = ResourceStrings.SettingTabAbout;
             OnPropertyChanged(nameof(TabbarData));
         }
 
@@ -595,25 +522,19 @@ public class SettingPageViewModel : SettingPageModel
     private void Initialize()
     {
         Data = _config.General;
-        TabbarData = [ResourceStrings.General, ResourceStrings.Behavior, ResourceStrings.Data, ResourceStrings.Shortcuts, ResourceStrings.About];
-        Version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? string.Empty;
+        TabbarData =
+        [
+            ResourceStrings.SettingTabGeneral,
+            ResourceStrings.SettingTabAppearance,
+            ResourceStrings.SettingTabTracking,
+            ResourceStrings.SettingTabData,
+            ResourceStrings.SettingTabAbout
+        ];
+        Version = AppVersionHelper.GetDisplayVersion();
         DelDataStartMonthDate = DateTime.Now;
         DelDataEndMonthDate = DateTime.Now;
         ExportDataStartMonthDate = DateTime.Now;
         ExportDataEndMonthDate = DateTime.Now;
-        _dataRetentionDays = _config.General.DataRetentionDays;
-
-        var days = ResourceStrings.Days;
-        RetentionOptions =
-        [
-            new SelectItemModel { Name = $"30{days}", Data = 30 },
-            new SelectItemModel { Name = $"60{days}", Data = 60 },
-            new SelectItemModel { Name = $"90{days}", Data = 90 },
-            new SelectItemModel { Name = $"180{days}", Data = 180 },
-            new SelectItemModel { Name = $"365{days}", Data = 365 },
-            new SelectItemModel { Name = ResourceStrings.Custom, Data = -1 }
-        ];
-        UpdateSelectedRetentionOption();
     }
 
     private async Task OnDelDataAsync(object obj)

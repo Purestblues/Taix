@@ -8,7 +8,7 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 use tracing::{info, warn};
 
-pub(crate) const MIGRATION_STEPS: [&str; 26] = [
+pub(crate) const MIGRATION_STEPS: [&str; 27] = [
     "baseline",
     "add_columns",
     "rename_columns",
@@ -35,6 +35,7 @@ pub(crate) const MIGRATION_STEPS: [&str; 26] = [
     "unified_categories",
     "svg_category_icons",
     "preset_categories",
+    "builtin_auto_category",
 ];
 
 const BASELINE_SQL: &str = r#"
@@ -462,7 +463,17 @@ pub(crate) async fn run(pool: &SqlitePool, tz_id: &str) -> anyhow::Result<()> {
         mark_done(&mut tx, "preset_categories").await?;
     }
 
+    if !is_done(&mut tx, "builtin_auto_category").await? {
+        let updated = crate::services::category::CategoryService::backfill_builtin_categories_tx(&mut tx)
+            .await
+            .map_err(|e| anyhow::anyhow!(e.to_string()))
+            .context("执行内置自动归类回填")?;
+        info!(updated = updated, "已为未分类应用与网站套用内置自动归类规则");
+        mark_done(&mut tx, "builtin_auto_category").await?;
+    }
+
     tx.commit().await.context("提交迁移事务失败")?;
+    crate::services::category::invalidate_category_cache().await;
     info!("数据库迁移完成");
     Ok(())
 }
@@ -1357,6 +1368,7 @@ mod tests {
         .unwrap();
         let mut tx = pool.begin().await.unwrap();
         execute_batch(&mut tx, BASELINE_SQL).await.unwrap();
+        add_column_if_missing(&mut tx, "AppModels", "Publisher", "TEXT").await.unwrap();
         add_column_if_missing(&mut tx, "WebSiteCategoryModels", "IsSystem", "INTEGER NOT NULL DEFAULT 0").await.unwrap();
         add_column_if_missing(&mut tx, "WebSiteCategoryModels", "IsUrlMatch", "INTEGER NOT NULL DEFAULT 0").await.unwrap();
         add_column_if_missing(&mut tx, "WebSiteCategoryModels", "UrlPatterns", "TEXT").await.unwrap();
@@ -1405,12 +1417,12 @@ mod tests {
         let s4 = sqlx::query("INSERT INTO WebSiteModels (Title, Domain, CategoryID, Duration) VALUES ('Orphan', 'orphan.test', 9999, 5)")
             .execute(&mut *tx).await.unwrap().last_insert_rowid();
 
-        for step in &MIGRATION_STEPS[..MIGRATION_STEPS.len() - 3] {
+        for step in &MIGRATION_STEPS[..MIGRATION_STEPS.len() - 4] {
             mark_done(&mut tx, step).await.unwrap();
         }
         tx.commit().await.unwrap();
 
-        // Run migration for unified_categories + svg_category_icons + preset_categories
+        // Run migration for unified_categories + svg_category_icons + preset_categories + builtin_auto_category
         run(&pool, "Asia/Shanghai").await.unwrap();
 
         let cats = CategoryService::get_categories(&pool).await.unwrap();
@@ -1464,5 +1476,56 @@ mod tests {
             &pool, dev.id, day, day, None, None, "Asia/Shanghai", &cfg,
         ).await.unwrap();
         assert_eq!(summary.category_name, "开发");
+    }
+
+    #[tokio::test]
+    async fn builtin_auto_category_backfills_uncategorized_and_preserves_manual() {
+        let pool = mem_pool().await;
+        run(&pool, "Asia/Shanghai").await.unwrap();
+
+        let sys_id = CategoryService::get_system_category_id(&pool).await.unwrap();
+        let cats: Vec<crate::models::category::CategoryModel> =
+            sqlx::query_as("SELECT * FROM CategoryModels")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        let ent_id = cats.iter().find(|c| c.name.as_deref() == Some("娱乐")).unwrap().id;
+        let study_id = cats.iter().find(|c| c.name.as_deref() == Some("学习")).unwrap().id;
+        let ai_id = cats.iter().find(|c| c.name.as_deref() == Some("AI")).unwrap().id;
+
+        // 1. Delete preset "AI" before migration runs again -> AI-matched items must stay uncategorized
+        sqlx::query("DELETE FROM CategoryModels WHERE ID = ?")
+            .bind(ai_id)
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        // 2. Insert test rows & simulate builtin_auto_category hasn't run yet
+        sqlx::query("DELETE FROM _migrations WHERE step = 'builtin_auto_category'")
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let app_code = sqlx::query("INSERT INTO AppModels (Name, CategoryID, TotalTime) VALUES ('Code.exe', ?, 10)")
+            .bind(sys_id).execute(&pool).await.unwrap().last_insert_rowid();
+        let app_manual = sqlx::query("INSERT INTO AppModels (Name, CategoryID, TotalTime) VALUES ('winword', ?, 10)")
+            .bind(study_id).execute(&pool).await.unwrap().last_insert_rowid();
+        let site_bili = sqlx::query("INSERT INTO WebSiteModels (Title, Domain, CategoryID, Duration) VALUES ('Bilibili', 'www.bilibili.com', ?, 10)")
+            .bind(sys_id).execute(&pool).await.unwrap().last_insert_rowid();
+        let site_chatgpt = sqlx::query("INSERT INTO WebSiteModels (Title, Domain, CategoryID, Duration) VALUES ('ChatGPT', 'chatgpt.com', ?, 10)")
+            .bind(sys_id).execute(&pool).await.unwrap().last_insert_rowid();
+
+        run(&pool, "Asia/Shanghai").await.unwrap();
+
+        let dev_id = cats.iter().find(|c| c.name.as_deref() == Some("开发")).unwrap().id;
+        let c_code: i64 = sqlx::query_scalar("SELECT CategoryID FROM AppModels WHERE ID = ?").bind(app_code).fetch_one(&pool).await.unwrap();
+        let c_manual: i64 = sqlx::query_scalar("SELECT CategoryID FROM AppModels WHERE ID = ?").bind(app_manual).fetch_one(&pool).await.unwrap();
+        let c_bili: i64 = sqlx::query_scalar("SELECT CategoryID FROM WebSiteModels WHERE ID = ?").bind(site_bili).fetch_one(&pool).await.unwrap();
+        let c_gpt: i64 = sqlx::query_scalar("SELECT CategoryID FROM WebSiteModels WHERE ID = ?").bind(site_chatgpt).fetch_one(&pool).await.unwrap();
+
+        assert_eq!(c_code, dev_id);
+        assert_eq!(c_manual, study_id); // user's manual choice preserved
+        assert_eq!(c_bili, ent_id);
+        assert_eq!(c_gpt, sys_id); // deleted AI category is not resurrected
     }
 }
