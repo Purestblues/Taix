@@ -53,15 +53,18 @@ public static class SlideMotion
         {
             if (delay > TimeSpan.Zero) await Task.Delay(delay, cancellationToken);
 
-            await AnimateAsync(topLevel, duration, easing, progress =>
+            // 延迟期间控件可能已被卸载，不能再拿旧 topLevel 启动动画
+            var currentTopLevel = TopLevel.GetTopLevel(target);
+            if (currentTopLevel == null) return;
+
+            await AnimateAsync(target, currentTopLevel, duration, easing, progress =>
             {
-                if (TopLevel.GetTopLevel(target) == null) throw new OperationCanceledException();
                 transform.Y = fromY + (toY - fromY) * progress;
             }, cancellationToken);
         }
         catch (OperationCanceledException)
         {
-            // 控件在动画途中被卸载：直接落到终态，不能留在半路
+            // 控件在动画途中被取消：直接落到终态，不能留在半路
         }
         finally
         {
@@ -94,9 +97,8 @@ public static class SlideMotion
         transform.Y = fromY;
         target.Opacity = fromOpacity;
 
-        await AnimateAsync(topLevel, duration, easing, progress =>
+        await AnimateAsync(target, topLevel, duration, easing, progress =>
         {
-            if (TopLevel.GetTopLevel(target) == null) return;
             transform.Y = fromY + (toY - fromY) * progress;
             target.Opacity = fromOpacity + (toOpacity - fromOpacity) * progress;
         }, cancellationToken);
@@ -152,42 +154,87 @@ public static class SlideMotion
     /// 比 DispatcherTimer 稳（不会在掉帧时堆回调）。
     /// </summary>
     private static async Task AnimateAsync(
+        Control target,
         TopLevel topLevel,
         TimeSpan duration,
         IEasing easing,
         Action<double> apply,
         CancellationToken cancellationToken)
     {
-        var completion = new TaskCompletionSource();
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var startedAt = -1d;
         var totalMs = duration.TotalMilliseconds;
 
+        void OnDetached(object? sender, VisualTreeAttachmentEventArgs e)
+        {
+            completion.TrySetResult();
+        }
+
+        void OnTopLevelClosed(object? sender, EventArgs e)
+        {
+            completion.TrySetResult();
+        }
+
         void Step(TimeSpan timestamp)
         {
+            if (completion.Task.IsCompleted) return;
+
             if (cancellationToken.IsCancellationRequested)
             {
                 completion.TrySetCanceled(cancellationToken);
                 return;
             }
 
-            var now = timestamp.TotalMilliseconds;
-            if (startedAt < 0) startedAt = now;
-
-            var elapsed = now - startedAt;
-            var raw = totalMs <= 0 ? 1d : Math.Clamp(elapsed / totalMs, 0d, 1d);
-
-            apply(easing.Ease(raw));
-
-            if (raw >= 1d)
+            // 控件在帧回调前被卸载时直接结束，不能在 RequestAnimationFrame 回调里抛异常
+            if (TopLevel.GetTopLevel(target) == null)
             {
                 completion.TrySetResult();
                 return;
             }
 
-            topLevel.RequestAnimationFrame(Step);
+            try
+            {
+                var now = timestamp.TotalMilliseconds;
+                if (startedAt < 0) startedAt = now;
+
+                var elapsed = now - startedAt;
+                var raw = totalMs <= 0 ? 1d : Math.Clamp(elapsed / totalMs, 0d, 1d);
+
+                apply(easing.Ease(raw));
+
+                if (raw >= 1d)
+                {
+                    completion.TrySetResult();
+                    return;
+                }
+
+                topLevel.RequestAnimationFrame(Step);
+            }
+            catch (OperationCanceledException ex)
+            {
+                completion.TrySetCanceled(ex.CancellationToken);
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
         }
 
-        topLevel.RequestAnimationFrame(Step);
-        await completion.Task;
+        target.DetachedFromVisualTree += OnDetached;
+        topLevel.Closed += OnTopLevelClosed;
+        using var cancellationRegistration = cancellationToken.CanBeCanceled
+            ? cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken))
+            : default;
+
+        try
+        {
+            topLevel.RequestAnimationFrame(Step);
+            await completion.Task;
+        }
+        finally
+        {
+            target.DetachedFromVisualTree -= OnDetached;
+            topLevel.Closed -= OnTopLevelClosed;
+        }
     }
 }

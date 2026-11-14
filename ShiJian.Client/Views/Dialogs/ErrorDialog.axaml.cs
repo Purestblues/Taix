@@ -16,9 +16,22 @@ public partial class ErrorDialog : Window
 
     private void LogHyperlinkClick(object sender, RoutedEventArgs e)
     {
-        var loggerName = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
-            "Log", DateTime.Now.ToString("yyyy-MM-dd") + ".log");
-        if (File.Exists(loggerName)) PlatformHelper.OpenFileInExplorer(loggerName);
+        var baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        var currentLog = Path.Combine(baseDir, "Logs", $"shijian-client-{DateTime.Now:yyyy-MM-dd}.log");
+        var legacyLog = Path.Combine(baseDir, "Log", $"{DateTime.Now:yyyy-MM-dd}.log");
+        var targetLog = File.Exists(currentLog) ? currentLog : legacyLog;
+
+        if (File.Exists(targetLog))
+        {
+            PlatformHelper.OpenFileInExplorer(targetLog);
+            return;
+        }
+
+        var logsDir = Path.Combine(baseDir, "Logs");
+        if (Directory.Exists(logsDir))
+        {
+            PlatformHelper.RunFile(logsDir);
+        }
     }
 
     private void IssuesHyperlinkClick(object sender, RoutedEventArgs e)

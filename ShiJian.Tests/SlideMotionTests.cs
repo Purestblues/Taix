@@ -81,11 +81,97 @@ public class SlideMotionTests
         Assert.True(MotionTokens.S < MotionTokens.M);
         Assert.True(MotionTokens.M < MotionTokens.L);
 
-        // 三条曲线在两端都必须落在 0 与 1，否则动画会留下残值
+            // 三条曲线在两端都必须落在 0 与 1，否则动画会留下残值
         foreach (var easing in new[] { MotionTokens.Standard(), MotionTokens.Enter(), MotionTokens.Leave() })
         {
             Assert.Equal(0d, easing.Ease(0d), 3);
             Assert.Equal(1d, easing.Ease(1d), 3);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Slide_WhenTargetDetachedMidAnimation_DoesNotThrowAndResets()
+    {
+        var (target, window) = CreateHost();
+        Exception? uiException = null;
+        void OnUnhandled(object? sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            uiException = e.Exception;
+            e.Handled = true;
+        }
+
+        Dispatcher.UIThread.UnhandledException += OnUnhandled;
+
+        try
+        {
+            Motion.SetEnabled(true);
+
+            var animationTask = SlideMotion.SlideYAsync(
+                target,
+                MotionTokens.PageOffsetY,
+                0,
+                MotionTokens.L,
+                MotionTokens.Enter());
+
+            // 推进首帧后再把控件从视觉树移除（模拟快速切页）
+            await Task.Delay(25);
+            Dispatcher.UIThread.RunJobs();
+            window.Content = new Border();
+            Dispatcher.UIThread.RunJobs();
+
+            await Task.WhenAny(animationTask, Task.Delay(2000));
+            Assert.True(animationTask.IsCompletedSuccessfully, "控件卸载后位移动画应正常结束");
+            Assert.Null(uiException);
+            Assert.Null(target.RenderTransform);
+        }
+        finally
+        {
+            Dispatcher.UIThread.UnhandledException -= OnUnhandled;
+            Motion.SetEnabled(true);
+            window.Close();
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task Slide_WhenTargetDetachedDuringDelay_DoesNotThrowAndResets()
+    {
+        var (target, window) = CreateHost();
+        Exception? uiException = null;
+        void OnUnhandled(object? sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            uiException = e.Exception;
+            e.Handled = true;
+        }
+
+        Dispatcher.UIThread.UnhandledException += OnUnhandled;
+
+        try
+        {
+            Motion.SetEnabled(true);
+
+            var animationTask = SlideMotion.SlideYAsync(
+                target,
+                MotionTokens.PageOffsetY,
+                0,
+                MotionTokens.M,
+                MotionTokens.Enter(),
+                delay: TimeSpan.FromMilliseconds(80));
+
+            // 在延迟阶段就把控件卸载
+            await Task.Delay(15);
+            window.Content = new Border();
+            Dispatcher.UIThread.RunJobs();
+
+            await Task.WhenAny(animationTask, Task.Delay(2000));
+            Assert.True(animationTask.IsCompletedSuccessfully, "延迟期间卸载控件后动画应正常结束");
+            Assert.Null(uiException);
+            Assert.Null(target.RenderTransform);
+        }
+        finally
+        {
+            Dispatcher.UIThread.UnhandledException -= OnUnhandled;
+            Motion.SetEnabled(true);
+            window.Close();
         }
     }
 }
