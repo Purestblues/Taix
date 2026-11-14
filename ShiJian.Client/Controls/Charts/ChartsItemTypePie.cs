@@ -124,8 +124,9 @@ public class ChartsItemTypePie : Control
         var center = new Point(width / 2, height / 2);
         var radius = Math.Min(width, height) * 0.15;
 
-        var bgColor = _isDarkTheme ? Color.Parse("#3A3A42") : Color.Parse("#E8E8EC");
-        context.DrawEllipse(new SolidColorBrush(bgColor), null, center, radius, radius);
+        var bgBrush = ResolveBrush("Surface3Brush")
+                      ?? new SolidColorBrush(_isDarkTheme ? Color.Parse("#3B4252") : Color.Parse("#E5E9F0"));
+        context.DrawEllipse(bgBrush, null, center, radius, radius);
     }
 
     private void DrawSlice(DrawingContext context, Point center, double innerRadius, double outerRadius, double startAngle, double sweepAngle, string colorString, bool isHovered)
@@ -198,10 +199,24 @@ public class ChartsItemTypePie : Control
         return geometry;
     }
 
+    private static IBrush? ResolveBrush(string resourceKey)
+    {
+        if (Application.Current is { } app &&
+            app.CheckAccess() &&
+            app.TryGetResource(resourceKey, app.ActualThemeVariant, out var resource) &&
+            resource is IBrush brush)
+        {
+            return brush;
+        }
+
+        return null;
+    }
+
     private void DrawCenterCircle(DrawingContext context, Point center, double innerRadius)
     {
-        var borderColor = _isDarkTheme ? Color.Parse("#3A3A42") : Color.Parse("#E8E8EC");
-        context.DrawEllipse(null, new Pen(new SolidColorBrush(borderColor), 1), center, innerRadius, innerRadius);
+        var borderBrush = ResolveBrush("DividerDefaultBrush")
+                          ?? new SolidColorBrush(_isDarkTheme ? Color.Parse("#3B4252") : Color.Parse("#D8DEE9"));
+        context.DrawEllipse(null, new Pen(borderBrush, 1), center, innerRadius, innerRadius);
     }
 
     private void DrawTooltip(DrawingContext context, Point center, double innerRadius, double outerRadius, ChartsDataModel item, double totalValue)
@@ -210,15 +225,20 @@ public class ChartsItemTypePie : Control
         var nameText = item.Name;
         var percentText = $"{percentage:F1}%";
 
-        var bgColor = _isDarkTheme ? Color.Parse("#404048") : Color.Parse("#FFFFFF");
-        var nameColor = _isDarkTheme ? Color.Parse("#A0A0A8") : Color.Parse("#888888");
-        var percentColor = _isDarkTheme ? Color.Parse("#F0F0F0") : Color.Parse("#333333");
+        var bgBrush = ResolveBrush("PopupBackgroundBrush")
+                      ?? new SolidColorBrush(_isDarkTheme ? Color.Parse("#3B4252") : Color.Parse("#FFFFFF"));
+        var borderBrush = ResolveBrush("PopupBorderBrush")
+                          ?? new SolidColorBrush(_isDarkTheme ? Color.Parse("#4C566A") : Color.Parse("#D8DEE9"));
+        var nameBrush = ResolveBrush("SubTextBrush")
+                        ?? new SolidColorBrush(_isDarkTheme ? Color.Parse("#9EA9BA") : Color.Parse("#5F6E82"));
+        var percentBrush = ResolveBrush("DefaultTextBrush")
+                           ?? new SolidColorBrush(_isDarkTheme ? Color.Parse("#ECEFF4") : Color.Parse("#2E3440"));
 
         var typeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.Medium);
         var boldTypeface = new Typeface(FontFamily.Default, FontStyle.Normal, FontWeight.SemiBold);
 
-        var nameFormatted = new FormattedText(nameText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 12, new SolidColorBrush(nameColor));
-        var percentFormatted = new FormattedText(percentText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, boldTypeface, 16, new SolidColorBrush(percentColor));
+        var nameFormatted = new FormattedText(nameText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 12, nameBrush);
+        var percentFormatted = new FormattedText(percentText, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, boldTypeface, 16, percentBrush);
 
         var maxWidth = Math.Max(nameFormatted.Width, percentFormatted.Width);
         var totalHeight = nameFormatted.Height + percentFormatted.Height + 4;
@@ -233,7 +253,7 @@ public class ChartsItemTypePie : Control
 
         // 绘制背景
         var tooltipRect = new Rect(tooltipX, tooltipY, tooltipWidth, tooltipHeight);
-        context.DrawRectangle(new SolidColorBrush(bgColor), null, tooltipRect, 6, 6);
+        context.DrawRectangle(bgBrush, new Pen(borderBrush, 1), tooltipRect, 6, 6);
 
         // 绘制文字
         var nameX = center.X - nameFormatted.Width / 2;
@@ -316,9 +336,9 @@ public class ChartsItemTypePie : Control
 
     private static Color TryParseColor(string? colorString)
     {
-        if (string.IsNullOrEmpty(colorString)) return Color.Parse("#78909C");
+        if (string.IsNullOrEmpty(colorString)) return Color.Parse("#5E81AC");
         try { return Color.Parse(colorString); }
-        catch { return Color.Parse("#78909C"); }
+        catch { return Color.Parse("#5E81AC"); }
     }
 
     protected override Size MeasureOverride(Size availableSize)

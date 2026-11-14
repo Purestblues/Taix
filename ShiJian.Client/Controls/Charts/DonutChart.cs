@@ -50,7 +50,7 @@ public class DonutChart : Control
         AvaloniaProperty.Register<DonutChart, string?>(nameof(EmptyText));
 
     private const double SliceGapDegrees = 1.6;
-    private const double DurationMs = 620;
+    private const double DurationMs = 260;
 
     private int _hoverIndex = -1;
     private DispatcherTimer? _animTimer;
@@ -524,7 +524,7 @@ public class DonutChart : Control
 
     private IBrush GetBrush(string? color)
     {
-        _fallbackBrush ??= new SolidColorBrush(Color.Parse("#C08AC9"));
+        _fallbackBrush ??= new SolidColorBrush(Color.Parse("#5E81AC"));
 
         if (string.IsNullOrWhiteSpace(color)) return _fallbackBrush;
         if (_brushCache.TryGetValue(color, out var cached)) return cached;

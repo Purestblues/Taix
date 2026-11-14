@@ -295,11 +295,11 @@ public class SettingPanel : TemplatedControl
     {
         if (configList == null || configList.Count == 0) return;
         var itemContainer = new StackPanel();
+        itemContainer.Spacing = 4;
 
         var sortList = configList.OrderBy(m => m.Attribute.Index).ToList();
-        var cornerRadius =
-            ((CornerRadius?)Application.Current?.FindResource("RadiusLarge")) ?? new CornerRadius(16);
-        var isOnlyOne = sortList.Count == 1;
+        var itemCornerRadius =
+            ((CornerRadius?)Application.Current?.FindResource("RadiusMedium")) ?? new CornerRadius(8);
         for (var i = 0; i < sortList.Count; i++)
         {
             var config = sortList[i];
@@ -308,25 +308,9 @@ public class SettingPanel : TemplatedControl
             if (control != null)
             {
                 if (control is SettingPanelItem item)
-                    item.CornerRadius = isOnlyOne
-                        ? cornerRadius
-                        : i == 0
-                            ? new CornerRadius(cornerRadius.TopLeft, cornerRadius.TopRight, 0, 0)
-                            : i == sortList.Count - 1
-                                ? new CornerRadius(0, 0, cornerRadius.BottomRight, cornerRadius.BottomLeft)
-                                : new CornerRadius(0);
+                    item.CornerRadius = itemCornerRadius;
 
                 itemContainer.Children.Add(control);
-
-                if (i != sortList.Count - 1)
-                {
-                    //  添加分割线（与其它卡片内分隔线一致：SpliteLine + 0.5 透明度）
-                    var spliteLine = new Border();
-                    spliteLine.Height = 1;
-                    spliteLine.Background = SpliteLineBrush;
-                    spliteLine.Opacity = 0.5;
-                    itemContainer.Children.Add(spliteLine);
-                }
             }
         }
 
@@ -344,7 +328,7 @@ public class SettingPanel : TemplatedControl
             groupNameControl.Text = groupName;
             groupNameControl.FontSize = 13;
             groupNameControl.FontWeight = FontWeight.SemiBold;
-            groupNameControl.Margin = new Thickness(2, 0, 0, 8);
+            groupNameControl.Margin = new Thickness(4, 0, 0, 8);
             groupNameControl.Foreground = (IBrush)Application.Current?.FindResource("SettingGroupTitleBrush");
             container.Children.Add(groupNameControl);
         }
@@ -352,10 +336,10 @@ public class SettingPanel : TemplatedControl
         var border = new Border();
         border.Background = Background;
         border.CornerRadius =
-            ((CornerRadius?)Application.Current?.FindResource("RadiusLarge")) ?? new CornerRadius(16);
+            ((CornerRadius?)Application.Current?.FindResource("RadiusLarge")) ?? new CornerRadius(12);
         border.BorderBrush = BorderBrush;
-        //border.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#ededed"));
         border.BorderThickness = new Thickness(1);
+        border.Padding = new Thickness(6);
         border.Child = item;
 
         container.Children.Add(border);

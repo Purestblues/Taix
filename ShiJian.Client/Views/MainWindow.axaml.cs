@@ -78,10 +78,10 @@ public partial class MainWindow : DefaultWindow
         SetTitleBarHeight(titleBarHeight);
 
         var nav = this.FindControl<Grid>("NavigationHost");
-        if (nav != null) nav.Margin = new Thickness(0, titleBarHeight, 0, 15);
+        if (nav != null) nav.Margin = new Thickness(0, titleBarHeight, 0, 0);
 
         var page = this.FindControl<Border>("PageHost");
-        if (page != null) page.Margin = new Thickness(0, titleBarHeight, 10, 10);
+        if (page != null) page.Margin = new Thickness(0, titleBarHeight, 0, 0);
 
         var overlay = this.FindControl<Grid>("SearchOverlay");
         if (overlay != null) overlay.Margin = new Thickness(0, titleBarHeight, 0, 0);

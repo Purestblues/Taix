@@ -5,45 +5,115 @@
 
     <ControlTheme x:Key="{x:Type controls:Button}" TargetType="controls:Button">
         <Setter Property="UseLayoutRounding" Value="True" />
-        <Setter Property="Foreground" Value="{DynamicResource StandardTextBrush}" />
-        <Setter Property="Height" Value="35" />
+        <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Surface3Brush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSmall}" />
+        <Setter Property="Padding" Value="12,0" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="FontWeight" Value="Medium" />
+        <Setter Property="Cursor" Value="Hand" />
         <Styles>
             <Style Selector="controls|Button[Icon=None] /template/ base|Icon#Icon">
                 <Setter Property="IsVisible" Value="False" />
             </Style>
 
-            <Style Selector="controls|Button:pointerover /template/ Border#BoxBorder">
-                <Setter Property="BorderThickness" Value="0" />
-
+            <Style Selector="controls|Button /template/ Border#BoxBorder">
                 <Setter Property="Transitions">
                     <Transitions>
-                        <BrushTransition Property="Background" Duration="0.18" />
+                        <BrushTransition Property="Background" Duration="0:0:0.12" />
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.12" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.09" />
                     </Transitions>
                 </Setter>
+            </Style>
 
+            <Style Selector="controls|Button:pointerover /template/ Border#BoxBorder">
                 <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
+            </Style>
+
+            <Style Selector="controls|Button:pressed /template/ Border#BoxBorder">
+                <Setter Property="RenderTransform" Value="scale(0.985)" />
+            </Style>
+
+            <Style Selector="controls|Button.primary">
+                <Setter Property="Background" Value="{DynamicResource ThemeBrush}" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Foreground" Value="{DynamicResource OnBrandBrush}" />
+            </Style>
+            <Style Selector="controls|Button.primary:pointerover /template/ Border#BoxBorder">
+                <Setter Property="Background" Value="{DynamicResource ThemeBrush}" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Opacity" Value="0.9" />
+            </Style>
+            <Style Selector="controls|Button.primary:pressed /template/ Border#BoxBorder">
+                <Setter Property="Opacity" Value="0.82" />
+            </Style>
+
+            <Style Selector="controls|Button.tonal">
+                <Setter Property="Background" Value="{DynamicResource ThemeTintBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SelectRingBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource ThemeBrush}" />
+            </Style>
+            <Style Selector="controls|Button.tonal:pointerover /template/ Border#BoxBorder">
+                <Setter Property="Background" Value="{DynamicResource SelectRingBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+            </Style>
+
+            <Style Selector="controls|Button.danger">
+                <Setter Property="Background" Value="{DynamicResource DangerBrush}" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Foreground" Value="{DynamicResource OnBrandBrush}" />
+            </Style>
+            <Style Selector="controls|Button.danger:pointerover /template/ Border#BoxBorder">
+                <Setter Property="Background" Value="{DynamicResource DangerBrush}" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Opacity" Value="0.9" />
+            </Style>
+
+            <Style Selector="controls|Button.ghost">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
+            </Style>
+            <Style Selector="controls|Button.ghost:pointerover">
+                <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
+            </Style>
+            <Style Selector="controls|Button.ghost:pointerover /template/ Border#BoxBorder">
+                <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+            </Style>
+
+            <Style Selector="controls|Button:disabled">
+                <Setter Property="Opacity" Value="0.45" />
+                <Setter Property="Cursor" Value="Arrow" />
             </Style>
 
             <!-- 键盘焦点：只在键盘操作时出现 -->
             <Style Selector="controls|Button:focus-visible /template/ Border#BoxBorder">
                 <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
-                <Setter Property="BorderThickness" Value="2" />
+                <Setter Property="BorderThickness" Value="1.5" />
             </Style>
         </Styles>
-        <Setter Property="Background" Value="{DynamicResource StandardBackgroundBrush}" />
         <Setter Property="Template">
             <ControlTemplate>
-                <Border BorderBrush="{DynamicResource ButtonBorderBrush}" BorderThickness="1" Width="{TemplateBinding Width}"
+                <Border x:Name="BoxBorder"
+                        BorderBrush="{TemplateBinding BorderBrush}"
+                        BorderThickness="{TemplateBinding BorderThickness}"
+                        Width="{TemplateBinding Width}"
                         Height="{TemplateBinding Height}"
-                        x:Name="BoxBorder"
-                        CornerRadius="4"
+                        Padding="{TemplateBinding Padding}"
+                        CornerRadius="{TemplateBinding CornerRadius}"
                         Background="{TemplateBinding Background}">
                     <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="auto" />
                             <ColumnDefinition Width="auto" />
                         </Grid.ColumnDefinitions>
-                        <base:Icon x:Name="Icon" Margin="0,0,5,0" IconType="{TemplateBinding Icon}"
+                        <base:Icon x:Name="Icon" Margin="0,0,6,0" IconType="{TemplateBinding Icon}"
                                    VerticalAlignment="Center" FontSize="12" />
                         <ContentPresenter
                             Content="{TemplateBinding Content}"

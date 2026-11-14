@@ -63,6 +63,9 @@ public class NavigationItem : TemplatedControl
             o => o.Uri,
             (o, v) => o.Uri = v);
 
+    public static readonly StyledProperty<bool> IsCompactProperty =
+        AvaloniaProperty.Register<NavigationItem, bool>(nameof(IsCompact));
+
     public static readonly DirectProperty<NavigationItem, bool> IsSelectedProperty =
         AvaloniaProperty.RegisterDirect<NavigationItem, bool>(
             nameof(IsSelected),
@@ -164,6 +167,12 @@ public class NavigationItem : TemplatedControl
     {
         get => _uri;
         set => SetAndRaise(UriProperty, ref _uri, value);
+    }
+
+    public bool IsCompact
+    {
+        get => GetValue(IsCompactProperty);
+        set => SetValue(IsCompactProperty, value);
     }
 
     public bool IsSelected

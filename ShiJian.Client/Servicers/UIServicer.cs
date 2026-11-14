@@ -133,14 +133,8 @@ public class UIServicer : IUIServicer, IDialogService
 
     private static string GenerateUniqueColor(HashSet<string> existingColors)
     {
-        // 预定义的颜色列表
-        var predefinedColors = new[]
-        {
-            "#00FFAB", "#FF6B6B", "#4ECDC4", "#FFE66D", "#95E1D3",
-            "#F38181", "#AA96DA", "#FCBAD3", "#A8D8EA", "#FFB6B9",
-            "#61C0BF", "#BBDED6", "#FAE3D9", "#E8E8E8", "#FF9A8B",
-            "#88D8B0", "#FFAAA5", "#FFD3B6", "#D4E09B", "#F6F0ED"
-        };
+        // 使用统一的 Nord & Everforest 低饱和配色板
+        var predefinedColors = ShiJian.Client.Base.Color.Colors.MainColors;
 
         // 找一个未被使用的颜色
         foreach (var color in predefinedColors)

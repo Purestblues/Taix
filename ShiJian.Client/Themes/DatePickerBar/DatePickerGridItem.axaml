@@ -13,15 +13,14 @@
                     <Setter Property="Background" Value="{DynamicResource ThemeBrush}" />
                 </Style>
 
-
                 <Style Selector="^ /template/ TextBlock#Text">
-                    <Setter Property="Foreground" Value="{DynamicResource TabOptionTextCheckedColor}" />
-                    <Setter Property="FontWeight" Value="Medium" />
+                    <Setter Property="Foreground" Value="{DynamicResource OnBrandBrush}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
                 </Style>
             </Style>
 
             <Style Selector="controls|DatePickerGridItem:pointerover /template/ Border#Bg">
-                <Setter Property="Background" Value="{DynamicResource DatePickerHoverGlassBrush}" />
+                <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
             </Style>
 
             <Style Selector="controls|DatePickerGridItem[IsSelected=True]:pointerover /template/ Border#Bg">
@@ -31,13 +30,13 @@
         <Setter Property="Template">
             <ControlTemplate>
                 <Border x:Name="Bg"
-                        Background="{DynamicResource DatePickerItemBgBrush}"
-                        CornerRadius="8"
+                        Background="Transparent"
+                        CornerRadius="{StaticResource RadiusSmall}"
                         BorderThickness="0">
                     <Border.Transitions>
                         <Transitions>
-                            <BrushTransition Property="Background" Duration="0.15" />
-                            <BrushTransition Property="BorderBrush" Duration="0.15" />
+                            <BrushTransition Property="Background" Duration="0:0:0.15" />
+                            <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
                         </Transitions>
                     </Border.Transitions>
 
@@ -45,6 +44,7 @@
                                Foreground="{DynamicResource DefaultTextBrush}"
                                Text="{TemplateBinding Title}"
                                FontSize="13"
+                               FontFeatures="tnum"
                                HorizontalAlignment="Center"
                                VerticalAlignment="Center" />
                 </Border>

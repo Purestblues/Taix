@@ -26,7 +26,7 @@ public class Tabbar : TemplatedControl
         AvaloniaProperty.Register<Tabbar, int>(nameof(SelectedIndex));
 
     public static readonly StyledProperty<double> ItemSpacingProperty =
-        AvaloniaProperty.Register<Tabbar, double>(nameof(ItemSpacing), 32);
+        AvaloniaProperty.Register<Tabbar, double>(nameof(ItemSpacing), 4);
 
     public static readonly DirectProperty<Tabbar, ObservableCollection<string>> DataProperty =
         AvaloniaProperty.RegisterDirect<Tabbar, ObservableCollection<string>>(
@@ -35,6 +35,7 @@ public class Tabbar : TemplatedControl
             (o, v) => o.Data = v ?? new ObservableCollection<string>());
 
     private readonly List<TextBlock> ItemsDictionary;
+    private readonly List<Border> ItemWrappers;
 
     private ObservableCollection<string> _data = new();
 
@@ -45,6 +46,7 @@ public class Tabbar : TemplatedControl
     public Tabbar()
     {
         ItemsDictionary = new List<TextBlock>();
+        ItemWrappers = new List<Border>();
     }
 
     public Color SelectedTextColor
@@ -83,6 +85,7 @@ public class Tabbar : TemplatedControl
     {
         base.OnUnloaded(e);
         if (Data != null) Data.CollectionChanged -= Data_CollectionChanged;
+        if (ItemsContainer != null) ItemsContainer.SizeChanged -= OnItemsContainerSizeChanged;
     }
 
     private void Data_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -106,9 +109,16 @@ public class Tabbar : TemplatedControl
     {
         base.OnApplyTemplate(e);
         ActiveBlock = e.NameScope.Get<Border>("ActiveBlock");
+        if (ItemsContainer != null) ItemsContainer.SizeChanged -= OnItemsContainerSizeChanged;
         ItemsContainer = e.NameScope.Get<Grid>("ItemsContainer");
+        ItemsContainer.SizeChanged += OnItemsContainerSizeChanged;
         if (Data != null) Data.CollectionChanged += Data_CollectionChanged;
         Render();
+    }
+
+    private void OnItemsContainerSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (IsLoaded) ScrollToActive(SelectedIndex);
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -124,41 +134,43 @@ public class Tabbar : TemplatedControl
     {
         if (ItemsContainer == null || ItemsDictionary.Count == 0) return;
         for (var i = 0; i < ItemsDictionary.Count; i++)
+        {
+            var isSelected = i == SelectedIndex;
             ItemsDictionary[i].Foreground = new SolidColorBrush(
-                i == SelectedIndex ? SelectedTextColor : UnselectedTextColor);
+                isSelected ? SelectedTextColor : UnselectedTextColor);
+            ItemsDictionary[i].FontWeight = isSelected ? FontWeight.SemiBold : FontWeight.Normal;
+        }
     }
 
     private static void OnSelectedItemChanged(AvaloniaPropertyChangedEventArgs change)
     {
         var control = change.Sender as Tabbar;
-        if (change.NewValue != change.OldValue) control.ScrollToActive(int.Parse(change.OldValue.ToString()));
+        if (change.NewValue != change.OldValue)
+        {
+            var oldIndex = change.OldValue is int i ? i : 0;
+            control?.ScrollToActive(oldIndex);
+        }
     }
 
     private void ScrollToActive(int oldSelectedIndex = 0)
     {
-        if (oldSelectedIndex > ItemsDictionary.Count || ItemsDictionary.Count == 0 || !IsLoaded) return;
-        //  获取选中项
+        if (ItemsDictionary.Count == 0 || ItemWrappers.Count == 0 || !IsLoaded ||
+            SelectedIndex < 0 || SelectedIndex >= ItemWrappers.Count) return;
+
+        //  获取选中项并对齐对称容器边界
         var item = ItemsDictionary[SelectedIndex];
-        var oldSelectedItem = ItemsDictionary[oldSelectedIndex];
-
-        var relativePoint = item.Bounds.Position;
+        var wrapper = ItemWrappers[SelectedIndex];
         item.Foreground = new SolidColorBrush(SelectedTextColor);
+        item.FontWeight = FontWeight.SemiBold;
 
-        var itemsContainerBounds = ItemsContainer.Bounds;
+        var origin = wrapper.TranslatePoint(new Point(0, 0), ActiveBlock?.Parent as Visual ?? ItemsContainer);
+        var left = origin?.X ?? wrapper.Bounds.X;
 
-        var textBlockBounds = item.Bounds;
-
-        var relativeCenter = new Point(
-            textBlockBounds.Center.X - itemsContainerBounds.X,
-            textBlockBounds.Center.Y - itemsContainerBounds.Y
-        );
-
-        ActiveBlock.TranslatePoint(new Point(0, 0), ItemsContainer);
-        ActiveBlock.Width = item.Bounds.Width;
-
-        ActiveBlock.RenderTransform = TransformOperations.Parse(
-            $"translateX({relativeCenter.X - ActiveBlock.Width / 2}px)"
-        );
+        if (ActiveBlock != null)
+        {
+            ActiveBlock.Width = wrapper.Bounds.Width;
+            ActiveBlock.RenderTransform = TransformOperations.Parse($"translateX({left}px)");
+        }
         ReOldSelectedStyle();
     }
 
@@ -175,6 +187,7 @@ public class Tabbar : TemplatedControl
             ItemsContainer.Children.Clear();
             ItemsContainer.ColumnDefinitions.Clear();
             ItemsDictionary.Clear();
+            ItemWrappers.Clear();
 
             for (var i = 0; i < Data.Count; i++)
             {
@@ -191,41 +204,65 @@ public class Tabbar : TemplatedControl
     {
         if (ItemsContainer != null)
         {
-            var control = new TextBlock();
-            control.TextAlignment = TextAlignment.Center;
-            control.Text = item;
-            var isLast = Data.IndexOf(item) == Data.Count - 1;
-            control.Margin = new Thickness(0, 0, isLast ? 0 : ItemSpacing, 0);
-            control.FontSize = 16;
-            control.Cursor = new Cursor(StandardCursorType.Hand);
-            control.Foreground = new SolidColorBrush(UnselectedTextColor);
-            control.Tag = col;
-            control.VerticalAlignment = VerticalAlignment.Bottom;
-            control.PointerPressed += (e, c) =>
+            var isLast = col == Data.Count - 1;
+            var wrapper = new Border
             {
-                var index = int.Parse(((Control)e).Tag?.ToString());
-                if (SelectedIndex != index) SelectedIndex = index;
+                Margin = new Thickness(0, 0, isLast ? 0 : ItemSpacing, 0),
+                Padding = new Thickness(12, 6),
+                Background = Brushes.Transparent,
+                Cursor = new Cursor(StandardCursorType.Hand),
+                Tag = col,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            var control = new TextBlock
+            {
+                TextAlignment = TextAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Text = item,
+                FontSize = 14,
+                FontWeight = col == SelectedIndex ? FontWeight.SemiBold : FontWeight.Normal,
+                Foreground = new SolidColorBrush(
+                    col == SelectedIndex ? SelectedTextColor : UnselectedTextColor),
+                IsHitTestVisible = false
+            };
+
+            wrapper.Child = control;
+            wrapper.PointerPressed += (e, c) =>
+            {
+                if (e is Control { Tag: int index } && SelectedIndex != index) SelectedIndex = index;
+            };
+            wrapper.SizeChanged += (_, _) =>
+            {
+                if (col == SelectedIndex && IsLoaded) ScrollToActive(SelectedIndex);
             };
             if (isLast)
-                control.Loaded += (e, c) =>
+                wrapper.Loaded += (e, c) =>
                 {
-                    ActiveBlock.Width = control.Bounds.Width;
-                    ScrollToActive();
+                    if (SelectedIndex >= 0 && SelectedIndex < ItemWrappers.Count)
+                    {
+                        ScrollToActive(SelectedIndex);
+                    }
                     Reset();
                 };
-            Grid.SetColumn(control, col);
-            ItemsContainer.Children.Add(control);
+            Grid.SetColumn(wrapper, col);
+            ItemsContainer.Children.Add(wrapper);
             ItemsDictionary.Add(control);
+            ItemWrappers.Add(wrapper);
         }
     }
 
     private void Reset()
     {
-        foreach (var item in ItemsContainer.Children)
-            if (item != ItemsContainer.Children[SelectedIndex])
+        for (var i = 0; i < ItemsDictionary.Count; i++)
+        {
+            if (i != SelectedIndex)
             {
-                var text = item as TextBlock;
-                text.Foreground = new SolidColorBrush(UnselectedTextColor);
+                ItemsDictionary[i].Foreground = new SolidColorBrush(UnselectedTextColor);
+                ItemsDictionary[i].FontWeight = FontWeight.Normal;
             }
+        }
     }
 }

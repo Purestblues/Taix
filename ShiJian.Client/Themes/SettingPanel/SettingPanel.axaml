@@ -4,12 +4,12 @@
 
 
     <ControlTheme x:Key="{x:Type controls:SettingPanel}" TargetType="controls:SettingPanel">
-        <Setter Property="Background" Value="{DynamicResource SettingPanelBgBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource SettingPanelBorderBrush}" />
-        <Setter Property="SpliteLineBrush" Value="{DynamicResource SettingPanelSpliteLineBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Surface2Brush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="SpliteLineBrush" Value="{DynamicResource DividerSubtleBrush}" />
         <Setter Property="Template">
             <ControlTemplate>
-                <Border CornerRadius="5" x:Name="Border">
+                <Border CornerRadius="{StaticResource RadiusLarge}" x:Name="Border">
                     <StackPanel x:Name="Container" />
                 </Border>
             </ControlTemplate>

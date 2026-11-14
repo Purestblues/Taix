@@ -17,11 +17,14 @@
     <Grid>
         <Grid IsVisible="{Binding ChooseVisibility}" ZIndex="2"
               Margin="0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <Border Background="Black" Opacity=".7" />
-            <Border Background="{DynamicResource PopupBackgroundBrush}" CornerRadius="{StaticResource RadiusMedium}"
+            <Border Background="{DynamicResource ScrimBrush}" />
+            <Border Background="{DynamicResource PopupBackgroundBrush}" CornerRadius="{StaticResource RadiusLarge}"
                     BorderBrush="{DynamicResource PopupBorderBrush}"
                     BorderThickness="1"
-                    Margin="50" VerticalAlignment="Top">
+                    BoxShadow="{DynamicResource Elevation3}"
+                    Width="520" MaxHeight="520"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Margin="24">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="40" />
@@ -207,9 +210,9 @@
                         <Setter Property="Template">
                             <ControlTemplate>
                                 <Grid>
-                                    <Border BorderBrush="Transparent" BorderThickness="2"
-                                            x:Name="Border" Background="{DynamicResource StandardBackgroundBrush2}"
-                                            Margin="0,0,0,10" Padding="15" CornerRadius="{StaticResource RadiusMedium}">
+                                    <Border BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1"
+                                            x:Name="Border" Background="{DynamicResource Surface2Brush}"
+                                            Margin="0,0,0,6" Padding="14,10" CornerRadius="{StaticResource RadiusMedium}">
 
                                         <ContentPresenter ContentTemplate="{TemplateBinding ContentTemplate}"
                                                           Content="{TemplateBinding Content}" />

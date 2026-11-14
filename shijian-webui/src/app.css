@@ -4,60 +4,60 @@
 
 :root {
   /* 画布分层：窗口 → 画布 → 卡片 */
-  --desk: #e9e9ec;
-  --canvas: #fbfbfd;
-  --card: #ffffff;
-  --card-inset: #f4f4f6;
-  --hover: #f2f2f4;
+  --desk: #ECEFF4;
+  --canvas: #F5F7FA;
+  --card: #FFFFFF;
+  --card-inset: #E5E9F0;
+  --hover: #E1E7EF;
 
   /* 线只做分隔，不参与分层 */
-  --line: #f0f0f2;
-  --line-strong: #e2e2e6;
+  --line: #E0E5EE;
+  --line-strong: #D0D7E4;
 
-  /* 文本 */
-  --text: #1a1a1c;
-  --text-2: #6b6b70;
-  --text-3: #9a9aa0;
-  --text-4: #b8b8be;
+  /* 文本 (Nord Polar Night 墨色梯度) */
+  --text: #2E3440;
+  --text-2: #4C566A;
+  --text-3: #677389;
+  --text-4: #8F9BB0;
 
-  /* 强调：天蓝 */
-  --accent: #0a6cff;
-  --accent-hover: #0a5fe0;
-  --accent-fg: #ffffff;
-  --accent-quiet: #e8f1ff;
-  --accent-2: #5b9cff;
-  --accent-3: #9cc4ff;
-  --accent-4: #c6ddff;
+  /* 强调：Nord10 极光青蓝 */
+  --accent: #5E81AC;
+  --accent-hover: #4F729E;
+  --accent-fg: #FFFFFF;
+  --accent-quiet: #E7EFF8;
+  --accent-2: #81A1C1;
+  --accent-3: #88C0D0;
+  --accent-4: #D8DEE9;
 
-  /* 语义：绿直接沿用客户端图表的绿，运行状态色两处一致 */
-  --ok: #2bc48a;
-  --ok-deep: #1a9c6c;
-  --ok-quiet: #e8f9f0;
-  --warn: #c47d16;
-  --warn-quiet: #fdf3e2;
-  --idle: #c9c9ce;
-  --idle-quiet: #f2f2f4;
-  --err: #e5484d;
-  --err-quiet: #fdeced;
+  /* 语义：Nord Aurora 柔和语义色 */
+  --ok: #4D9E6E;
+  --ok-deep: #3A8258;
+  --ok-quiet: #E8F3EC;
+  --warn: #B67B33;
+  --warn-quiet: #F7EFE2;
+  --idle: #C5CEDB;
+  --idle-quiet: #E9EEF4;
+  --err: #BF616A;
+  --err-quiet: #F8EBED;
 
-  --code-bg: #f7f7f9;
+  --code-bg: #F0F3F7;
 
   /* 分段控件选中药丸：必须比槽亮，不能复用 --card（深色下它比槽暗） */
-  --seg-active: #ffffff;
+  --seg-active: #FFFFFF;
 
-  /* 圆角阶梯：控件 9 / 磁贴 10 / 卡片 14 / 画布 16 */
-  --r-control: 9px;
-  --r-tile: 10px;
-  --r-card: 14px;
-  --r-canvas: 16px;
+  /* 圆角阶梯：4 / 6 / 8 / 12 (与桌面端 Token 对齐) */
+  --r-control: 6px;
+  --r-tile: 8px;
+  --r-card: 12px;
+  --r-canvas: 12px;
 
-  /* 阴影是唯一的层级手段 */
-  --sh-1: 0 1px 2px rgb(20 20 30 / 4%);
-  --sh-card: 0 1px 2px rgb(20 20 30 / 4%), 0 6px 18px rgb(20 20 30 / 5%);
-  --sh-pop: 0 2px 4px rgb(20 20 30 / 6%), 0 12px 32px rgb(20 20 30 / 10%);
-  --sh-pill: 0 1px 2px rgb(20 20 30 / 9%), 0 1px 5px rgb(20 20 30 / 5%);
-  --sh-accent: 0 1px 3px color-mix(in srgb, var(--accent) 30%, transparent);
-  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  /* 紧致中性冷灰阴影 + 1px 结构描边 */
+  --sh-1: 0 1px 2px rgb(46 52 64 / 6%);
+  --sh-card: 0 1px 2px rgb(46 52 64 / 5%);
+  --sh-pop: 0 6px 18px rgb(46 52 64 / 12%), 0 2px 6px rgb(46 52 64 / 6%);
+  --sh-pill: 0 1px 2px rgb(46 52 64 / 8%);
+  --sh-accent: 0 1px 2px color-mix(in srgb, var(--accent) 26%, transparent);
+  --ring: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 :root[data-theme='light'] {
@@ -68,92 +68,94 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --desk: #131316;
-    --canvas: #1a1a1e;
-    --card: #222227;
-    --card-inset: #2a2a30;
-    --hover: #2e2e34;
+    --desk: #13151A;
+    --canvas: #181A20;
+    --card: #21252E;
+    --card-inset: #282D38;
+    --hover: #2E3440;
 
-    --line: #2e2e34;
-    --line-strong: #3a3a42;
+    --line: #2D3340;
+    --line-strong: #3B4252;
 
-    --text: #f0f0f2;
-    --text-2: #a8a8b0;
-    --text-3: #7c7c85;
-    --text-4: #5e5e66;
+    --text: #ECEFF4;
+    --text-2: #B8C2D1;
+    --text-3: #8893A6;
+    --text-4: #657084;
 
-    --accent: #3d8bff;
-    --accent-hover: #5b9cff;
-    --accent-fg: #ffffff;
-    --accent-quiet: #14243c;
-    --accent-2: #2f6db8;
-    --accent-3: #245285;
-    --accent-4: #1c3a5f;
+    --accent: #78A0F0;
+    --accent-hover: #8EB0F5;
+    --accent-fg: #181A20;
+    --accent-quiet: #1E2A42;
+    --accent-2: #81A1C1;
+    --accent-3: #5E81AC;
+    --accent-4: #2E3B56;
 
-    --ok: #2bc48a;
-    --ok-deep: #4ddba4;
-    --ok-quiet: #10281f;
-    --warn: #e0a144;
-    --warn-quiet: #2a1f0e;
-    --idle: #4a4a52;
-    --idle-quiet: #26262c;
-    --err: #ff6369;
-    --err-quiet: #2c1416;
+    --ok: #A3BE8C;
+    --ok-deep: #B5CC9E;
+    --ok-quiet: #1D2B22;
+    --warn: #EBCB8B;
+    --warn-quiet: #2D2618;
+    --idle: #434C5E;
+    --idle-quiet: #252A34;
+    --err: #BF616A;
+    --err-quiet: #2E1D21;
 
-    --code-bg: #1c1c21;
+    --code-bg: #1B1F27;
 
-    --seg-active: #3a3a42;
+    --seg-active: #333A48;
 
-    --sh-1: 0 1px 2px rgb(0 0 0 / 20%);
-    --sh-card: 0 1px 2px rgb(0 0 0 / 24%), 0 6px 18px rgb(0 0 0 / 20%);
-    --sh-pop: 0 12px 32px rgb(0 0 0 / 46%);
+    --sh-1: 0 1px 2px rgb(0 0 0 / 22%);
+    --sh-card: 0 1px 2px rgb(0 0 0 / 26%);
+    --sh-pop: 0 8px 24px rgb(0 0 0 / 48%);
     --sh-pill: 0 1px 2px rgb(0 0 0 / 30%);
-    --sh-accent: 0 1px 3px rgb(0 0 0 / 34%);
+    --sh-accent: 0 1px 2px rgb(0 0 0 / 32%);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --desk: #131316;
-  --canvas: #1a1a1e;
-  --card: #222227;
-  --card-inset: #2a2a30;
-  --hover: #2e2e34;
+  --desk: #13151A;
+  --canvas: #181A20;
+  --card: #21252E;
+  --card-inset: #282D38;
+  --hover: #2E3440;
 
-  --line: #2e2e34;
-  --line-strong: #3a3a42;
+  --line: #2D3340;
+  --line-strong: #3B4252;
 
-  --text: #f0f0f2;
-  --text-2: #a8a8b0;
-  --text-3: #7c7c85;
-  --text-4: #5e5e66;
+  --text: #ECEFF4;
+  --text-2: #B8C2D1;
+  --text-3: #8893A6;
+  --text-4: #657084;
 
-  --accent: #3d8bff;
-  --accent-hover: #5b9cff;
-  --accent-fg: #ffffff;
-  --accent-quiet: #14243c;
-  --accent-2: #2f6db8;
-  --accent-3: #245285;
-  --accent-4: #1c3a5f;
+  --accent: #78A0F0;
+  --accent-hover: #8EB0F5;
+  --accent-fg: #181A20;
+  --accent-quiet: #1E2A42;
+  --accent-2: #81A1C1;
+  --accent-3: #5E81AC;
+  --accent-4: #2E3B56;
 
-  --ok: #2bc48a;
-  --ok-deep: #4ddba4;
-  --ok-quiet: #10281f;
-  --warn: #e0a144;
-  --warn-quiet: #2a1f0e;
-  --idle: #4a4a52;
-  --idle-quiet: #26262c;
-  --err: #ff6369;
-  --err-quiet: #2c1416;
+  --ok: #A3BE8C;
+  --ok-deep: #B5CC9E;
+  --ok-quiet: #1D2B22;
+  --warn: #EBCB8B;
+  --warn-quiet: #2D2618;
+  --idle: #434C5E;
+  --idle-quiet: #252A34;
+  --err: #BF616A;
+  --err-quiet: #2E1D21;
 
-  --code-bg: #1c1c21;
+  --code-bg: #1B1F27;
 
-  --sh-1: 0 1px 2px rgb(0 0 0 / 20%);
-  --sh-card: 0 1px 2px rgb(0 0 0 / 24%), 0 6px 18px rgb(0 0 0 / 20%);
-  --sh-pop: 0 12px 32px rgb(0 0 0 / 46%);
+  --seg-active: #333A48;
+
+  --sh-1: 0 1px 2px rgb(0 0 0 / 22%);
+  --sh-card: 0 1px 2px rgb(0 0 0 / 26%);
+  --sh-pop: 0 8px 24px rgb(0 0 0 / 48%);
   --sh-pill: 0 1px 2px rgb(0 0 0 / 30%);
-  --sh-accent: 0 1px 3px rgb(0 0 0 / 34%);
+  --sh-accent: 0 1px 2px rgb(0 0 0 / 32%);
 }
 
 * { box-sizing: border-box; }
@@ -292,6 +294,7 @@ a { color: inherit; text-decoration: none; }
 }
 .tile {
   background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
   padding: 13px 15px;
   box-shadow: var(--sh-card);
@@ -300,7 +303,7 @@ a { color: inherit; text-decoration: none; }
 .tile .ico {
   width: 34px; height: 34px; border-radius: var(--r-tile);
   display: grid; place-items: center; flex: none;
-  color: #fff;
+  color: var(--accent-fg);
 }
 .tile .ico.c-accent { background: var(--accent); }
 .tile .ico.c-ok { background: var(--ok); }
@@ -315,6 +318,7 @@ a { color: inherit; text-decoration: none; }
 
 .card {
   background: var(--card);
+  border: 1px solid var(--line);
   border-radius: var(--r-card);
   box-shadow: var(--sh-card);
   overflow: hidden;
@@ -549,10 +553,9 @@ select {
   display: flex; align-items: center; gap: 10px;
   margin: 18px -22px -24px;
   padding: 11px 22px;
-  background: color-mix(in srgb, var(--desk) 88%, transparent);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-top: 0.5px solid var(--line-strong);
-  animation: bar-in 0.18s ease;
+  background: var(--desk);
+  border-top: 1px solid var(--line-strong);
+  animation: bar-in 0.16s ease;
 }
 @keyframes bar-in {
   from { opacity: 0; transform: translateY(6px); }

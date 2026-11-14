@@ -135,9 +135,18 @@ public class MonthChart : TemplatedControl
             var header = new TextBlock
             {
                 Text = week[i],
+                FontSize = 11,
+                FontWeight = Avalonia.Media.FontWeight.Medium,
                 VerticalAlignment = VerticalAlignment.Center,
                 HorizontalAlignment = HorizontalAlignment.Center
             };
+            if (Application.Current is { } app &&
+                app.CheckAccess() &&
+                app.TryFindResource("SubTextBrush", app.ActualThemeVariant, out var subObj) &&
+                subObj is Avalonia.Media.IBrush subBrush)
+            {
+                header.Foreground = subBrush;
+            }
             Grid.SetColumn(header, i);
             headerGrid.Children.Add(header);
         }

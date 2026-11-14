@@ -9,22 +9,23 @@
                 <Setter Property="BorderThickness" Value="2" />
             </Style>
         </Styles>
-        <Setter Property="Background" Value="{DynamicResource TabSwitchBgBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Surface3Brush}" />
         <Setter Property="Padding" Value="3" />
         <Setter Property="Template">
             <ControlTemplate>
                 <Border x:Name="RootBorder"
                         Background="{TemplateBinding Background}"
-                        BorderBrush="{DynamicResource TabSwitchBorderBrush}"
+                        BorderBrush="{DynamicResource CardBorderBrush}"
                         BorderThickness="1"
-                        CornerRadius="10"
+                        CornerRadius="{StaticResource RadiusMedium}"
                         Padding="{TemplateBinding Padding}">
                     <Grid>
                         <Border x:Name="Slider"
-                                Background="{DynamicResource TabOptionSelectedBrush}"
-                                BorderBrush="{DynamicResource TabSliderBorderBrush}"
+                                Background="{DynamicResource Surface2Brush}"
+                                BorderBrush="{DynamicResource CardBorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="8"
+                                BoxShadow="{DynamicResource ElevationCard}"
+                                CornerRadius="{StaticResource RadiusSmall}"
                                 Width="0"
                                 HorizontalAlignment="Left"
                                 VerticalAlignment="Stretch"
@@ -33,13 +34,13 @@
                             <Border.Transitions>
                                 <Transitions>
                                     <ThicknessTransition Property="Margin"
-                                                         Duration="0:0:0.225">
+                                                         Duration="0:0:0.20">
                                         <ThicknessTransition.Easing>
                                             <CubicEaseInOut />
                                         </ThicknessTransition.Easing>
                                     </ThicknessTransition>
                                     <DoubleTransition Property="Width"
-                                                      Duration="0:0:0.225">
+                                                      Duration="0:0:0.20">
                                         <DoubleTransition.Easing>
                                             <CubicEaseInOut />
                                         </DoubleTransition.Easing>

@@ -6,31 +6,22 @@
         <Setter Property="Padding" Value="0" />
         <Setter Property="Template">
             <ControlTemplate>
-                <Grid>
-                    <Border Margin="{Binding ElementName=Border,Path=Margin}"
-                            Background="{Binding ElementName=Border,Path=Background}"
-                            CornerRadius="{Binding ElementName=Border,Path=CornerRadius}">
-                        <Border.Effect>
-                            <DropShadowEffect BlurRadius="10" Opacity=".1" />
-                        </Border.Effect>
-                    </Border>
-                    <Border x:Name="Border"
-                            Background="{DynamicResource PopupBackgroundBrush}"
-                            BorderBrush="{DynamicResource ContextBorderBrush}"
-                            BorderThickness="1"
-                            Padding="5"
-                            Margin="10"
-                            MinWidth="150"
-                            CornerRadius="8">
-                        <ScrollViewer Focusable="false" Padding="0">
-                            <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}"
-                                            KeyboardNavigation.TabNavigation="Continue"
-                                            Grid.IsSharedSizeScope="True"
-                                            Name="PART_ItemsPresenter" />
-
-                        </ScrollViewer>
-                    </Border>
-                </Grid>
+                <Border x:Name="Border"
+                        Background="{DynamicResource PopupBackgroundBrush}"
+                        BorderBrush="{DynamicResource PopupBorderBrush}"
+                        BorderThickness="1"
+                        Padding="4"
+                        Margin="10"
+                        MinWidth="150"
+                        CornerRadius="{StaticResource RadiusMedium}"
+                        BoxShadow="{DynamicResource Elevation2}">
+                    <ScrollViewer Focusable="false" Padding="0">
+                        <ItemsPresenter ItemsPanel="{TemplateBinding ItemsPanel}"
+                                        KeyboardNavigation.TabNavigation="Continue"
+                                        Grid.IsSharedSizeScope="True"
+                                        Name="PART_ItemsPresenter" />
+                    </ScrollViewer>
+                </Border>
             </ControlTemplate>
         </Setter>
     </ControlTheme>
@@ -119,28 +110,21 @@
                                             Mode=TwoWay}"
                                Placement="RightEdgeAlignedTop"
                                VerticalOffset="-6">
-                            <Grid MinWidth="120">
-                                <Border Margin="8"
-                                        Background="{DynamicResource ContextMenuSubmenuBgBrush}"
-                                        CornerRadius="8">
-                                    <Border.Effect>
-                                        <DropShadowEffect BlurRadius="10" Opacity=".1" />
-                                    </Border.Effect>
-                                </Border>
-                                <Border Margin="8"
-                                        Padding="4"
-                                        Background="{DynamicResource ContextMenuSubmenuBgBrush}"
-                                        BorderBrush="{DynamicResource ContextMenuSubmenuBorderBrush}"
-                                        BorderThickness="{TemplateBinding BorderThickness}"
-                                        CornerRadius="8">
-                                    <ScrollViewer Theme="{StaticResource SimpleMenuScrollViewer}">
-                                        <ItemsPresenter Name="PART_ItemsPresenter"
-                                                        Margin="1"
-                                                        Grid.IsSharedSizeScope="True"
-                                                        ItemsPanel="{TemplateBinding ItemsPanel}" />
-                                    </ScrollViewer>
-                                </Border>
-                            </Grid>
+                            <Border Margin="8"
+                                    Padding="4"
+                                    MinWidth="120"
+                                    Background="{DynamicResource PopupBackgroundBrush}"
+                                    BorderBrush="{DynamicResource PopupBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="{StaticResource RadiusMedium}"
+                                    BoxShadow="{DynamicResource Elevation2}">
+                                <ScrollViewer Theme="{StaticResource SimpleMenuScrollViewer}">
+                                    <ItemsPresenter Name="PART_ItemsPresenter"
+                                                    Margin="1"
+                                                    Grid.IsSharedSizeScope="True"
+                                                    ItemsPanel="{TemplateBinding ItemsPanel}" />
+                                </ScrollViewer>
+                            </Border>
                         </Popup>
                     </Grid>
                 </Border>

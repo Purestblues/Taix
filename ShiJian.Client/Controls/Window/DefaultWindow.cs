@@ -23,7 +23,7 @@ namespace ShiJian.Client.Controls.Window;
 
 public class DefaultWindow : Avalonia.Controls.Window
 {
-    private const double CustomWindowChromeTitleBarHeight = 40;
+    private const double CustomWindowChromeTitleBarHeight = 36;
 
     public static readonly StyledProperty<IImage?> IconSourceProperty =
         AvaloniaProperty.Register<DefaultWindow, IImage?>(nameof(IconSource));
@@ -386,12 +386,14 @@ public class DefaultWindow : Avalonia.Controls.Window
         IsShowConfirmDialog = true;
         ToastGrid.IsVisible = true;
         DialogBorder.IsVisible = true;
+        ActionDialogBorder.IsVisible = false;
         InputModalBorder.IsVisible = false;
 
         DialogMessage = message;
         DialogTitle = title;
+        DialogBorder.Opacity = 1;
         DialogBorder.RenderTransform = TransformOperations.Parse("translateY(0px)");
-        Masklayer.Opacity = 0;
+        Masklayer.Opacity = 1;
 
         return Task.Run(async () =>
         {
@@ -412,8 +414,9 @@ public class DefaultWindow : Avalonia.Controls.Window
 
         DialogMessage = message;
         DialogTitle = title;
+        ActionDialogBorder.Opacity = 1;
         ActionDialogBorder.RenderTransform = TransformOperations.Parse("translateY(0px)");
-        Masklayer.Opacity = 0.6;
+        Masklayer.Opacity = 1;
 
         // 清空按钮面板并动态添加新按钮
         if (ActionDialogButtonsPanel != null)
@@ -425,14 +428,10 @@ public class DefaultWindow : Avalonia.Controls.Window
                 var btn = new Button.Button
                 {
                     Content = buttons[i],
-                    Width = 100,
-                    Margin = new Thickness(i > 0 ? 10 : 0, 0, 0, 0)
+                    MinWidth = 88,
+                    Margin = new Thickness(i > 0 ? 8 : 0, 0, 0, 0)
                 };
-                if (i == 0)
-                {
-                    btn.Background = this.FindResource("ThemeBrush") as IBrush ?? Brushes.Transparent;
-                    btn.Foreground = Brushes.White;
-                }
+                btn.Classes.Add(i == 0 ? "primary" : "ghost");
                 btn.Click += (s, e) =>
                 {
                     ActionDialogResult = index;
@@ -461,6 +460,7 @@ public class DefaultWindow : Avalonia.Controls.Window
         IsShowInputModal = true;
         ToastGrid.IsVisible = true;
         DialogBorder.IsVisible = false;
+        ActionDialogBorder.IsVisible = false;
         InputModalBorder.IsVisible = true;
 
         DialogMessage = message;
@@ -469,9 +469,10 @@ public class DefaultWindow : Avalonia.Controls.Window
         InputModalValidFnc = validate;
 
         InputModalInputBox.Text = InputModalValue;
-        InputModalBorder.RenderTransform = TransformOperations.Parse("translateY(10px)");
+        InputModalBorder.Opacity = 1;
+        InputModalBorder.RenderTransform = TransformOperations.Parse("translateY(0px)");
 
-        Masklayer.Opacity = 0.6;
+        Masklayer.Opacity = 1;
 
         return Task.Run(async () =>
         {
@@ -628,7 +629,8 @@ public class DefaultWindow : Avalonia.Controls.Window
 
     private void HideDialog()
     {
-        InputModalBorder.RenderTransform = TransformOperations.Parse("translateY(-150px)");
+        DialogBorder.Opacity = 0;
+        DialogBorder.RenderTransform = TransformOperations.Parse("translateY(8px)");
         Masklayer.Opacity = 0;
         ToastGrid.IsVisible = false;
         IsShowConfirmDialog = false;
@@ -636,7 +638,8 @@ public class DefaultWindow : Avalonia.Controls.Window
 
     private void HideActionDialog()
     {
-        ActionDialogBorder.RenderTransform = TransformOperations.Parse("translateY(-150px)");
+        ActionDialogBorder.Opacity = 0;
+        ActionDialogBorder.RenderTransform = TransformOperations.Parse("translateY(8px)");
         Masklayer.Opacity = 0;
         ToastGrid.IsVisible = false;
         IsShowActionDialog = false;
@@ -644,7 +647,8 @@ public class DefaultWindow : Avalonia.Controls.Window
 
     private void HideInputModal()
     {
-        InputModalBorder.RenderTransform = TransformOperations.Parse("translateY(-150px)");
+        InputModalBorder.Opacity = 0;
+        InputModalBorder.RenderTransform = TransformOperations.Parse("translateY(8px)");
         Masklayer.Opacity = 0;
         ToastGrid.IsVisible = false;
         IsShowInputModal = false;
@@ -654,28 +658,34 @@ public class DefaultWindow : Avalonia.Controls.Window
     {
         if (_statusDot == null) return;
 
+        var app = Application.Current;
+        IBrush ResolveBrush(string key, string fallback) =>
+            app != null && app.Resources.TryGetResource(key, app.ActualThemeVariant, out var res) && res is IBrush b
+                ? b
+                : new SolidColorBrush(Color.Parse(fallback));
+
         IBrush brush;
         string toolTipKey;
 
         switch (ConnectionStatus)
         {
             case ConnectionStatus.Connected:
-                brush = new SolidColorBrush(Color.Parse("#24bf5f"));
+                brush = ResolveBrush("SuccessBrush", "#5C9A64");
                 toolTipKey = "ConnectionStatusConnected";
                 break;
             case ConnectionStatus.Disconnected:
-                brush = new SolidColorBrush(Color.Parse("#f51837"));
+                brush = ResolveBrush("DangerBrush", "#BF616A");
                 toolTipKey = "ConnectionStatusDisconnected";
                 break;
             case ConnectionStatus.Checking:
             default:
-                brush = new SolidColorBrush(Color.Parse("#999999"));
+                brush = ResolveBrush("DisabledTextBrush", "#9AA3B5");
                 toolTipKey = "ConnectionStatusChecking";
                 break;
         }
 
         _statusDot.Background = brush;
-        ToolTip.SetTip(_statusDot, Application.Current?.FindResource(toolTipKey) ?? string.Empty);
+        ToolTip.SetTip(_statusDot, app?.FindResource(toolTipKey) ?? string.Empty);
     }
 
     protected override void OnClosed(EventArgs e)

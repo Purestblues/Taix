@@ -54,10 +54,10 @@
                                 ToolTip.Tip="{DynamicResource LongerWebSiteTip}">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                 <base:Icon IconType="StatusCircleBlock" FontSize="11" VerticalAlignment="Center"
-                                           Foreground="{DynamicResource OnAccentBrush}" />
+                                           Foreground="{DynamicResource OnBrandBrush}" />
                                 <TextBlock Text="{DynamicResource IgnoredText}"
                                            FontSize="11"
-                                           Foreground="{DynamicResource OnAccentBrush}"
+                                           Foreground="{DynamicResource OnBrandBrush}"
                                            VerticalAlignment="Center" Margin="4,0,0,0" />
                             </StackPanel>
                         </Border>
@@ -136,7 +136,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <Border Height="1" Background="{DynamicResource SettingPanelSpliteLineBrush}" Opacity="0.5" />
+                    <Border Height="1" Background="{DynamicResource DividerSubtleBrush}" />
 
                     <charts:ColumnChart IsShowCategory="False"
                                         Height="300"
@@ -164,7 +164,7 @@
                         </TextBlock>
                     </Grid>
 
-                    <Border Height="1" Background="{DynamicResource SettingPanelSpliteLineBrush}" Opacity="0.5" />
+                    <Border Height="1" Background="{DynamicResource DividerSubtleBrush}" />
 
                     <ListBox Margin="8" MaxHeight="800" Background="Transparent" BorderThickness="0" Padding="0"
                              ItemsSource="{Binding WebPageData}"
@@ -297,13 +297,10 @@
                                                 HorizontalAlignment="Right" VerticalAlignment="Center">
                                         <Border HorizontalAlignment="Right"
                                                 Padding="8,3" CornerRadius="{StaticResource RadiusSmall}"
+                                                Background="{DynamicResource ThemeTintBrush}"
                                                 ToolTip.Tip="{DynamicResource Duration}">
-                                            <Border.Background>
-                                                <SolidColorBrush
-                                                    Color="{DynamicResource ThemeColor}"
-                                                    Opacity=".15" />
-                                            </Border.Background>
                                             <TextBlock FontSize="12" FontWeight="Medium"
+                                                       FontFeatures="tnum"
                                                        Foreground="{DynamicResource ThemeBrush}"
                                                        Text="{Binding Duration,Converter={StaticResource TimeConverter}}" />
                                         </Border>

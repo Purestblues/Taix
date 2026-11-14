@@ -7,11 +7,8 @@ namespace ShiJian.Client.Controls.Base;
 
 public class Icon : TemplatedControl
 {
-    public static readonly DirectProperty<Icon, IconTypes> IconTypeProperty =
-        AvaloniaProperty.RegisterDirect<Icon, IconTypes>(
-            nameof(IconType),
-            o => o.IconType,
-            (o, v) => o.IconType = v);
+    public static readonly StyledProperty<IconTypes> IconTypeProperty =
+        AvaloniaProperty.Register<Icon, IconTypes>(nameof(IconType), IconTypes.Back);
 
     public static readonly DirectProperty<Icon, string> UnicodeProperty =
         AvaloniaProperty.RegisterDirect<Icon, string>(
@@ -19,19 +16,17 @@ public class Icon : TemplatedControl
             o => o.Unicode,
             (o, v) => o.Unicode = v);
 
-    private IconTypes _iconType = IconTypes.Back;
-
     private string _unicode = IconConverter.ToUnicode(IconTypes.Back);
 
-    public Icon()
+    static Icon()
     {
-        this.GetObservable(IconTypeProperty).Subscribe(OnIconTypeChanged);
+        IconTypeProperty.Changed.AddClassHandler<Icon>((o, _) => o.OnIconTypeChanged(o.IconType));
     }
 
     public IconTypes IconType
     {
-        get => _iconType;
-        set => SetAndRaise(IconTypeProperty, ref _iconType, value);
+        get => GetValue(IconTypeProperty);
+        set => SetValue(IconTypeProperty, value);
     }
 
     public string Unicode

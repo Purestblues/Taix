@@ -4,17 +4,11 @@
              x:Class="ShiJian.Client.App">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
-    <Application.Styles>
-        <SimpleTheme />
-        <StyleInclude Source="/Themes/Base/FocusStyles.axaml" />
-        <StyleInclude Source="/Themes/Base/UiKit.axaml" />
-    </Application.Styles>
-
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceInclude Source="/Resources/Themes/Common.axaml" />
                 <ResourceInclude Source="/Resources/Themes/Theme.axaml" />
+                <ResourceInclude Source="/Resources/Themes/Common.axaml" />
                 <ResourceInclude Source="/Themes/Generic.axaml" />
                 <!--<ResourceInclude Source="/Resources/Localization/StringResources.en.axaml"/>-->
             </ResourceDictionary.MergedDictionaries>
@@ -33,5 +27,15 @@
             </Setter>
         </ControlTheme>
     </Application.Resources>
+
+    <Application.Styles>
+        <Style Selector="Window, ContextMenu, ToolTip, Menu">
+            <Setter Property="FontFamily"
+                    Value="Inter, Segoe UI Variable Text, Segoe UI, HarmonyOS Sans SC, MiSans, PingFang SC, Microsoft YaHei UI, sans-serif" />
+        </Style>
+        <SimpleTheme />
+        <StyleInclude Source="/Themes/Base/FocusStyles.axaml" />
+        <StyleInclude Source="/Themes/Base/UiKit.axaml" />
+    </Application.Styles>
 
 </Application>

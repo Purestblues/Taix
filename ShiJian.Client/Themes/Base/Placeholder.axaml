@@ -9,11 +9,8 @@
                 <Border CornerRadius="{TemplateBinding CornerRadius}"
                         ClipToBounds="True"
                         Background="{DynamicResource PlaceholderRectBgBrush}">
-                    <Border x:Name="Flash" Background="{DynamicResource PlaceholderRectBgFlashBrush}" Width="10"
-                            Height="{TemplateBinding Height}" Opacity=".5" RenderTransformOrigin="0,0.5">
-                        <Border.Effect>
-                            <BlurEffect Radius="30" />
-                        </Border.Effect>
+                    <Border x:Name="Flash" Background="{DynamicResource PlaceholderRectBgFlashBrush}" Width="28"
+                            Height="{TemplateBinding Height}" Opacity=".35" RenderTransformOrigin="0,0.5">
                         <Border.RenderTransform>
                             <TransformGroup>
                                 <TranslateTransform X="-10" />

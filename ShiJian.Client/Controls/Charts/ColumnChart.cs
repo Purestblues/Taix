@@ -271,7 +271,7 @@ public class ColumnChart : TemplatedControl
             {
                 Name = totalName,
                 Text = CoverValue(total) + Unit,
-                Color = "#FF8A8A8A"
+                Color = "#FF6E7A8A"
             });
         }
 
@@ -382,25 +382,27 @@ public class ColumnChartCanvas : Control
         if (chartHeight <= 0) chartHeight = 1;
 
         var columnNames = firstData.ColumnNames;
+        var subTextBrush = TryGetBrush("SubTextBrush") ?? new SolidColorBrush(Color.Parse("#6E7A8A"));
+        var refLineBrush = TryGetBrush("ChartRefLineBrush") ?? subTextBrush;
         var themeColorStr = Application.Current?.FindResource("ThemeColor")?.ToString() ?? StateData.ThemeColor;
-        var subTextBrush = new SolidColorBrush(Color.Parse("#FF8A8A8A"));
         var themeColor = Color.Parse(themeColorStr);
+        var themeBrush = TryGetBrush("ThemeBrush") ?? new SolidColorBrush(themeColor);
 
         var selectedIndex = _owner.IsCanColumnSelect ? _owner.ColumnSelectedIndex : -1;
         var hasSelection = selectedIndex >= 0 && selectedIndex < columns;
         var hoverIndex = _hoverColumnIndex >= 0 && _hoverColumnIndex < columns ? _hoverColumnIndex : -1;
 
-        var hoverFill = TryGetBrush("ListItemHoverBrush")
+        var hoverFill = TryGetBrush("HoverBackgroundBrush")
                         ?? new SolidColorBrush(themeColor) { Opacity = FallbackHoverFillOpacity };
-        var selectedFill = TryGetBrush("NavSelectedGlassBrush", hoverIndex == selectedIndex ? 1.25 : 1)
+        var selectedFill = TryGetBrush("ThemeTintBrush", hoverIndex == selectedIndex ? 1.2 : 1)
                            ?? new SolidColorBrush(themeColor) { Opacity = FallbackSelectedFillOpacity };
-        var hoverHalo = TryGetBrush("NavSelectedGlassBorderBrush", 0.9)
+        var hoverHalo = TryGetBrush("SelectRingBrush", 0.5)
                         ?? new SolidColorBrush(themeColor) { Opacity = FallbackHoverHaloOpacity };
-        var hoverStroke = TryGetBrush("NavSelectedGlassBorderBrush", 1.6)
+        var hoverStroke = TryGetBrush("CardBorderHoverBrush")
                           ?? new SolidColorBrush(themeColor) { Opacity = FallbackHoverStrokeOpacity };
-        var selectedHalo = TryGetBrush("NavSelectedGlassBorderBrush")
+        var selectedHalo = TryGetBrush("SelectRingBrush")
                            ?? new SolidColorBrush(themeColor) { Opacity = FallbackSelectedHaloOpacity };
-        var selectedStroke = TryGetBrush("NavSelectedGlassBorderBrush", 1.7)
+        var selectedStroke = TryGetBrush("ThemeBrush", 0.75)
                              ?? new SolidColorBrush(themeColor) { Opacity = FallbackSelectedStrokeOpacity };
 
         _columnPopupData.Clear();
@@ -419,9 +421,9 @@ public class ColumnChartCanvas : Control
 
             var isSelected = hasSelection && i == selectedIndex;
             var isHovered = i == hoverIndex;
-            var nameBrush = isSelected || isHovered ? new SolidColorBrush(themeColor) : subTextBrush;
+            var nameBrush = isSelected || isHovered ? themeBrush : subTextBrush;
             var formattedText = CreateFormattedText(colName, 12, nameBrush,
-                isSelected ? FontWeight.Bold : FontWeight.Normal);
+                isSelected ? FontWeight.SemiBold : FontWeight.Normal);
             var textX = i * _columnWidth + (_columnWidth - formattedText.Width) / 2;
             var textY = height - colNameBottomMargin - formattedText.Height;
             context.DrawText(formattedText, new Point(textX, textY));
@@ -429,7 +431,7 @@ public class ColumnChartCanvas : Control
 
         // 绘制柱子
         var hoverBarRects = new List<Rect>();
-        var barRadius = !_owner.IsStack ? 4 : 0;
+        var barRadius = !_owner.IsStack ? 4 : 2;
 
         for (var i = 0; i < columns; i++)
         {
@@ -482,7 +484,6 @@ public class ColumnChartCanvas : Control
         }
 
         // 绘制参考线与右端数值标签（先解算标签纵坐标碰撞，再画不穿透标签矩形的虚线）
-        var grayBrush = new SolidColorBrush(Color.Parse("#FF8A8A8A"));
         var avg = tempValueArr.Average();
         var avgText = _owner.CoverValue(avg);
         var avgY = maxValue > 0
@@ -496,15 +497,15 @@ public class ColumnChartCanvas : Control
             colNameBottomMargin,
             width,
             [
-                (_owner.Maximum, colNameBottomMargin, grayBrush, 0),
-                (_owner.Median, midY, grayBrush, 2),
-                (avgText, avgY, new SolidColorBrush(themeColor), 1)
+                (_owner.Maximum, colNameBottomMargin, refLineBrush, 0),
+                (_owner.Median, midY, refLineBrush, 2),
+                (avgText, avgY, themeBrush, 1)
             ]);
 
         if (hasSelection)
-            StrokeColumnBand(context, selectedIndex, height, selectedHalo, SelectedHaloWidth, selectedStroke);
+            StrokeColumnBand(context, selectedIndex, height, selectedHalo, 0, selectedStroke);
         if (hoverIndex >= 0 && hoverIndex != selectedIndex)
-            StrokeColumnBand(context, hoverIndex, height, hoverHalo, HoverHaloWidth, hoverStroke);
+            StrokeColumnBand(context, hoverIndex, height, hoverHalo, 0, hoverStroke);
 
         // 键盘焦点环
         if (_owner != null)
@@ -720,7 +721,7 @@ public class ColumnChartCanvas : Control
                     {
                         Name = totalName,
                         Text = _owner.CoverValue(total) + _owner.Unit,
-                        Color = "#FF8A8A8A"
+                        Color = "#FF6E7A8A"
                     });
                 }
                 _owner.ColumnValuesInfoList = popupList;

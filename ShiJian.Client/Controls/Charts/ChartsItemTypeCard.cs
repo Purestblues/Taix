@@ -129,26 +129,15 @@ public class ChartsItemTypeCard : TemplatedControl
         if (isRendering || Data == null) return;
         isRendering = true;
 
-        if (_nameSizeChangedHandler != null)
-            NameTextObj.SizeChanged -= _nameSizeChangedHandler;
-        _nameSizeChangedHandler = (e, c) =>
-        {
-            //  处理文字过长显示
-            if (NameTextObj.Bounds.Width > 121 && NameTextObj.FontSize > 8)
-                NameTextObj.FontSize = NameTextObj.FontSize - 1;
-        };
-        NameTextObj.SizeChanged += _nameSizeChangedHandler;
-
         ValueTextObj.Text = Data.Tag;
 
         if (_valueSizeChangedHandler != null)
             ValueTextObj.SizeChanged -= _valueSizeChangedHandler;
         _valueSizeChangedHandler = (e, c) =>
         {
-            var size = Data.Value / MaxValue * Bounds.Width / 3;
-            // 光晕元素已从模板中移除，若存在则保持兼容
-            if (ValueBlockObj != null)
+            if (ValueBlockObj != null && MaxValue > 0)
             {
+                var size = Data.Value / MaxValue * Bounds.Width / 3;
                 ValueBlockObj.Width = ValueBlockObj.Height = size * 4;
             }
         };

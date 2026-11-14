@@ -72,7 +72,7 @@
 
                 <StackPanel>
                             <!-- 统计卡片 -->
-                            <Grid Width="{Binding CardsWidth}" HorizontalAlignment="Left" Margin="0,5,0,15">
+                            <Grid HorizontalAlignment="Stretch" Margin="0,5,0,15">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="*" />
@@ -87,20 +87,17 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="8">
-                                            <Border.Background>
-                                                <LinearGradientBrush>
-                                                    <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <base:Icon IconType="ScreenTime" Foreground="White" />
+                                        <Border Width="34" Height="34"
+                                                CornerRadius="{StaticResource RadiusSmall}"
+                                                Background="{DynamicResource ThemeTintBrush}">
+                                            <base:Icon IconType="ScreenTime" Foreground="{DynamicResource ThemeBrush}" />
                                         </Border>
                                         <Grid Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="auto" />
                                                 <RowDefinition Height="auto" />
                                             </Grid.RowDefinitions>
-                                            <TextBlock>
+                                            <TextBlock FontFeatures="tnum">
                                                 <Run Text="{Binding TotalHours}" FontSize="20"
                                                      Foreground="{DynamicResource DefaultTextBrush}" />
                                                 <Run Text="{DynamicResource Hour}" FontSize="12"
@@ -108,6 +105,7 @@
                                             </TextBlock>
                                             <TextBlock Grid.Row="1" Margin="0,3,0,0"
                                                        Text="{DynamicResource Total}"
+                                                       TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource SubTextBrush}" />
                                         </Grid>
                                         <Border Grid.Column="2" VerticalAlignment="Bottom">
@@ -127,7 +125,7 @@
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Column="1" Margin="20,5,0,0"
+                                <Border Grid.Column="1" Margin="12,5,0,0"
                                         Background="{DynamicResource CardBgBrush}"
                                         Padding="10" CornerRadius="8" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
@@ -136,20 +134,17 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="8">
-                                            <Border.Background>
-                                                <LinearGradientBrush>
-                                                    <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <base:Icon IconType="Apps" Foreground="White" />
+                                        <Border Width="34" Height="34"
+                                                CornerRadius="{StaticResource RadiusSmall}"
+                                                Background="{DynamicResource ThemeTintBrush}">
+                                            <base:Icon IconType="Apps" Foreground="{DynamicResource ThemeBrush}" />
                                         </Border>
                                         <Grid Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="auto" />
                                                 <RowDefinition Height="auto" />
                                             </Grid.RowDefinitions>
-                                            <TextBlock>
+                                            <TextBlock FontFeatures="tnum">
                                                 <Run Text="{Binding AppCount}" FontSize="20"
                                                      Foreground="{DynamicResource DefaultTextBrush}" />
                                                 <Run Text="个" FontSize="12"
@@ -157,6 +152,7 @@
                                             </TextBlock>
                                             <TextBlock Grid.Row="1" Margin="0,3,0,0"
                                                        Text="{DynamicResource InsightEntities}"
+                                                       TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource SubTextBrush}" />
                                         </Grid>
                                         <Border Grid.Column="2" VerticalAlignment="Bottom">
@@ -176,7 +172,7 @@
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Column="2" Margin="20,5,0,0" Background="{DynamicResource CardBgBrush}"
+                                <Border Grid.Column="2" Margin="12,5,0,0" Background="{DynamicResource CardBgBrush}"
                                         Padding="10" CornerRadius="8"
                                         ToolTip.Tip="{Binding Top1App.Description}" BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="1">
                                     <Grid>
@@ -185,20 +181,17 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="auto" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Width="40" Height="40" CornerRadius="8">
-                                            <Border.Background>
-                                                <LinearGradientBrush>
-                                                    <GradientStop Offset="0" Color="{DynamicResource ThemeColor}" />
-                                                </LinearGradientBrush>
-                                            </Border.Background>
-                                            <base:Icon IconType="StockUp" Foreground="White" />
+                                        <Border Width="34" Height="34"
+                                                CornerRadius="{StaticResource RadiusSmall}"
+                                                Background="{DynamicResource ThemeTintBrush}">
+                                            <base:Icon IconType="StockUp" Foreground="{DynamicResource ThemeBrush}" />
                                         </Border>
                                         <Grid Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center">
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="auto" />
                                                 <RowDefinition Height="auto" />
                                             </Grid.RowDefinitions>
-                                            <TextBlock>
+                                            <TextBlock FontFeatures="tnum">
                                                 <Run Text="{Binding TopHours}" FontSize="20"
                                                      Foreground="{DynamicResource DefaultTextBrush}" />
                                                 <Run Text="{DynamicResource Hour}" FontSize="12"
@@ -206,6 +199,7 @@
                                             </TextBlock>
                                             <TextBlock Grid.Row="1" Margin="0,3,0,0"
                                                        Text="{DynamicResource LongestUsageTime}"
+                                                       TextTrimming="CharacterEllipsis"
                                                        Foreground="{DynamicResource SubTextBrush}" />
                                         </Grid>
                                         <Border Grid.Column="2">
@@ -241,10 +235,8 @@
                                             <base:View Value="{Binding DayHoursSelectedTime}" Condition="not empty">
                                                 <StackPanel>
                                                     <Border Margin="0,5,0,0" HorizontalAlignment="Left" Padding="10"
-                                                            CornerRadius="8">
-                                                        <Border.Background>
-                                                            <SolidColorBrush Color="{DynamicResource ThemeColor}" Opacity=".05" />
-                                                        </Border.Background>
+                                                            CornerRadius="{StaticResource RadiusMedium}"
+                                                            Background="{DynamicResource Surface3Brush}">
                                                         <StackPanel Orientation="Horizontal">
                                                             <base:Icon Foreground="{DynamicResource SubTextBrush}"
                                                                        IconType="Calendar"

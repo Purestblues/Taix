@@ -134,9 +134,9 @@ public class ChartsItemTypeMonth : TemplatedControl
         //    ValueBlockObj.Width = ValueBlockObj.Height = (Data.Value / MaxValue) * ActualWidth;
         //};
 
-        var size = Data.Value / MaxValue * Bounds.Width;
-        if (size > 0 && size < 8) //防止历史数值太小界面无显示效果
-            size = 8;
+        var size = MaxValue > 0 && Data.Value > 0
+            ? Math.Clamp(Data.Value / MaxValue * Bounds.Width, 6, Bounds.Width)
+            : 0;
         ValueBlockObj.Width = ValueBlockObj.Height = size;
         ToolTip = Data.DateTime.ToString("yyyy年MM月dd日") + " " + (string.IsNullOrEmpty(Data.Tag) ? "无数据" : Data.Tag);
 

@@ -49,12 +49,13 @@
             <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusLarge}" />
         </Style>
 
         <Style Selector="TextBlock.statValue">
             <Setter Property="FontSize" Value="21" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontFeatures" Value="tnum" />
             <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
@@ -67,6 +68,7 @@
 
         <Style Selector="TextBlock.habitValue">
             <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontFeatures" Value="tnum" />
             <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
             <Setter Property="HorizontalAlignment" Value="Right" />
         </Style>
@@ -348,12 +350,13 @@
                                                        FontSize="11"
                                                        Margin="2,0,0,6"
                                                        Foreground="{DynamicResource SubTextBrush}" />
+                                            <ScrollViewer MaxHeight="165" VerticalScrollBarVisibility="Auto">
                                             <ItemsControl ItemsSource="{Binding DayClock.Legend}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
                                                         <Button Background="Transparent"
                                                                 BorderThickness="0"
-                                                                Padding="2,4"
+                                                                Padding="2,3"
                                                                 HorizontalAlignment="Stretch"
                                                                 HorizontalContentAlignment="Stretch"
                                                                 Command="{Binding $parent[UserControl].((vm:DataPageViewModel)DataContext).ClockLegendClickCommand}"
@@ -372,12 +375,14 @@
                                                                 <TextBlock Grid.Column="2"
                                                                            Text="{Binding DurationText}"
                                                                            FontSize="12"
+                                                                           FontFeatures="tnum"
                                                                            Margin="8,0,0,0"
                                                                            VerticalAlignment="Center"
                                                                            Foreground="{DynamicResource StandardTextBrush}" />
                                                                 <TextBlock Grid.Column="3"
                                                                            Text="{Binding ShareText}"
                                                                            FontSize="11"
+                                                                           FontFeatures="tnum"
                                                                            Width="36"
                                                                            TextAlignment="Right"
                                                                            Margin="8,0,0,0"
@@ -388,6 +393,7 @@
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
                                             </ItemsControl>
+                                            </ScrollViewer>
                                         </StackPanel>
                                     </Border>
                             </Grid>
@@ -617,7 +623,7 @@
                                                    EmptyText="{DynamicResource NoData}"
                                                    TextBrush="{DynamicResource DefaultTextBrush}"
                                                    MutedTextBrush="{DynamicResource SubTextBrush}"
-                                                   TrackBrush="{DynamicResource GrayDark}" />
+                                                   TrackBrush="{DynamicResource Surface3Brush}" />
 
                                 <ScrollViewer Grid.Column="1" Margin="12,0,0,0"
                                               VerticalScrollBarVisibility="Auto"
@@ -635,6 +641,7 @@
                                                                Foreground="{DynamicResource DefaultTextBrush}"
                                                                VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="2" FontSize="11"
+                                                               FontFeatures="tnum"
                                                                Text="{Binding Tag}"
                                                                Foreground="{DynamicResource SubTextBrush}"
                                                                VerticalAlignment="Center" />

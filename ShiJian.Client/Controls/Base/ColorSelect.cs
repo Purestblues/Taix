@@ -71,7 +71,7 @@ public class ColorSelect : TemplatedControl
     protected override Type StyleKeyOverride => typeof(ColorSelect);
 
 
-    private string _color = "#00FFAB";
+    private string _color = ShiJian.Client.Base.Color.Colors.MainColors[0];
     private List<string> _colors = new();
     private bool _isOpen;
     private bool _isCustomMode;
@@ -286,12 +286,7 @@ public class ColorSelect : TemplatedControl
 
     private void LoadColors()
     {
-        Colors =
-        [
-            "#00FFAB", "#017aff", "#6c47ff", "#39c0c8",
-            "#f96300", "#f34971", "#ff9382", "#f5c900",
-            "#cdad7a", "#aabb5d", "#000000", "#2B20D9"
-        ];
+        Colors = [.. ShiJian.Client.Base.Color.Colors.MainColors];
         Color = Colors[0];
     }
 

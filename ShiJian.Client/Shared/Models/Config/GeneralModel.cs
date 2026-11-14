@@ -16,7 +16,7 @@ public class GeneralModel
 
     [Config(Name = "主题颜色", Description = "", Group = "外观", CultureCode = CultureCode.ZhCn)]
     [Config(Name = "Theme Color", Description = "", Group = "Appearance", CultureCode = CultureCode.EnUs)]
-    public string ThemeColor { get; set; } = "#FFA05DB1";
+    public string ThemeColor { get; set; } = "#527CE6";
 
     [Config(Options = "自动|中|English", Name = "语言", Description = "设置程序首选的显示语言", Group = "基础",
         OptionsChangedRefresh = true, CultureCode = CultureCode.ZhCn)]
@@ -83,9 +83,8 @@ public class GeneralModel
 
     public int DataRetentionDays { get; set; } = 31;
 
-    [Config(Options = "禁用|渐变1|渐变2|渐变3", Name = "窗口渐变", Group = "外观", CultureCode = CultureCode.ZhCn)]
-    [Config(Options = "Off|Gradient 1|Gradient 2|Gradient 3", Name = "Window Gradient", Group = "Appearance", CultureCode = CultureCode.EnUs)]
-    public int WindowGradientScheme { get; set; } = 3;
+    /// <summary>保留字段以维持配置兼容，N14 起窗口采用无渐变平铺表面。</summary>
+    public int WindowGradientScheme { get; set; } = 0;
 
     public string SyncUrl { get; set; } = string.Empty;
 

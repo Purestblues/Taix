@@ -452,7 +452,7 @@ public class StackedBarChart : Control
 
     private void OnAnimTick(object? sender, EventArgs e)
     {
-        const double durationMs = 520;
+        const double durationMs = 260;
 
         var elapsed = (DateTime.UtcNow - _animStart).TotalMilliseconds;
         var t = Math.Clamp(elapsed / durationMs, 0, 1);
@@ -472,7 +472,7 @@ public class StackedBarChart : Control
 
     private IBrush GetBrush(string? color)
     {
-        _fallbackBrush ??= new SolidColorBrush(Color.Parse("#C08AC9"));
+        _fallbackBrush ??= new SolidColorBrush(Color.Parse("#5E81AC"));
 
         if (string.IsNullOrWhiteSpace(color)) return _fallbackBrush;
         if (_brushCache.TryGetValue(color, out var cached)) return cached;

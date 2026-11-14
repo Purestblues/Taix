@@ -1,16 +1,16 @@
 <ResourceDictionary
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:base="clr-namespace:ShiJian.Client.Controls.Base"
     xmlns:controls="clr-namespace:ShiJian.Client.Controls.Tabbar">
 
     <ControlTheme x:Key="{x:Type controls:Tabbar}" TargetType="controls:Tabbar">
 
         <Styles>
-            <Style Selector="Border">
+            <Style Selector="controls|Tabbar /template/ Border#ActiveBlock">
                 <Setter Property="Transitions">
                     <Transitions>
-                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.09" />
+                        <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.225" Easing="CubicEaseOut" />
+                        <DoubleTransition Property="Width" Duration="0:0:0.225" Easing="CubicEaseOut" />
                     </Transitions>
                 </Setter>
             </Style>
@@ -18,45 +18,45 @@
             <Style Selector="TextBlock">
                 <Setter Property="Transitions">
                     <Transitions>
-                        <BrushTransition Property="Foreground" Duration="0:0:0.225" />
+                        <BrushTransition Property="Foreground" Duration="0:0:0.18" />
                     </Transitions>
                 </Setter>
-
                 <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
             </Style>
         </Styles>
         <Setter Property="MinWidth" Value="44" />
+        <Setter Property="Height" Value="38" />
         <Setter Property="Background" Value="Transparent" />
         <Setter Property="SelectedTextColor" Value="{DynamicResource ThemeColor}" />
         <Setter Property="UnselectedTextColor" Value="{DynamicResource TabOptionTextColor}" />
         <Setter Property="Template">
             <ControlTemplate>
-                <Grid Background="{TemplateBinding Background}">
-                    <Border
-                        x:Name="ActiveBlock"
-                        Width="35"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Bottom"
-                        CornerRadius="2"
-                        RenderTransformOrigin="0,0"
-                        ZIndex="9">
-                        <Border.RenderTransform>
-                            <TransformGroup>
-                                <TranslateTransform X="0" Y="0" />
-                                <ScaleTransform ScaleY="1" />
-                            </TransformGroup>
-                        </Border.RenderTransform>
-                        <Grid x:Name="GridIcon">
-                            <base:Icon
-                                FontSize="10"
-                                Foreground="{DynamicResource ThemeBrush}"
-                                IconType="CaretUpSolid8" />
-                        </Grid>
-                    </Border>
-                    <Border Height="30" Margin="0,0,0,20">
-                        <Grid x:Name="ItemsContainer" />
-                    </Border>
-                </Grid>
+                <Border Background="{TemplateBinding Background}"
+                        Height="38"
+                        BorderBrush="{DynamicResource DividerSubtleBrush}"
+                        BorderThickness="0,0,0,1">
+                    <Grid>
+                        <Border x:Name="ActiveBlock"
+                                Width="40"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Stretch"
+                                RenderTransformOrigin="0,0"
+                                ZIndex="0">
+                            <Grid>
+                                <Border Margin="0,5"
+                                        CornerRadius="{StaticResource RadiusSmall}"
+                                        Background="{DynamicResource ThemeTintBrush}" />
+                                <Border Height="2"
+                                        CornerRadius="1"
+                                        VerticalAlignment="Bottom"
+                                        Background="{DynamicResource ThemeBrush}" />
+                            </Grid>
+                        </Border>
+                        <Border Height="38" VerticalAlignment="Center" ZIndex="1">
+                            <Grid x:Name="ItemsContainer" VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
+                </Border>
             </ControlTemplate>
         </Setter>
     </ControlTheme>

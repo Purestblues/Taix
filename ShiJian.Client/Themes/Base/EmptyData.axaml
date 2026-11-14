@@ -24,36 +24,36 @@
                     <!-- 加载中：三条骨架 -->
                     <StackPanel x:Name="Skeleton" Spacing="9" Width="180" IsVisible="False"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Border Height="10" Width="180" CornerRadius="5"
+                        <Border Height="10" Width="180" CornerRadius="{StaticResource RadiusXs}"
                                 HorizontalAlignment="Left"
-                                Background="{DynamicResource GrayDark}" Opacity="0.55" />
-                        <Border Height="10" Width="140" CornerRadius="5"
+                                Background="{DynamicResource Surface3Brush}" Opacity="0.9" />
+                        <Border Height="10" Width="140" CornerRadius="{StaticResource RadiusXs}"
                                 HorizontalAlignment="Left"
-                                Background="{DynamicResource GrayDark}" Opacity="0.4" />
-                        <Border Height="10" Width="110" CornerRadius="5"
+                                Background="{DynamicResource Surface3Brush}" Opacity="0.7" />
+                        <Border Height="10" Width="110" CornerRadius="{StaticResource RadiusXs}"
                                 HorizontalAlignment="Left"
-                                Background="{DynamicResource GrayDark}" Opacity="0.3" />
+                                Background="{DynamicResource Surface3Brush}" Opacity="0.5" />
                     </StackPanel>
 
                     <!-- 空态：卡片插画 + 文案 -->
                     <StackPanel x:Name="Empty" Spacing="8"
                                 HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <Border x:Name="Illustration" Width="84" Height="84" CornerRadius="10"
+                        <Border x:Name="Illustration" Width="84" Height="84" CornerRadius="{StaticResource RadiusMedium}"
                                 HorizontalAlignment="Center"
-                                Background="{DynamicResource StandardBackgroundBrush}"
-                                BorderBrush="{DynamicResource WindowBorderBrush}"
+                                Background="{DynamicResource Surface2Brush}"
+                                BorderBrush="{DynamicResource CardBorderBrush}"
                                 BorderThickness="1">
                             <Border.RenderTransform>
                                 <RotateTransform Angle="4" />
                             </Border.RenderTransform>
                             <StackPanel Margin="12,14" Spacing="6">
-                                <Border Height="10" CornerRadius="5"
-                                        Background="{DynamicResource GrayDark}" Opacity="0.5" />
-                                <Border Height="22" CornerRadius="5"
-                                        Background="{DynamicResource GrayDark}" Opacity="0.28" />
-                                <Border Height="10" Width="36" CornerRadius="5"
+                                <Border Height="10" CornerRadius="{StaticResource RadiusXs}"
+                                        Background="{DynamicResource DividerStrongBrush}" Opacity="0.7" />
+                                <Border Height="22" CornerRadius="{StaticResource RadiusXs}"
+                                        Background="{DynamicResource Surface3Brush}" Opacity="0.9" />
+                                <Border Height="10" Width="36" CornerRadius="{StaticResource RadiusXs}"
                                         HorizontalAlignment="Left"
-                                        Background="{DynamicResource GrayDark}" Opacity="0.2" />
+                                        Background="{DynamicResource DividerStrongBrush}" Opacity="0.5" />
                             </StackPanel>
                         </Border>
 

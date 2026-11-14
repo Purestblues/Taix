@@ -34,7 +34,7 @@
                     <Grid RowDefinitions="Auto,*,Auto">
                         <Grid ColumnDefinitions="Auto,*,Auto">
                             <Grid Width="28" Height="28" VerticalAlignment="Top">
-                                <Border CornerRadius="6" Background="{DynamicResource NavHoverGlassBrush}">
+                                <Border CornerRadius="{StaticResource RadiusSmall}" Background="{DynamicResource Surface3Brush}">
                                     <base:Img Radius="6" Width="22" Height="22" DecodeWidth="22"
                                               URL="{Binding IconFile}"
                                               Foreground="{Binding DisplayColor, Converter={StaticResource HextoColorConverter}}"
@@ -53,11 +53,13 @@
                                            Foreground="{DynamicResource StandardTextBrush}"
                                            TextTrimming="CharacterEllipsis" />
                                 <TextBlock Text="{Binding CountText}" FontSize="11" Margin="0,2,0,0"
+                                           FontFeatures="tnum"
                                            Foreground="{DynamicResource SubTextBrush}" />
                             </StackPanel>
 
                             <TextBlock Grid.Column="2" Text="{Binding DurationText}"
                                        FontSize="14" FontWeight="SemiBold"
+                                       FontFeatures="tnum"
                                        Foreground="{DynamicResource StandardTextBrush}"
                                        VerticalAlignment="Center" />
                         </Grid>
@@ -65,13 +67,14 @@
                         <Grid Grid.Row="2" ColumnDefinitions="*,Auto" VerticalAlignment="Bottom"
                               IsVisible="{Binding HasDuration}">
                             <Border Height="3" CornerRadius="1.5"
-                                    Background="{DynamicResource DividerBrush}"
+                                    Background="{DynamicResource DividerSubtleBrush}"
                                     VerticalAlignment="Center">
                                 <base:RatioBar Height="3" CornerRadius="1.5" MinWidth="3"
                                                Ratio="{Binding Ratio}"
                                                BarBrush="{Binding DisplayColor,Converter={StaticResource HextoColorConverter}}" />
                             </Border>
                             <TextBlock Grid.Column="1" Text="{Binding RatioText}" FontSize="11" Margin="6,0,0,0"
+                                       FontFeatures="tnum"
                                        Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
                         </Grid>
                     </Grid>
@@ -94,8 +97,8 @@
                         <Grid RowDefinitions="Auto,Auto,*,Auto">
                             <Grid ColumnDefinitions="*,Auto">
                                 <Grid Width="40" Height="40" HorizontalAlignment="Left">
-                                    <Border CornerRadius="8" Background="{DynamicResource NavHoverGlassBrush}">
-                                        <base:Img Radius="8" Width="32" Height="32" DecodeWidth="32"
+                                    <Border CornerRadius="{StaticResource RadiusMedium}" Background="{DynamicResource Surface3Brush}">
+                                        <base:Img Radius="6" Width="30" Height="30" DecodeWidth="30"
                                                   URL="{Binding IconFile}"
                                                   Foreground="{Binding DisplayColor, Converter={StaticResource HextoColorConverter}}"
                                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -109,6 +112,7 @@
                                 </Grid>
 
                                 <TextBlock Grid.Column="1" Text="{Binding CountText}" FontSize="11"
+                                           FontFeatures="tnum"
                                            Foreground="{DynamicResource SubTextBrush}"
                                            VerticalAlignment="Bottom" HorizontalAlignment="Right" />
                             </Grid>
@@ -120,19 +124,21 @@
 
                             <TextBlock Grid.Row="2" Text="{Binding DurationText}"
                                        FontSize="20" FontWeight="SemiBold"
+                                       FontFeatures="tnum"
                                        Foreground="{DynamicResource StandardTextBrush}"
                                        VerticalAlignment="Center" />
 
                             <Grid Grid.Row="3" ColumnDefinitions="*,Auto" Margin="0,6,0,0"
                                   IsVisible="{Binding HasDuration}">
                                 <Border Height="4" CornerRadius="2"
-                                        Background="{DynamicResource DividerBrush}"
+                                        Background="{DynamicResource DividerSubtleBrush}"
                                         VerticalAlignment="Center">
                                     <base:RatioBar Height="4" CornerRadius="2" MinWidth="3"
                                                    Ratio="{Binding Ratio}"
                                                    BarBrush="{Binding DisplayColor,Converter={StaticResource HextoColorConverter}}" />
                                 </Border>
                                 <TextBlock Grid.Column="1" Text="{Binding RatioText}" FontSize="11" Margin="6,0,0,0"
+                                           FontFeatures="tnum"
                                            Foreground="{DynamicResource SubTextBrush}" VerticalAlignment="Center" />
                             </Grid>
                         </Grid>

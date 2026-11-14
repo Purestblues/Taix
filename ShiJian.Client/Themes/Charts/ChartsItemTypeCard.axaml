@@ -4,119 +4,126 @@
                     xmlns:converter="using:ShiJian.Client.Controls.Converters"
                     xmlns:controls="using:ShiJian.Client.Controls.Charts">
 
-    <ControlTheme x:Key="{x:Type controls:ChartsItemTypeCard}"
-                  TargetType="controls:ChartsItemTypeCard">
+    <ControlTheme x:Key="{x:Type controls:ChartsItemTypeCard}" TargetType="controls:ChartsItemTypeCard">
         <ControlTheme.Resources>
             <converter:HextoColorConverter x:Key="HextoColorConverter" />
         </ControlTheme.Resources>
-        <Setter Property="Background" Value="Transparent" />
-        <Setter Property="Margin" Value="8" />
+        <Setter Property="Width" Value="228" />
+        <Setter Property="Height" Value="64" />
+        <Setter Property="Margin" Value="0,0,8,8" />
+        <Setter Property="Background" Value="{DynamicResource Surface2Brush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+        <Setter Property="Cursor" Value="Hand" />
 
-        <Styles>
-            <Style Selector="controls|ChartsItemTypeCard">
-                <Style Selector="^:pointerover /template/ Border#Normal">
-                    <Setter Property="Opacity" Value="1" />
+        <Style Selector="^">
+            <Style Selector="^ /template/ Border#CardSurface">
+                <Setter Property="Transitions">
+                    <Transitions>
+                        <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                        <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    </Transitions>
+                </Setter>
+            </Style>
+
+            <Style Selector="^:pointerover /template/ Border#CardSurface">
+                <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
+                <Setter Property="Background" Value="{DynamicResource Surface3Brush}" />
+            </Style>
+
+            <Style Selector="^[IsLoading=True]">
+                <Style Selector="^ /template/ base|Placeholder#Loading">
+                    <Setter Property="IsVisible" Value="True" />
                 </Style>
-
-                <!-- 悬停时上抬 3px + 阴影浮起，让卡片区有“可点”的反馈 -->
                 <Style Selector="^ /template/ Border#Normal">
-                    <Setter Property="RenderTransform" Value="translateY(0px)" />
-                    <Setter Property="Transitions">
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.225" />
-                            <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.15" />
-                        </Transitions>
-                    </Setter>
-                </Style>
-
-                <Style Selector="^:pointerover /template/ Border#Normal">
-                    <Setter Property="RenderTransform" Value="translateY(-3px)" />
-                </Style>
-
-                <Style Selector="^:pointerover /template/ Border#Border">
-                    <Setter Property="BorderBrush" Value="{DynamicResource ChartCardHoverBorderBrush}" />
-                </Style>
-
-                <Style Selector="^ /template/ Border#Border">
-                    <Setter Property="Transitions">
-                        <Transitions>
-                            <BrushTransition Property="BorderBrush" Duration="0:0:0.225" />
-                            <BrushTransition Property="Background" Duration="0:0:0.225" />
-                        </Transitions>
-                    </Setter>
-                </Style>
-
-                <Style Selector="^[IsLoading=True]">
-                    <Style Selector="^ /template/ base|Placeholder#Loading">
-                        <Setter Property="IsVisible" Value="true" />
-                    </Style>
-                    <Style Selector="^ /template/ Border#Normal">
-                        <Setter Property="IsVisible" Value="false" />
-                    </Style>
+                    <Setter Property="IsVisible" Value="False" />
                 </Style>
             </Style>
-        </Styles>
+        </Style>
 
         <Setter Property="Template">
             <ControlTemplate>
                 <Grid>
-                    <Border x:Name="Normal" CornerRadius="18">
-                        <Border.Effect>
-                            <DropShadowDirectionEffect
-                                BlurRadius="20" Direction="0" ShadowDepth="0"
-                                Color="{DynamicResource ThemeColor}" Opacity="0" />
-                        </Border.Effect>
-                        <Border x:Name="Border"
-                                BorderThickness="1"
-                                Background="{DynamicResource ChartCardGlassBgBrush}"
-                                BorderBrush="{DynamicResource ChartCardGlassBorderBrush}"
-                                CornerRadius="18" Width="150"
-                                Height="150">
-                            <Border.Clip>
-                                <RectangleGeometry Rect="0,0,150,150" />
-                            </Border.Clip>
-                            <Grid>
-                                <base:Img x:Name="IconObj" Width="32" Height="32" HorizontalAlignment="Center"
-                                                 DecodeWidth="32"
-                                                 URL="{Binding Data.Icon,RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}}}"
-                                                 FallbackText="{Binding Data.FallbackText,RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}}}"
-                                                 VerticalAlignment="Center" />
-
-                                <TextBlock x:Name="NameTextObj"
-                                           Text="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}},Path=Data.Name}"
-                                           Foreground="{DynamicResource WhiteBgTextBrush}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="10,0,10,12"
-                                           FontSize="13" />
-
-                                <!-- 药丸标签 -->
-                                <Border VerticalAlignment="Top" CornerRadius="12" Padding="7,4" HorizontalAlignment="Left"
-                                        Margin="10,10,0,0"
-                                        Background="{DynamicResource ChartCardPillBgBrush}">
-                                    <TextBlock x:Name="ValueTextObj" Foreground="{DynamicResource ChartCardPillTextBrush}" FontSize="11" FontWeight="SemiBold" />
+                    <Border x:Name="Normal"
+                            ToolTip.Tip="{Binding Data.PopupText, RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}}}">
+                        <Border x:Name="CardSurface"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{TemplateBinding CornerRadius}"
+                                Padding="10,8">
+                            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                <!-- 应用图标 -->
+                                <Border Grid.Column="0"
+                                        Width="36"
+                                        Height="36"
+                                        CornerRadius="{StaticResource RadiusSmall}"
+                                        Background="{DynamicResource Surface3Brush}"
+                                        VerticalAlignment="Center">
+                                    <base:Img x:Name="IconObj"
+                                              Radius="6"
+                                              Width="24"
+                                              Height="24"
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              FallbackText="{Binding Data.FallbackText, RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}}}"
+                                              URL="{Binding Data.Icon, RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}}}" />
                                 </Border>
 
-                                <!-- 分类：小圆点 + 名称，卡片右上角 -->
-                                <Border VerticalAlignment="Top" HorizontalAlignment="Right"
-                                        CornerRadius="10" Padding="6,3" Margin="0,10,10,0"
-                                        Background="{DynamicResource HoverBackgroundBrush}"
-                                        IsVisible="{Binding Data.CategoryName,
-                                            RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}},
-                                            Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                    <StackPanel Orientation="Horizontal" Spacing="4">
-                                        <Border Width="6" Height="6" CornerRadius="3" VerticalAlignment="Center"
+                                <!-- 应用名 + 分类标签 -->
+                                <StackPanel Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            Spacing="3">
+                                    <TextBlock x:Name="NameTextObj"
+                                               FontSize="13"
+                                               FontWeight="Medium"
+                                               MaxLines="1"
+                                               TextTrimming="CharacterEllipsis"
+                                               Foreground="{DynamicResource DefaultTextBrush}"
+                                               Text="{Binding Data.Name, RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}}}" />
+
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="4"
+                                                IsVisible="{Binding Data.CategoryName,
+                                                    RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}},
+                                                    Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                        <Border Width="6"
+                                                Height="6"
+                                                CornerRadius="3"
+                                                VerticalAlignment="Center"
                                                 Background="{Binding Data.CategoryColor,
                                                     RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}},
                                                     Converter={StaticResource HextoColorConverter}}" />
                                         <TextBlock Text="{Binding Data.CategoryName, RelativeSource={RelativeSource AncestorType={x:Type controls:ChartsItemTypeCard}}}"
-                                                   FontSize="10" MaxWidth="62" TextTrimming="CharacterEllipsis"
+                                                   FontSize="11"
+                                                   TextTrimming="CharacterEllipsis"
                                                    Foreground="{DynamicResource SubTextBrush}"
                                                    VerticalAlignment="Center" />
                                     </StackPanel>
+                                </StackPanel>
+
+                                <!-- 右侧时长胶囊 -->
+                                <Border Grid.Column="2"
+                                        VerticalAlignment="Center"
+                                        CornerRadius="{StaticResource RadiusSmall}"
+                                        Padding="7,3"
+                                        Background="{DynamicResource Surface3Brush}">
+                                    <TextBlock x:Name="ValueTextObj"
+                                               FontFeatures="tnum"
+                                               Foreground="{DynamicResource SubTextBrush}"
+                                               FontSize="11"
+                                               FontWeight="SemiBold" />
                                 </Border>
                             </Grid>
                         </Border>
                     </Border>
-                    <base:Placeholder x:Name="Loading" IsVisible="False" CornerRadius="18" Width="150" Height="150" />
+
+                    <base:Placeholder x:Name="Loading"
+                                      IsVisible="False"
+                                      CornerRadius="{StaticResource RadiusMedium}"
+                                      Width="228"
+                                      Height="64" />
                 </Grid>
             </ControlTemplate>
         </Setter>

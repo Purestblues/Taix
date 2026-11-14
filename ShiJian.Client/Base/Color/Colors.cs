@@ -24,8 +24,18 @@ public class Colors
 
     public static string[] MainColors =
     {
-        "#00FFAB", "#A761FF", "#ff587f", "#fff323", "#DAEAF1", "#2B20D9", "#FF5C01", "#9EB23C", "#FF9999", "#998CEB",
-        "#77E4D4", "#FD5E5E", "#B4FF9F", "#07FF01", "#FFE162", "#C70B80", "#590696", "#97DBAE", "#ff1801"
+        "#527CE6", // 矢车菊蓝 (Cornflower Frost - 默认主色)
+        "#5E81AC", // 北极深冰蓝 (Nord Frost Blue)
+        "#4D968E", // 松石青绿 (Sage Teal)
+        "#689D6A", // 苔原森绿 (Aurora Moss)
+        "#8DA101", // 橄榄嫩绿 (Everforest Olive)
+        "#C8834B", // 暖砂琥珀 (Warm Ochre)
+        "#D08770", // 陶土暖橙 (Aurora Coral)
+        "#BF616A", // 柔和绯红 (Aurora Crimson)
+        "#B85D82", // 雾玫瑰红 (Dusty Rose)
+        "#9D7298", // 雾梅紫 (Aurora Plum)
+        "#7E6BC4", // 薰衣草紫 (Muted Lavender)
+        "#4C566A", // 极夜岩灰 (Polar Slate)
     };
 
     public static string[] TimelinePaletteDark { get; } = GenerateTimelinePalette(45, isDark: true);
@@ -49,8 +59,8 @@ public class Colors
 
     private static string[] GenerateTimelinePalette(int count, bool isDark)
     {
-        var baseL = isDark ? 0.60 : 0.45;
-        var saturation = isDark ? 0.80 : 0.72;
+        var baseL = isDark ? 0.66 : 0.52;
+        var saturation = isDark ? 0.54 : 0.48;
         var result = new string[count];
 
         for (var i = 0; i < count; i++)

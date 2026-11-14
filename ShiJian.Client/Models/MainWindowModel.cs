@@ -28,6 +28,7 @@ public class MainWindowModel : UINotifyPropertyChanged
     private NavigationItemModel? _navSelectedItem;
 
     private bool _isSettingSelected;
+    private bool _isSidebarCollapsed;
 
     private PageContainer _pageContainer;
     private IServiceProvider _serviceProvider;
@@ -160,6 +161,23 @@ public class MainWindowModel : UINotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+
+    public bool IsSidebarCollapsed
+    {
+        get => _isSidebarCollapsed;
+        set
+        {
+            if (_isSidebarCollapsed == value) return;
+            _isSidebarCollapsed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(SidebarWidth));
+            OnPropertyChanged(nameof(SidebarCollapseIcon));
+        }
+    }
+
+    public double SidebarWidth => IsSidebarCollapsed ? 56 : 176;
+
+    public IconTypes SidebarCollapseIcon => IsSidebarCollapsed ? IconTypes.ChevronRight : IconTypes.ChevronLeft;
 
     public PageContainer PageContainer
     {

@@ -2,113 +2,128 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:cat="using:ShiJian.Client.Controls.Category">
 
-    <!--
-      全局视觉语汇（对齐 Super Productivity，见 docs/DESIGN-SP-ALIGN.md）
-      · 卡片 = 8px 圆角 + 1px 发丝边 + surface-2 底，静置零阴影
-      · 列表行 = 扁平行 + 底部 1px 发丝线，无圆角无阴影
-      · 阴影只给真正浮起来的层（弹窗 / 拖拽 / 浮层），走 Elevation1..3
-      页面里不要再各自定义 .card / .statCard，否则会盖掉这一套。
-    -->
+    <!-- N14 UI Kit: Nord Flat Bordered Hierarchy & Tabular Typography -->
 
-    <!-- ═══ 卡片 ═══ -->
+    <!-- 标准扁平卡片 (.card) -->
     <Style Selector="Border.card">
-        <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Surface2Brush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+        <Setter Property="BoxShadow" Value="{DynamicResource ElevationCard}" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.09" />
+                <BrushTransition Property="Background" Duration="0:0:0.09" />
+            </Transitions>
+        </Setter>
     </Style>
-
     <Style Selector="Border.card:pointerover">
         <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
     </Style>
 
-    <!-- 总览指标卡：卡片语汇 + 更紧的内边距 -->
+    <!-- 指标统计卡 (.statCard) —— 全站概览/统计/分类汇总统一骨架 -->
     <Style Selector="Border.statCard">
-        <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Surface2Brush}" />
         <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
-        <Setter Property="Padding" Value="14,12" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+        <Setter Property="BoxShadow" Value="{DynamicResource ElevationCard}" />
+        <Setter Property="Padding" Value="16,14" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="BorderBrush" Duration="0:0:0.09" />
+            </Transitions>
+        </Setter>
     </Style>
-
     <Style Selector="Border.statCard:pointerover">
         <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
     </Style>
 
-    <!-- 抬升卡片：只有浮层 / 拖拽预览 / 便签用 -->
+    <!-- 交互浮层/可点击卡 (.cardElevated) -->
     <Style Selector="Border.cardElevated">
-        <Setter Property="Background" Value="{DynamicResource CardBgBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="Background" Value="{DynamicResource Surface4Brush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource PopupBorderBrush}" />
         <Setter Property="BorderThickness" Value="1" />
-        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusLarge}" />
         <Setter Property="BoxShadow" Value="{DynamicResource Elevation2}" />
     </Style>
 
-    <!-- ═══ 扁平行 + 发丝线（榜单 / 应用列表 / 分类列表） ═══ -->
+    <!-- 扁平列表行 (.listRow) -->
     <Style Selector="Border.listRow">
         <Setter Property="Background" Value="Transparent" />
-        <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
-        <Setter Property="BorderThickness" Value="0,0,0,1" />
-        <Setter Property="CornerRadius" Value="0" />
-        <Setter Property="Padding" Value="8,7" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusSmall}" />
+        <Setter Property="Padding" Value="10,6" />
+        <Setter Property="Transitions">
+            <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.09" />
+            </Transitions>
+        </Setter>
     </Style>
-
     <Style Selector="Border.listRow:pointerover">
-        <Setter Property="Background" Value="{DynamicResource RowHoverBrush}" />
+        <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
     </Style>
-
-    <!-- 选中态：底色 tint + 一条左边缘，绝不只靠底色 -->
     <Style Selector="Border.listRow.selected">
-        <Setter Property="Background" Value="{DynamicResource RowSelectedBrush}" />
-        <Setter Property="BorderThickness" Value="2,0,0,1" />
-        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
+        <Setter Property="Background" Value="{DynamicResource SelectionPillBrush}" />
     </Style>
 
-    <!-- ═══ 排版 ═══ -->
-    <!-- 页面标题 -->
+    <!-- 排印阶梯与等宽数字 -->
     <Style Selector="TextBlock.pageTitle">
-        <Setter Property="FontSize" Value="{DynamicResource FontSizeXl}" />
+        <Setter Property="FontSize" Value="20" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="Foreground" Value="{DynamicResource StandardTextBrush}" />
-        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
     </Style>
 
-    <!-- 区块标题（eyebrow）：故意比内容小一号 + 更淡 + 字距更宽 -->
+    <Style Selector="TextBlock.sectionHeader">
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.sectionTitle">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.cardTitle">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
+    </Style>
+
     <Style Selector="TextBlock.eyebrow">
-        <Setter Property="FontSize" Value="{DynamicResource FontSizeSection}" />
+        <Setter Property="FontSize" Value="12" />
         <Setter Property="FontWeight" Value="SemiBold" />
-        <Setter Property="LetterSpacing" Value="0.24" />
-        <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
-        <Setter Property="VerticalAlignment" Value="Center" />
-    </Style>
-
-    <!-- 卡片说明文字 -->
-    <Style Selector="TextBlock.cardCaption">
-        <Setter Property="FontSize" Value="{DynamicResource FontSizeXs}" />
         <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
     </Style>
 
-    <!-- 大数字：tabular-nums 让数字不跳动（不用等宽字体） -->
+    <Style Selector="TextBlock.cardCaption, TextBlock.caption, TextBlock.muted">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
+    </Style>
+
     <Style Selector="TextBlock.statValue">
-        <Setter Property="FontSize" Value="{DynamicResource FontSizeXxl}" />
+        <Setter Property="FontSize" Value="22" />
         <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="FontFeatures" Value="tnum" />
+        <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
     </Style>
 
+    <Style Selector="TextBlock.num">
+        <Setter Property="FontFeatures" Value="tnum" />
+    </Style>
 
-    <!-- ═══ 分类卡片（N7）═══ -->
-    <!-- 页面在列表上挂 .card 类名，整列就切到大卡片形态；改属性而不是换模板，
-         列表项容器不会重建，所以切换视图时滚动位置与选中态都不丢 -->
+    <!-- 分类页列表卡片交互 -->
     <Style Selector="ListBox.categoryList.card cat|CategoryCard">
-        <Setter Property="IsCard" Value="True" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
     </Style>
-
-    <!-- 悬停 / 选中落在卡片描边上 -->
     <Style Selector="ListBoxItem:pointerover cat|CategoryCard">
         <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
     </Style>
     <Style Selector="ListBoxItem:selected cat|CategoryCard">
         <Setter Property="BorderBrush" Value="{DynamicResource ThemeBrush}" />
     </Style>
-
 </Styles>

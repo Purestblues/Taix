@@ -67,7 +67,7 @@ public class HeatGrid : Control
     private const double MinRowCellHeight = 14;
     private const double IdealRowCellHeight = 16;
 
-    private static readonly IBrush FallbackAccent = new SolidColorBrush(Color.Parse("#C08AC9"));
+    private static readonly IBrush FallbackAccent = new SolidColorBrush(Color.Parse("#5E81AC"));
 
     private (int Row, int Column) _hover = (-1, -1);
 
@@ -324,14 +324,19 @@ public class HeatGrid : Control
 
         if (string.IsNullOrEmpty(cell.Tip)) return;
 
-        var text = MakeText(cell.Tip, 11, TextBrush ?? Brushes.Gray);
+        var text = MakeText(cell.Tip, 11, ResolveBrush("DefaultTextBrush") ?? TextBrush ?? Brushes.Gray);
         var tipWidth = text.Width + 12;
+        var tipHeight = text.Height + 6;
         var tipX = Math.Clamp(x + cellWidth / 2 - tipWidth / 2, 0, Math.Max(0, width - tipWidth));
-        var tipY = y - text.Height - 10;
+        var tipY = y - tipHeight - 4;
         if (tipY < 0) tipY = y + cellHeight + 6;
 
-        var background = HoverBrush ?? new SolidColorBrush(Color.FromArgb(28, 128, 128, 128));
-        context.DrawRectangle(background, null, new RoundedRect(new Rect(tipX, tipY, tipWidth, text.Height + 6), 5));
+        var background = ResolveBrush("PopupBackgroundBrush")
+                         ?? HoverBrush
+                         ?? new SolidColorBrush(Color.FromArgb(240, 46, 52, 64));
+        var border = ResolveBrush("PopupBorderBrush");
+        var tipRect = new RoundedRect(new Rect(tipX, tipY, tipWidth, tipHeight), 6);
+        context.DrawRectangle(background, border != null ? new Pen(border, 1) : null, tipRect);
         context.DrawText(text, new Point(tipX + 6, tipY + 3));
     }
 
@@ -348,11 +353,25 @@ public class HeatGrid : Control
         var accent = AccentBrush is ISolidColorBrush solid ? solid.Color : ((ISolidColorBrush)FallbackAccent).Color;
 
         if (value <= 0)
-            return new SolidColorBrush(Color.FromArgb(20, accent.R, accent.G, accent.B));
+            return ResolveBrush("Surface3Brush")
+                   ?? new SolidColorBrush(Color.FromArgb(20, accent.R, accent.G, accent.B));
 
         var level = Math.Clamp(value / MaxValue, 0, 1);
-        var alpha = (byte)Math.Clamp(40 + Math.Sqrt(level) * 205, 0, 255);
+        var alpha = (byte)Math.Clamp(48 + Math.Sqrt(level) * 200, 0, 255);
         return new SolidColorBrush(Color.FromArgb(alpha, accent.R, accent.G, accent.B));
+    }
+
+    private static IBrush? ResolveBrush(string resourceKey)
+    {
+        if (Application.Current is { } app &&
+            app.CheckAccess() &&
+            app.TryGetResource(resourceKey, app.ActualThemeVariant, out var resource) &&
+            resource is IBrush brush)
+        {
+            return brush;
+        }
+
+        return null;
     }
 
     #region Hover

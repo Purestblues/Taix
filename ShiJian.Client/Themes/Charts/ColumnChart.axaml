@@ -41,12 +41,12 @@
                                PlacementTarget="{TemplateBinding ValuesPopupPlacementTarget}">
                             <Border
                                 Background="{DynamicResource PopupBackgroundBrush}"
-                                CornerRadius="12"
+                                BorderBrush="{DynamicResource PopupBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="{StaticResource RadiusMedium}"
+                                BoxShadow="{DynamicResource Elevation2}"
                                 Padding="10"
                                 Margin="10">
-                                <Border.Effect>
-                                    <DropShadowEffect BlurRadius="10" Color="Gray" Opacity=".1" />
-                                </Border.Effect>
                                 <Grid>
                                     <Path Width="15" Height="15"
                                           Data="M 0 0 L 7.5 7.5 L 15 0"

@@ -12,9 +12,9 @@
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}"
-                        BorderBrush="{DynamicResource SelectRingBrush}" CornerRadius="10" BorderThickness="2"
+                        BorderBrush="{DynamicResource SelectRingBrush}" CornerRadius="{StaticResource RadiusMedium}" BorderThickness="2"
                         Width="{TemplateBinding Width}"
-                        Height="{TemplateBinding Height}">
+                        Height="{TemplateBinding Height}" Cursor="Hand">
 
                     <Interaction.Behaviors>
                         <EventTriggerBehavior EventName="PointerPressed">
@@ -37,17 +37,13 @@
 
                             <Border
                                 x:Name="SelectContainer"
-                                CornerRadius="10"
+                                CornerRadius="{StaticResource RadiusMedium}"
                                 BorderBrush="{DynamicResource PopupBorderBrush}"
                                 BorderThickness="1"
+                                BoxShadow="{DynamicResource Elevation2}"
                                 Background="{DynamicResource PopupBackgroundBrush}"
                                 TextElement.Foreground="{DynamicResource DefaultTextBrush}"
-                                Padding="10" Width="275" MaxHeight="300" Margin="10">
-                                <Border.Effect>
-                                    <DropShadowDirectionEffect BlurRadius="10"
-                                                               ShadowDepth="2" Direction="315" Color="Gray"
-                                                               Opacity=".3" />
-                                </Border.Effect>
+                                Padding="10" Width="275" MaxHeight="300" Margin="8">
 
                                 <Grid>
                                     <Grid.RowDefinitions>

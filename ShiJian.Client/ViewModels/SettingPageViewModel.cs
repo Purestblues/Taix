@@ -395,7 +395,8 @@ public class SettingPageViewModel : SettingPageModel
         var selected = _allMergeCandidates.Where(c => c.IsSelected).ToList();
         if (selected.Count < 2)
         {
-            MergeEditorError = ResourceStrings.MergeGroupNeedTwo;
+            var err = ResourceStrings.MergeGroupNeedTwo;
+            MergeEditorError = string.IsNullOrWhiteSpace(err) ? "请至少选择 2 个成员" : err;
             return;
         }
 

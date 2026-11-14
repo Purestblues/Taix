@@ -42,59 +42,57 @@
         </Styles>
         <Setter Property="Template">
             <ControlTemplate>
-                <Border CornerRadius="10" Background="{TemplateBinding Background}" Padding="10,8">
-                    <Border>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="30" />
+                <Border CornerRadius="{StaticResource RadiusSmall}" Background="{TemplateBinding Background}" Padding="10,7" Cursor="Hand">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="26" />
+                            <ColumnDefinition Width="auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                                <ColumnDefinition Width="auto" />
-                                <ColumnDefinition Width="*" />
+                        <!--标记是否选中-->
+                        <Border VerticalAlignment="Center">
+                            <Grid>
+                                <!--选中-->
+                                <Border
+                                    Width="16"
+                                    Height="16"
+                                    Background="{DynamicResource ThemeTintBrush}"
+                                    BorderBrush="{DynamicResource ThemeBrush}"
+                                    BorderThickness="5"
+                                    CornerRadius="8"
+                                    x:Name="CheckStyle" IsVisible="False" />
 
-                            </Grid.ColumnDefinitions>
+                                <!--未选中-->
+                                <Border
+                                    Width="16"
+                                    Height="16"
+                                    BorderBrush="{DynamicResource OptionUncheckedBorderBrush}"
+                                    BorderThickness="1.5"
+                                    CornerRadius="8"
+                                    x:Name="UnCheckStyle" IsVisible="False" />
+                            </Grid>
+                        </Border>
 
-                            <!--标记是否选中-->
-                            <Border>
-                                <Grid>
-                                    <!--选中-->
-                                    <Border
-                                        Width="20"
-                                        Height="20"
-                                        Background="{DynamicResource OptionCheckedBackgroundBrush}"
-                                        BorderBrush="{DynamicResource OptionCheckedBorderBrush}"
-                                        BorderThickness="2"
-                                        CornerRadius="20"
-                                        x:Name="CheckStyle" IsVisible="False" />
+                        <!--图标-->
+                        <Border Grid.Column="1" Margin="4,0,0,0" x:Name="Img">
+                            <base:Img
+                                URL="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:Option}}, Path=Value.Img}"
+                                DecodeWidth="16"
+                                Width="16" Height="16"
+                                VerticalAlignment="Center" />
+                        </Border>
 
-                                    <!--未选中-->
-                                    <Border
-                                        Width="20"
-                                        Height="20"
-                                        BorderBrush="{DynamicResource OptionUncheckedBorderBrush}"
-                                        BorderThickness="2"
-                                        CornerRadius="20"
-                                        x:Name="UnCheckStyle" IsVisible="False" />
-                                </Grid>
-                            </Border>
-
-                            <!--图标-->
-                            <Border Grid.Column="1" Margin="5,0,0,0" x:Name="Img">
-                                <base:Img
-                                    URL="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:Option}}, Path=Value.Img}"
-                                    DecodeWidth="16"
-                                    Width="16" Height="16"
-                                    VerticalAlignment="Center" />
-                            </Border>
-
-                            <!--文字-->
-                            <Border Grid.Column="2">
-                                <TextBlock
-                                    Text="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:Option}}, Path=Value.Name}"
-                                    TextTrimming="CharacterEllipsis"
-                                    VerticalAlignment="Center" Margin="5,0,0,0" />
-                            </Border>
-                        </Grid>
-                    </Border>
+                        <!--文字-->
+                        <Border Grid.Column="2">
+                            <TextBlock
+                                Text="{Binding RelativeSource={RelativeSource AncestorType={x:Type controls:Option}}, Path=Value.Name}"
+                                FontSize="13"
+                                Foreground="{DynamicResource DefaultTextBrush}"
+                                TextTrimming="CharacterEllipsis"
+                                VerticalAlignment="Center" Margin="6,0,0,0" />
+                        </Border>
+                    </Grid>
                 </Border>
             </ControlTemplate>
         </Setter>

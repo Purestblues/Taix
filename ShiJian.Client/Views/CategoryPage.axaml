@@ -51,7 +51,7 @@
                         <Setter Property="Background" Value="{DynamicResource ListItemCardHoverBgBrush}" />
                     </Style>
                     <Style Selector="Button.tagOption:pressed">
-                        <Setter Property="Background" Value="{DynamicResource NavHoverGlassBrush}" />
+                        <Setter Property="Background" Value="{DynamicResource Surface3Brush}" />
                     </Style>
                 </StackPanel.Styles>
                 <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto">
@@ -79,7 +79,7 @@
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
-                <Border Height="1" Background="{DynamicResource SettingPanelSpliteLineBrush}" Opacity="0.6" Margin="0,2" />
+                <Border Height="1" Background="{DynamicResource DividerSubtleBrush}" Margin="0,2" />
                 <Button Classes="tagOption"
                         HorizontalContentAlignment="Left"
                         Click="OnTagNewCategoryClicked">
@@ -97,23 +97,13 @@
             IsVisible="{Binding EditVisibility}"
             HorizontalAlignment="Stretch"
             VerticalAlignment="Stretch">
-            <Border Background="Black" Opacity=".7" CornerRadius="{StaticResource RadiusSmall}" />
-            <Border Width="{Binding ElementName=EditBorder,Path=Bounds.Width}"
-                    Height="{Binding ElementName=EditBorder,Path=Bounds.Height}"
-                    Background="{Binding ElementName=EditBorder,Path=Background}"
-                    CornerRadius="{Binding ElementName=EditBorder,Path=CornerRadius}">
-                <Border.Effect>
-                    <DropShadowDirectionEffect BlurRadius="30" Direction="0"
-                                               ShadowDepth="0"
-                                               Opacity=".2"
-                                               Color="{DynamicResource ThemeColor}" />
-                </Border.Effect>
-            </Border>
+            <Border Background="{DynamicResource ScrimBrush}" />
 
-            <Border x:Name="EditBorder" MaxWidth="420" MaxHeight="480"
-                    Background="{DynamicResource StandardBackgroundBrush2}"
-                    CornerRadius="{StaticResource RadiusMedium}"
-                    BorderBrush="{DynamicResource WindowContentBorder}" BorderThickness="1">
+            <Border x:Name="EditBorder" Width="420" MaxHeight="500"
+                    Background="{DynamicResource PopupBackgroundBrush}"
+                    CornerRadius="{StaticResource RadiusLarge}"
+                    BorderBrush="{DynamicResource PopupBorderBrush}" BorderThickness="1"
+                    BoxShadow="{DynamicResource Elevation3}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="40" />
@@ -230,49 +220,47 @@
                 </ContextMenu>
             </Grid.ContextMenu>
 
-            <Grid Margin="0,8,0,18">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{DynamicResource SideSort}" FontSize="18" VerticalAlignment="Center" />
-                    <select:TabSwitch Margin="12,0,0,0" VerticalAlignment="Center"
-                                   IsShowIcon="False" SelectedItem="{Binding BrowseMode,Mode=TwoWay}"
-                                   Options="{Binding BrowseModeOptions}" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
-                                IsVisible="{Binding IsCategoryBrowseMode}">
-                        <TextBlock Text="{DynamicResource SortOrder}" FontSize="12"
-                                   Foreground="{DynamicResource SubTextBrush}"
-                                   VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <select:TabSwitch Margin="0,0,16,0" VerticalAlignment="Center"
-                                       ToolTip.Tip="{DynamicResource SortOrder}"
-                                       IsShowIcon="False" SelectedItem="{Binding SortMode,Mode=TwoWay}"
-                                       Options="{Binding SortOptions}" />
-                        <TextBlock Text="{DynamicResource ViewMode}" FontSize="12"
-                                   Foreground="{DynamicResource SubTextBrush}"
-                                   VerticalAlignment="Center" Margin="0,0,8,0" />
-                        <select:TabSwitch Margin="0,0,10,0" VerticalAlignment="Center"
-                                       ToolTip.Tip="{DynamicResource ViewMode}"
-                                       IsShowIcon="False" SelectedItem="{Binding ViewMode,Mode=TwoWay}"
-                                       Options="{Binding ViewModeOptions}" />
+            <StackPanel Margin="0,8,0,14" Spacing="10">
+                <Grid ColumnDefinitions="*,Auto">
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource SideSort}" FontSize="18" VerticalAlignment="Center" />
+                        <select:TabSwitch Margin="12,0,0,0" VerticalAlignment="Center"
+                                       IsShowIcon="False" SelectedItem="{Binding BrowseMode,Mode=TwoWay}"
+                                       Options="{Binding BrowseModeOptions}" />
                     </StackPanel>
-                    <Button:Button Icon="Accept"
-                               Content="{DynamicResource AutoClassify}"
-                               ToolTip.Tip="{DynamicResource AutoClassifyTip}"
-                               Padding="12,0"
-                               Margin="0,0,10,0"
-                               Command="{Binding ApplyAutoClassifyCommand}" />
-                    <Button:Button Icon="CalculatorAddition"
-                               Content="{DynamicResource NewCategory}"
-                               Width="150"
-                               Command="{Binding EditCommand}" />
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button:Button Icon="Accept"
+                                   Content="{DynamicResource AutoClassify}"
+                                   ToolTip.Tip="{DynamicResource AutoClassifyTip}"
+                                   Padding="12,0"
+                                   Margin="0,0,10,0"
+                                   Command="{Binding ApplyAutoClassifyCommand}" />
+                        <Button:Button Icon="CalculatorAddition"
+                                   Content="{DynamicResource NewCategory}"
+                                   Width="150"
+                                   Command="{Binding EditCommand}" />
+                    </StackPanel>
+                </Grid>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                            IsVisible="{Binding IsCategoryBrowseMode}">
+                    <TextBlock Text="{DynamicResource SortOrder}" FontSize="12"
+                               Foreground="{DynamicResource SubTextBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <select:TabSwitch Margin="0,0,16,0" VerticalAlignment="Center"
+                                   ToolTip.Tip="{DynamicResource SortOrder}"
+                                   IsShowIcon="False" SelectedItem="{Binding SortMode,Mode=TwoWay}"
+                                   Options="{Binding SortOptions}" />
+                    <TextBlock Text="{DynamicResource ViewMode}" FontSize="12"
+                               Foreground="{DynamicResource SubTextBrush}"
+                               VerticalAlignment="Center" Margin="0,0,8,0" />
+                    <select:TabSwitch VerticalAlignment="Center"
+                                   ToolTip.Tip="{DynamicResource ViewMode}"
+                                   IsShowIcon="False" SelectedItem="{Binding ViewMode,Mode=TwoWay}"
+                                   Options="{Binding ViewModeOptions}" />
                 </StackPanel>
-            </Grid>
+            </StackPanel>
 
             <!-- 统一分类卡片视图（BrowseMode == 0，含空分类折叠 N7-c + 应用网站共享标签 N8） -->
             <ScrollViewer Grid.Row="1"
@@ -542,7 +530,7 @@
                                 </Style>
                             </Style>
                             <Style Selector="Button.tagPill">
-                                <Setter Property="Background" Value="{DynamicResource HoverBackgroundColor}" />
+                                <Setter Property="Background" Value="{DynamicResource Surface3Brush}" />
                                 <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}" />
                                 <Setter Property="BorderThickness" Value="1" />
                                 <Setter Property="CornerRadius" Value="6" />
@@ -564,7 +552,7 @@
                                 </Setter>
                             </Style>
                             <Style Selector="Button.tagPill:pointerover">
-                                <Setter Property="Background" Value="{DynamicResource NavHoverGlassBrush}" />
+                                <Setter Property="Background" Value="{DynamicResource Surface3Brush}" />
                                 <Setter Property="BorderBrush" Value="{DynamicResource ListItemCardHoverBorderBrush}" />
                             </Style>
                             <Style Selector="Button.tagPill:pressed">
@@ -582,7 +570,7 @@
                                     <!-- 顶部：图标 + 类型/合并角标 -->
                                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*">
                                         <Border Width="32" Height="32" CornerRadius="8"
-                                                Background="{DynamicResource NavHoverGlassBrush}"
+                                                Background="{DynamicResource Surface3Brush}"
                                                 HorizontalAlignment="Left" VerticalAlignment="Top">
                                             <base:Img Width="22" Height="22" DecodeWidth="24" Radius="6"
                                                       URL="{Binding Icon}"
@@ -591,14 +579,14 @@
                                         </Border>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
                                                     HorizontalAlignment="Right" VerticalAlignment="Top">
-                                            <Border Background="{DynamicResource NavHoverGlassBrush}"
+                                            <Border Background="{DynamicResource ThemeTintBrush}"
                                                     CornerRadius="4" Padding="6,2"
                                                     IsVisible="{Binding IsMerged}"
                                                     ToolTip.Tip="{Binding MemberTooltip}">
                                                 <TextBlock Text="{Binding MergedText}" FontSize="10"
                                                            Foreground="{DynamicResource ThemeBrush}" />
                                             </Border>
-                                            <Border Background="{DynamicResource NavHoverGlassBrush}"
+                                            <Border Background="{DynamicResource Surface3Brush}"
                                                     CornerRadius="4" Padding="6,2">
                                                 <TextBlock Text="{Binding KindLabel}" FontSize="10"
                                                            Foreground="{DynamicResource SubTextBrush}" />
@@ -622,12 +610,14 @@
                                     <Grid Grid.Row="2" Margin="0,6,0,0" ColumnDefinitions="Auto,*,Auto"
                                           VerticalAlignment="Center">
                                         <TextBlock Grid.Column="0" FontSize="11"
+                                                   FontFeatures="tnum"
                                                    Foreground="{DynamicResource StandardTextBrush}">
                                             <Run Text="{DynamicResource TodayPrefix}" />
                                             <Run Text=" " />
                                             <Run Text="{Binding TodayText}" FontWeight="Medium" />
                                         </TextBlock>
                                         <TextBlock Grid.Column="2" FontSize="11"
+                                                   FontFeatures="tnum"
                                                    Foreground="{DynamicResource SubTextBrush}">
                                             <Run Text="{DynamicResource TotalPrefix}" />
                                             <Run Text=" " />

@@ -14,14 +14,15 @@ public static class FocusVisual
     private static IBrush ResolveBrush()
     {
         if (Application.Current is { } app &&
-            app.TryGetResource("ThemeBrush", ThemeVariant.Default, out var resource) &&
+            app.CheckAccess() &&
+            app.TryGetResource("ThemeBrush", app.ActualThemeVariant, out var resource) &&
             resource is IBrush brush)
         {
             // 不缓存：主题切换后要跟着换色
             return brush;
         }
 
-        return new SolidColorBrush(Color.Parse("#C08AC9"));
+        return new SolidColorBrush(Color.Parse("#5E81AC"));
     }
 
     public static void Draw(DrawingContext context, Control control, double cornerRadius = 10)

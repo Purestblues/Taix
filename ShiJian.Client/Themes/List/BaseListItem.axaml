@@ -4,13 +4,18 @@
 
     <ControlTheme x:Key="{x:Type controls:BaseListItem}" TargetType="controls:BaseListItem">
         <Setter Property="UseLayoutRounding" Value="True" />
-        <Setter Property="Height" Value="35" />
-        <Setter Property="Margin" Value="0,10,0,0" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Margin" Value="0,4,0,0" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
         <Setter Property="Background" Value="Transparent" />
 
         <Styles>
+            <Style Selector="controls|BaseListItem:pointerover /template/ Border#BoxBorder">
+                <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+            </Style>
             <Style Selector="controls|BaseListItem[IsSelected=True]">
-                <Setter Property="Foreground" Value="{DynamicResource OnAccentBrush}" />
+                <Setter Property="Foreground" Value="{DynamicResource OnBrandBrush}" />
                 <Style Selector="^ /template/ Border#BoxBorder">
                     <Setter Property="Background" Value="{DynamicResource ThemeBrush}" />
                 </Style>
@@ -20,14 +25,15 @@
             <ControlTemplate>
                 <Grid Background="{TemplateBinding Background}">
                     <Border BorderThickness="0" Width="{TemplateBinding Width}"
-                            Height="{TemplateBinding Height}" x:Name="BoxBorder" CornerRadius="4"
-                            Background="{DynamicResource BaseListItemBgBrush}">
+                            Height="{TemplateBinding Height}" x:Name="BoxBorder"
+                            CornerRadius="{StaticResource RadiusSmall}"
+                            Background="{DynamicResource Surface3Brush}">
                         <Grid VerticalAlignment="Center" Margin="10,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="9*" />
                                 <ColumnDefinition Width="1*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{TemplateBinding Text}" />
+                            <TextBlock Text="{TemplateBinding Text}" FontSize="13" />
                         </Grid>
                     </Border>
                 </Grid>

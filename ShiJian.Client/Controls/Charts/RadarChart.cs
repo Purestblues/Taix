@@ -69,13 +69,54 @@ public class RadarChart : Control
         DrawCenterAndVertexPoints(context, center, radius);
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (Application.Current != null)
+            Application.Current.ActualThemeVariantChanged += OnThemeVariantChanged;
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        if (Application.Current != null)
+            Application.Current.ActualThemeVariantChanged -= OnThemeVariantChanged;
+    }
+
+    private void OnThemeVariantChanged(object? sender, EventArgs e) => InvalidateVisual();
+
+    private static IBrush ResolveBrush(string resourceKey, string fallbackHex)
+    {
+        if (Application.Current is { } app &&
+            app.CheckAccess() &&
+            app.TryGetResource(resourceKey, app.ActualThemeVariant, out var resource) &&
+            resource is IBrush brush)
+        {
+            return brush;
+        }
+
+        return Colors.GetFromString(fallbackHex);
+    }
+
+    private static Color ResolveAccentColor()
+    {
+        if (Application.Current is { } app &&
+            app.CheckAccess() &&
+            app.TryGetResource("ThemeColor", app.ActualThemeVariant, out var resource) &&
+            resource is Color color)
+        {
+            return color;
+        }
+
+        return Color.Parse(StateData.ThemeColor);
+    }
+
     private void DrawLabels(DrawingContext context, Point center, double radius)
     {
         if (Labels == null || Labels.Count != Values.Count) return;
 
-        var typeface = new Typeface("Microsoft YaHei");
-        var brush = Client.Base.Color.Colors.GetFromString("#7f7f7f");
-        ;
+        var typeface = new Typeface(FontFamily.Default);
+        var brush = ResolveBrush("SubTextBrush", "#5F6E82");
 
         for (var i = 0; i < Labels.Count; i++)
         {
@@ -121,7 +162,8 @@ public class RadarChart : Control
 
     private void DrawGrid(DrawingContext context, Point center, double radius)
     {
-        var pen = new Pen(Client.Base.Color.Colors.GetFromString("#eeeef1"), 0.8);
+        var gridBrush = ResolveBrush("DividerDefaultBrush", "#D8DEE9");
+        var pen = new Pen(gridBrush, 0.9);
 
         // 绘制同心多边形
         for (var i = 1; i <= 3; i++)
@@ -130,8 +172,7 @@ public class RadarChart : Control
             context.DrawGeometry(null, pen, new PolylineGeometry(points, true));
         }
 
-        var axisPen = new Pen(Client.Base.Color.Colors.GetFromString("#dedede"), 0.3);
-
+        var axisPen = new Pen(gridBrush, 0.6);
 
         // 绘制轴线
         for (var i = 0; i < Values.Count; i++)
@@ -159,25 +200,27 @@ public class RadarChart : Control
                 center.Y + r * Math.Sin(angle)));
         }
 
+        var accent = ResolveAccentColor();
         // 绘制填充区域
         context.DrawGeometry(
-            new SolidColorBrush(Color.Parse(StateData.ThemeColor), 0.3),
-            new Pen(new SolidColorBrush(Color.Parse(StateData.ThemeColor)), 2),
+            new SolidColorBrush(accent, 0.24),
+            new Pen(new SolidColorBrush(accent), 2),
             new PolylineGeometry(points, true));
     }
 
     private void DrawCenterAndVertexPoints(DrawingContext context, Point center, double radius)
     {
-        // 创建画刷和笔刷
-        var centerBrush = Client.Base.Color.Colors.GetFromString(StateData.ThemeColor);
-        var borderBrush = new Pen(Client.Base.Color.Colors.GetFromString("#dedede"));
+        var accent = ResolveAccentColor();
+        var centerBrush = new SolidColorBrush(accent);
+        var centerFill = ResolveBrush("Surface1Brush", "#ECEFF4");
+        var borderBrush = new Pen(ResolveBrush("DividerDefaultBrush", "#D8DEE9"), 1);
 
         context.DrawEllipse(
-            Client.Base.Color.Colors.GetFromString("#ffffff"),
+            centerFill,
             borderBrush,
             center,
-            7,
-            7
+            6,
+            6
         );
 
         // 绘制顶点圆形

@@ -38,6 +38,9 @@ public class Navigation : TemplatedControl
             o => o.BottomExtContent,
             (o, v) => o.BottomExtContent = v);
 
+    public static readonly StyledProperty<bool> IsCompactProperty =
+        AvaloniaProperty.Register<Navigation, bool>(nameof(IsCompact));
+
     public static readonly DirectProperty<Navigation, ObservableCollection<NavigationItemModel>> DataProperty =
         AvaloniaProperty.RegisterDirect<Navigation, ObservableCollection<NavigationItemModel>>(
             nameof(Data),
@@ -87,6 +90,12 @@ public class Navigation : TemplatedControl
         set => SetAndRaise(BottomExtContentProperty, ref _bottomExtContent, value);
     }
 
+    public bool IsCompact
+    {
+        get => GetValue(IsCompactProperty);
+        set => SetValue(IsCompactProperty, value);
+    }
+
     public ObservableCollection<NavigationItemModel> Data
     {
         get => _data;
@@ -101,6 +110,14 @@ public class Navigation : TemplatedControl
         if (change.Property == SelectedItemProperty) OnSelectedItemChanged(change);
 
         if (change.Property == DataProperty) OnDataChanged(change);
+
+        if (change.Property == IsCompactProperty)
+        {
+            foreach (var item in ItemsDictionary.Values)
+            {
+                item.IsCompact = IsCompact;
+            }
+        }
     }
 
     public event EventHandler OnSelected;
@@ -193,11 +210,20 @@ public class Navigation : TemplatedControl
             navItem.IconColor = item.IconColor;
             navItem.BadgeText = item.BadgeText;
             navItem.Uri = item.Uri;
+            navItem.IsCompact = IsCompact;
+
+            System.ComponentModel.PropertyChangedEventHandler itemChangedHandler = (_, args) =>
+            {
+                if (args.PropertyName == nameof(NavigationItemModel.Title))
+                    navItem.Title = item.Title;
+            };
+            item.PropertyChanged += itemChangedHandler;
 
             navItem.MouseUp += NavItem_MouseUp;
             navItem.Activated += NavItem_Activated;
             navItem.Unloaded += (e, c) =>
             {
+                item.PropertyChanged -= itemChangedHandler;
                 navItem.MouseUp -= NavItem_MouseUp;
                 navItem.Activated -= NavItem_Activated;
             };

@@ -17,17 +17,18 @@
              x:Class="ShiJian.Client.Views.SettingPage">
 
     <Grid Margin="24" RowDefinitions="Auto,*">
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="{DynamicResource Settings}" FontSize="18" Margin="0,8,0,24" />
+        <StackPanel Grid.Row="0" MaxWidth="820">
+            <TextBlock Text="{DynamicResource Settings}" FontSize="18" Margin="0,8,0,16" />
             <Tabbar:Tabbar x:Name="Tabbar"
-                HorizontalAlignment="Left" Data="{Binding TabbarData}"
+                HorizontalAlignment="Stretch" Data="{Binding TabbarData}"
                 ItemSpacing="20"
                 SelectedIndex="{Binding TabbarSelectedIndex,Mode=TwoWay}" />
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" x:Name="ContentScrollViewer"
+                      HorizontalScrollBarVisibility="Disabled"
                       VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="0,20,0,24">
+            <StackPanel MaxWidth="820" Margin="0,20,0,24">
                 <!-- Tab 0：常规 -->
                 <StackPanel x:Name="TabPanelGeneral" IsVisible="{Binding IsTab0Selected}">
                     <SettingPanel:SettingPanel Data="{Binding GeneralSettings,Mode=TwoWay}"
@@ -81,8 +82,7 @@
                                 <Style Selector="Border.shortcut-divider">
                                     <Setter Property="Height" Value="1" />
                                     <Setter Property="Margin" Value="0" />
-                                    <Setter Property="Opacity" Value="0.5" />
-                                    <Setter Property="Background" Value="{DynamicResource SettingPanelSpliteLineBrush}" />
+                                    <Setter Property="Background" Value="{DynamicResource DividerSubtleBrush}" />
                                 </Style>
                                 <Style Selector="TextBlock.shortcut-title">
                                     <Setter Property="FontSize" Value="14" />
@@ -96,7 +96,7 @@
                             </StackPanel.Styles>
 
                             <!-- 行 1：刷新 -->
-                            <Border Classes="shortcut-row" CornerRadius="16,16,0,0">
+                            <Border Classes="shortcut-row" CornerRadius="12,12,0,0">
                                 <Border.Styles>
                                     <Style Selector="Border.shortcut-row:pointerover">
                                         <Setter Property="Background" Value="{DynamicResource SettingPanelHoverBrush}" />
@@ -146,7 +146,7 @@
                             <Border Classes="shortcut-divider" />
 
                             <!-- 行 3：返回上一页 -->
-                            <Border Classes="shortcut-row" CornerRadius="0,0,16,16">
+                            <Border Classes="shortcut-row" CornerRadius="0,0,12,12">
                                 <Border.Styles>
                                     <Style Selector="Border.shortcut-row:pointerover">
                                         <Setter Property="Background" Value="{DynamicResource SettingPanelHoverBrush}" />
@@ -189,8 +189,7 @@
                                 <Style Selector="Border.data-divider">
                                     <Setter Property="Height" Value="1" />
                                     <Setter Property="Margin" Value="0" />
-                                    <Setter Property="Opacity" Value="0.5" />
-                                    <Setter Property="Background" Value="{DynamicResource SettingPanelSpliteLineBrush}" />
+                                    <Setter Property="Background" Value="{DynamicResource DividerSubtleBrush}" />
                                 </Style>
                                 <Style Selector="TextBlock.data-title">
                                     <Setter Property="FontSize" Value="14" />
@@ -204,7 +203,7 @@
                             </StackPanel.Styles>
 
                             <!-- N15a：历史记录默认永久保留 -->
-                            <Border Classes="data-row" CornerRadius="16,16,0,0">
+                            <Border Classes="data-row" CornerRadius="12,12,0,0">
                                 <Border.Styles>
                                     <Style Selector="Border.data-row:pointerover">
                                         <Setter Property="Background" Value="{DynamicResource SettingPanelHoverBrush}" />
@@ -216,7 +215,7 @@
                                         <TextBlock Classes="data-desc" Text="{DynamicResource DataRetentionPermanentDesc}" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <Border Grid.Column="1"
-                                            Background="{DynamicResource HoverBackgroundColor}"
+                                            Background="{DynamicResource ThemeTintBrush}"
                                             CornerRadius="{StaticResource RadiusSmall}"
                                             Padding="10,4"
                                             VerticalAlignment="Center">
@@ -299,7 +298,7 @@
                             <Border Classes="data-divider" />
 
                             <!-- 删除数据 -->
-                            <Border Classes="data-row" CornerRadius="0,0,16,16">
+                            <Border Classes="data-row" CornerRadius="0,0,12,12">
                                 <Border.Styles>
                                     <Style Selector="Border.data-row:pointerover">
                                         <Setter Property="Background" Value="{DynamicResource SettingPanelHoverBrush}" />
@@ -321,7 +320,7 @@
                                         </StackPanel>
                                         <Btn:Button Icon="Delete" Content="{DynamicResource Execute}"
                                                     Width="80" Background="{DynamicResource DangerBrush}"
-                                                    Foreground="{DynamicResource OnAccentBrush}" Command="{Binding DelDataCommand}"
+                                                    Foreground="{DynamicResource OnBrandBrush}" Command="{Binding DelDataCommand}"
                                                     ToolTip.Tip="{DynamicResource DeletedAndUnrecoverable}" />
                                     </StackPanel>
                                 </Grid>
@@ -394,7 +393,7 @@
                                           VerticalAlignment="Center" />
                             </Grid>
 
-                            <Border Height="1" Background="{DynamicResource SettingPanelSpliteLineBrush}" />
+                            <Border Height="1" Background="{DynamicResource DividerSubtleBrush}" />
 
                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                 <TextBlock Grid.Column="0"
@@ -453,7 +452,7 @@
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="models:AppMergeGroupRow">
                                         <Border Padding="15,10"
-                                                BorderBrush="{DynamicResource SettingPanelSpliteLineBrush}"
+                                                BorderBrush="{DynamicResource DividerSubtleBrush}"
                                                 BorderThickness="0,1,0,0">
                                             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                                                 <StackPanel Grid.Column="0" Spacing="3" VerticalAlignment="Center">
@@ -461,14 +460,14 @@
                                                         <TextBlock Text="{Binding Name}" FontSize="13"
                                                                    Foreground="{DynamicResource StandardTextBrush}"
                                                                    VerticalAlignment="Center" />
-                                                        <Border Background="{DynamicResource HoverBackgroundColor}"
+                                                        <Border Background="{DynamicResource Surface3Brush}"
                                                                 CornerRadius="{StaticResource RadiusSmall}"
                                                                 Padding="6,1" VerticalAlignment="Center"
                                                                 IsVisible="{Binding HasKindBadge}">
                                                             <TextBlock Text="{Binding KindLabel}" FontSize="10"
                                                                        Foreground="{DynamicResource ThemeBrush}" />
                                                         </Border>
-                                                        <Border Background="{DynamicResource HoverBackgroundColor}"
+                                                        <Border Background="{DynamicResource Surface3Brush}"
                                                                 CornerRadius="{StaticResource RadiusSmall}"
                                                                 Padding="6,1" VerticalAlignment="Center">
                                                             <TextBlock Text="{Binding CountText}" FontSize="10"
@@ -513,7 +512,7 @@
                             BorderThickness="1">
                         <StackPanel>
                             <!-- 应用信息 -->
-                            <Border Padding="15,14" CornerRadius="16,16,0,0">
+                            <Border Padding="15,14" CornerRadius="12,12,0,0">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="14">
                                     <Image Width="32" Source="/Resources/Icons/shijian.ico"
                                            VerticalAlignment="Center" />
@@ -534,8 +533,8 @@
                                 </Grid>
                             </Border>
 
-                            <Border Height="1" Opacity="0.5"
-                                    Background="{DynamicResource SettingPanelSpliteLineBrush}" />
+                            <Border Height="1"
+                                    Background="{DynamicResource DividerSubtleBrush}" />
 
                             <!-- 浏览器统计插件 -->
                             <Border Padding="15,14">
@@ -544,8 +543,8 @@
                                                  Content="{DynamicResource PlugIn}" />
                             </Border>
 
-                            <Border Height="1" Opacity="0.5"
-                                    Background="{DynamicResource SettingPanelSpliteLineBrush}" />
+                            <Border Height="1"
+                                    Background="{DynamicResource DividerSubtleBrush}" />
 
                             <!-- 开源 -->
                             <Border Padding="15,14">
@@ -560,11 +559,11 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Height="1" Opacity="0.5"
-                                    Background="{DynamicResource SettingPanelSpliteLineBrush}" />
+                            <Border Height="1"
+                                    Background="{DynamicResource DividerSubtleBrush}" />
 
                             <!-- 讨论 -->
-                            <Border Padding="15,14" CornerRadius="0,0,16,16">
+                            <Border Padding="15,14" CornerRadius="0,0,12,12">
                                 <StackPanel Spacing="3">
                                     <TextBlock Text="{DynamicResource Discuss}" FontSize="14"
                                                Foreground="{DynamicResource StandardTextBrush}" />
@@ -586,15 +585,16 @@
               Margin="-24"
               ZIndex="20"
               IsVisible="{Binding MergeEditorVisible}">
-            <Border Background="Black" Opacity="0.65" />
+            <Border Background="{DynamicResource ScrimBrush}" />
             <Border MaxWidth="540" MaxHeight="560"
                     Margin="24"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Background="{DynamicResource StandardBackgroundBrush2}"
-                    CornerRadius="{StaticResource RadiusMedium}"
-                    BorderBrush="{DynamicResource CardBorderBrush}"
-                    BorderThickness="1">
+                    Background="{DynamicResource PopupBackgroundBrush}"
+                    CornerRadius="{StaticResource RadiusLarge}"
+                    BorderBrush="{DynamicResource PopupBorderBrush}"
+                    BorderThickness="1"
+                    BoxShadow="{DynamicResource Elevation3}">
                 <Grid RowDefinitions="Auto,*,Auto" Margin="20">
                     <!-- 标题栏 -->
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
@@ -638,7 +638,7 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="models:MergeCandidateRow">
-                                        <Border Background="{DynamicResource HoverBackgroundColor}"
+                                        <Border Background="{DynamicResource Surface3Brush}"
                                                 CornerRadius="{StaticResource RadiusSmall}"
                                                 Padding="8,4" Margin="0,2,6,2">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -652,7 +652,7 @@
                                                         IsVisible="{Binding IsPrimary}"
                                                         VerticalAlignment="Center">
                                                     <TextBlock Text="{DynamicResource MergeGroupPrimary}"
-                                                               FontSize="10" Foreground="White" />
+                                                               FontSize="10" Foreground="{DynamicResource OnBrandBrush}" />
                                                 </Border>
                                                 <Button Content="{DynamicResource MergeGroupSetPrimary}"
                                                         IsVisible="{Binding !IsPrimary}"
@@ -711,7 +711,7 @@
                                                                TextTrimming="CharacterEllipsis" />
                                                 </StackPanel>
                                                 <Border Grid.Column="3"
-                                                        Background="{DynamicResource HoverBackgroundColor}"
+                                                        Background="{DynamicResource Surface3Brush}"
                                                         CornerRadius="4" Padding="6,2"
                                                         VerticalAlignment="Center">
                                                     <TextBlock Text="{Binding TypeBadge}" FontSize="10"
@@ -731,7 +731,7 @@
                                    Text="{Binding MergeEditorError}"
                                    IsVisible="{Binding HasMergeEditorError}"
                                    FontSize="12"
-                                   Foreground="#D13438"
+                                   Foreground="{DynamicResource DangerBrush}"
                                    TextTrimming="CharacterEllipsis"
                                    VerticalAlignment="Center" />
                         <Btn:Button Grid.Column="1"
@@ -739,6 +739,7 @@
                                     Width="90" Height="32"
                                     Command="{Binding CloseMergeEditorCommand}" />
                         <Btn:Button Grid.Column="2"
+                                    Classes="primary"
                                     Content="{DynamicResource Save}"
                                     Width="90" Height="32"
                                     Command="{Binding SaveMergeGroupCommand}" />
@@ -750,15 +751,16 @@
         <!-- WebDAV 云端备份历史弹窗（N15.3） -->
         <Grid Grid.RowSpan="2"
               IsVisible="{Binding WebDavRemoteModalVisible}"
-              Background="#66000000"
+              Background="{DynamicResource ScrimBrush}"
               ZIndex="210">
             <Border HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Width="620" MaxHeight="520"
-                    Background="{DynamicResource CardBgBrush}"
-                    BorderBrush="{DynamicResource CardBorderBrush}"
+                    Background="{DynamicResource PopupBackgroundBrush}"
+                    BorderBrush="{DynamicResource PopupBorderBrush}"
                     BorderThickness="1"
-                    CornerRadius="12"
+                    CornerRadius="{StaticResource RadiusLarge}"
+                    BoxShadow="{DynamicResource Elevation3}"
                     Padding="20">
                 <Grid RowDefinitions="Auto,*,Auto">
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,12">
@@ -787,9 +789,9 @@
                                     <DataTemplate x:DataType="data:RemoteBackupItem">
                                         <Border Padding="10,8"
                                                 Margin="0,0,0,6"
-                                                Background="{DynamicResource WindowBackground}"
+                                                Background="{DynamicResource Surface2Brush}"
                                                 CornerRadius="8"
-                                                BorderBrush="{DynamicResource SettingPanelSpliteLineBrush}"
+                                                BorderBrush="{DynamicResource DividerSubtleBrush}"
                                                 BorderThickness="1">
                                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                                                 <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
@@ -811,7 +813,7 @@
                                                             Content="{DynamicResource WebDavReplaceRestore}"
                                                             Padding="10,0" Height="28" FontSize="12"
                                                             Background="{DynamicResource DangerBrush}"
-                                                            Foreground="{DynamicResource OnAccentBrush}"
+                                                            Foreground="{DynamicResource OnBrandBrush}"
                                                             Command="{Binding $parent[UserControl].((model:SettingPageViewModel)DataContext).RestoreWebDavReplaceCommand}"
                                                             CommandParameter="{Binding}" />
                                             </Grid>

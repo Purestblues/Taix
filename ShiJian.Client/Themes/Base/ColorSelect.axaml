@@ -16,8 +16,8 @@
         <Setter Property="Template">
             <ControlTemplate>
                 <Border Background="{TemplateBinding Background}"
-                        BorderBrush="{DynamicResource SelectRingBrush}" CornerRadius="5"
-                        BorderThickness="2" Width="38" Height="38">
+                        BorderBrush="{DynamicResource SelectRingBrush}" CornerRadius="{StaticResource RadiusSmall}"
+                        BorderThickness="2" Width="38" Height="38" Cursor="Hand">
                     <Interaction.Behaviors>
                         <EventTriggerBehavior EventName="PointerPressed">
                             <InvokeCommandAction
@@ -26,7 +26,7 @@
                     </Interaction.Behaviors>
 
                     <Grid>
-                        <Border CornerRadius="4" Width="28" Height="28"
+                        <Border CornerRadius="{StaticResource RadiusXs}" Width="28" Height="28"
                                 Background="{TemplateBinding Color,Converter={StaticResource HextoColorConverter}}" />
 
                         <Popup
@@ -38,17 +38,13 @@
                             </Interaction.Behaviors>
                             <Border
                                 x:Name="SelectContainer"
-                                CornerRadius="10"
+                                CornerRadius="{StaticResource RadiusMedium}"
                                 BorderBrush="{DynamicResource PopupBorderBrush}"
                                 BorderThickness="1"
+                                BoxShadow="{DynamicResource Elevation2}"
                                 Background="{DynamicResource PopupBackgroundBrush}"
                                 Padding="12"
-                                Margin="10">
-                                <Border.Effect>
-                                    <DropShadowDirectionEffect
-                                        BlurRadius="6" ShadowDepth="2"
-                                        Direction="315" Color="Gray" Opacity=".1" />
-                                </Border.Effect>
+                                Margin="8">
 
                                 <StackPanel Spacing="12">
                                     <!-- 预设颜色 -->

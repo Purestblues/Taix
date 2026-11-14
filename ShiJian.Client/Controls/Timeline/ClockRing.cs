@@ -273,7 +273,7 @@ public class ClockRing : Control, ICustomHitTest
             _hoveredSegment = FindSegmentByFraction(hoverFraction);
 
         DrawHoverMarker(context, center, radius, thickness);
-        DrawCenter(context, center, segments.Count > 0);
+        DrawCenter(context, center, Math.Max(16, radius - thickness / 2), segments.Count > 0);
 
         // 键盘焦点环：套在整块控件外沿
         FocusVisual.Draw(context, Bounds.Size, IsKeyboardFocusWithin, 12);
@@ -371,7 +371,7 @@ public class ClockRing : Control, ICustomHitTest
 
     #endregion
 
-    private void DrawCenter(DrawingContext context, Point center, bool hasData)
+    private void DrawCenter(DrawingContext context, Point center, double innerRadius, bool hasData)
     {
         var hovered = HoveredSegment;
 
@@ -401,18 +401,50 @@ public class ClockRing : Control, ICustomHitTest
             caption = CenterCaption;
         }
 
+        // 内环文字随可用内径等比缩放并限宽，避免在紧凑窗口（860x553）贴边甚至压住环带
+        var maxTextWidth = innerRadius * 1.65;
+        FormattedText? mainText = null;
         if (!string.IsNullOrEmpty(main))
         {
-            var text = MakeText(main, hovered != null ? 15 : 22, TextBrush, FontWeight.SemiBold);
-            var y = center.Y - text.Height / 2 - (string.IsNullOrEmpty(caption) ? 0 : 8);
-            context.DrawText(text, new Point(center.X - text.Width / 2, y));
+            var baseSize = hovered != null
+                ? Math.Clamp(innerRadius * 0.25, 12, 15)
+                : Math.Clamp(innerRadius * 0.36, 12, 20);
+            mainText = MakeText(main, baseSize, TextBrush, FontWeight.SemiBold);
+            if (mainText.Width > maxTextWidth && mainText.Width > 0)
+            {
+                var fittedSize = Math.Max(11, baseSize * (maxTextWidth / mainText.Width));
+                mainText = MakeText(main, fittedSize, TextBrush, FontWeight.SemiBold);
+            }
         }
 
-        if (string.IsNullOrEmpty(caption)) return;
+        FormattedText? captionText = null;
+        if (!string.IsNullOrEmpty(caption))
+        {
+            var capSize = Math.Clamp(innerRadius * 0.19, 10, 11);
+            captionText = MakeText(caption, capSize, MutedTextBrush ?? TextBrush);
+            if (captionText.Width > maxTextWidth && captionText.Width > 0)
+            {
+                var fittedCap = Math.Max(9.5, capSize * (maxTextWidth / captionText.Width));
+                captionText = MakeText(caption, fittedCap, MutedTextBrush ?? TextBrush);
+            }
+        }
 
-        var captionText = MakeText(caption, 11, MutedTextBrush ?? TextBrush);
-        var captionY = string.IsNullOrEmpty(main) ? center.Y - captionText.Height / 2 : center.Y + 6;
-        context.DrawText(captionText, new Point(center.X - captionText.Width / 2, captionY));
+        const double gap = 2;
+        if (mainText != null && captionText != null)
+        {
+            var totalHeight = mainText.Height + gap + captionText.Height;
+            var topY = center.Y - totalHeight / 2;
+            context.DrawText(mainText, new Point(center.X - mainText.Width / 2, topY));
+            context.DrawText(captionText, new Point(center.X - captionText.Width / 2, topY + mainText.Height + gap));
+        }
+        else if (mainText != null)
+        {
+            context.DrawText(mainText, new Point(center.X - mainText.Width / 2, center.Y - mainText.Height / 2));
+        }
+        else if (captionText != null)
+        {
+            context.DrawText(captionText, new Point(center.X - captionText.Width / 2, center.Y - captionText.Height / 2));
+        }
     }
 
     public ClockRing()
@@ -628,7 +660,7 @@ public class ClockRing : Control, ICustomHitTest
             ? segment.CategoryColor
             : segment.Color;
 
-        _fallbackBrush ??= new SolidColorBrush(Color.Parse("#C08AC9"));
+        _fallbackBrush ??= new SolidColorBrush(Color.Parse("#5E81AC"));
 
         if (string.IsNullOrWhiteSpace(color)) return _fallbackBrush;
         if (_brushCache.TryGetValue(color, out var cached)) return cached;

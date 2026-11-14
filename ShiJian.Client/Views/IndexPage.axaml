@@ -177,7 +177,7 @@
                 </StackPanel>
             </Grid>
 
-            <Grid ColumnDefinitions="3*,12,2*" Margin="0,8,0,0" Height="196">
+            <Grid ColumnDefinitions="5*,12,4*" Margin="0,8,0,0" Height="196">
 
                 <Border Grid.Column="0" Classes="card" Padding="16,12">
                     <Grid RowDefinitions="Auto,*">
@@ -208,17 +208,17 @@
                         <TextBlock Text="{DynamicResource ClassificationProportion}" FontSize="13" />
 
                         <Grid Grid.Row="1" ColumnDefinitions="Auto,*" Margin="0,6,0,0">
-                            <Charts:DonutChart Width="128" Height="128"
-                                               Thickness="13"
+                            <Charts:DonutChart Width="108" Height="108"
+                                               Thickness="11"
                                                Series="{Binding CategorySeries}"
                                                CenterText="{Binding CategoryTotalText}"
                                                CenterCaption="{Binding ChartDonutCaption}"
                                                EmptyText="{DynamicResource NoData}"
                                                TextBrush="{DynamicResource DefaultTextBrush}"
                                                MutedTextBrush="{DynamicResource SubTextBrush}"
-                                               TrackBrush="{DynamicResource GrayDark}" />
+                                               TrackBrush="{DynamicResource Surface3Brush}" />
 
-                            <ScrollViewer Grid.Column="1" Margin="12,0,0,0"
+                            <ScrollViewer Grid.Column="1" Margin="10,0,0,0"
                                           VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled">
                                 <ItemsControl ItemsSource="{Binding CategorySeries}">
@@ -228,12 +228,13 @@
                                                 <Border Width="8" Height="8" CornerRadius="4"
                                                         VerticalAlignment="Center"
                                                         Background="{Binding Color, Converter={StaticResource HexToColor}}" />
-                                                <TextBlock Grid.Column="1" Margin="6,0,0,0" FontSize="11"
+                                                <TextBlock Grid.Column="1" Margin="6,0,6,0" FontSize="11"
                                                            Text="{Binding Name}"
                                                            TextTrimming="CharacterEllipsis"
                                                            Foreground="{DynamicResource DefaultTextBrush}"
                                                            VerticalAlignment="Center" />
                                                 <TextBlock Grid.Column="2" FontSize="11"
+                                                           FontFeatures="tnum"
                                                            Text="{Binding Tag}"
                                                            Foreground="{DynamicResource SubTextBrush}"
                                                            VerticalAlignment="Center" />
@@ -257,10 +258,8 @@
                     <StackPanel>
                         <Border HorizontalAlignment="Left" Padding="9,4"
                                 CornerRadius="{StaticResource RadiusSmall}"
+                                Background="{DynamicResource Surface3Brush}"
                                 Margin="4,2,0,4">
-                            <Border.Background>
-                                <SolidColorBrush Color="{DynamicResource HoverBackgroundColor}" Opacity=".5" />
-                            </Border.Background>
                             <StackPanel Orientation="Horizontal" TextElement.Foreground="{DynamicResource SubTextBrush}">
                                 <base:Icon VerticalAlignment="Center" IconType="Apps" FontSize="12" />
                                 <TextBlock FontSize="10"
@@ -286,10 +285,8 @@
                     <StackPanel>
                         <Border HorizontalAlignment="Left" Padding="9,4"
                                 CornerRadius="{StaticResource RadiusSmall}"
+                                Background="{DynamicResource ThemeTintBrush}"
                                 Margin="4,2,0,4">
-                            <Border.Background>
-                                <SolidColorBrush Color="{DynamicResource ThemeColor}" Opacity=".14" />
-                            </Border.Background>
                             <StackPanel Orientation="Horizontal" TextElement.Foreground="{DynamicResource ThemeBrush}">
                                 <base:Icon VerticalAlignment="Center" IconType="Website" FontSize="12" />
                                 <TextBlock FontSize="10" VerticalAlignment="Center" Text="{DynamicResource Website}"

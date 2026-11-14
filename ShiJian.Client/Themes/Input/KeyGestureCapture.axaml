@@ -5,15 +5,15 @@
     <ControlTheme x:Key="{x:Type input:KeyGestureCapture}"
                   TargetType="input:KeyGestureCapture">
         <Setter Property="MinWidth" Value="200" />
-        <Setter Property="MinHeight" Value="36" />
+        <Setter Property="MinHeight" Value="34" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="Template">
             <ControlTemplate>
                 <Border x:Name="PART_Border"
-                        BorderBrush="{DynamicResource SettingPanelBorderBrush}"
+                        BorderBrush="{DynamicResource ButtonBorderBrush}"
                         BorderThickness="1"
-                        CornerRadius="8"
-                        Background="{DynamicResource HoverBackgroundBrush}"
+                        CornerRadius="{StaticResource RadiusSmall}"
+                        Background="{DynamicResource Surface3Brush}"
                         Padding="10,5">
                     <Border.Transitions>
                         <Transitions>

@@ -52,6 +52,8 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
         OnSelectedCommand = AsyncRelayCommand.Create<object>(OnSelectedCommandHandle);
         GotoPageCommand = AsyncRelayCommand.Create<object>(OnGotoPageCommand);
         OpenPluginUiCommand = AsyncRelayCommand.CreateFromTask(OnOpenPluginUiAsync);
+        OpenSearchCommand = AsyncRelayCommand.Create(() => IsSearchOpen = true);
+        ToggleSidebarCommand = AsyncRelayCommand.Create(() => IsSidebarCollapsed = !IsSidebarCollapsed);
 
 #if !DEBUG
         Title = "时见";
@@ -67,6 +69,7 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
             })
             .DisposeWith(_disposables);
 
+        _appConfig.ConfigChanged += OnConfigChanged;
         InitNavigation();
     }
 
@@ -161,6 +164,8 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
     /// 标题栏「插件」按钮：在默认浏览器里打开本地插件 Web UI
     /// </summary>
     public ICommand OpenPluginUiCommand { get; }
+    public ICommand OpenSearchCommand { get; }
+    public ICommand ToggleSidebarCommand { get; }
 
     private async Task OnOpenPluginUiAsync()
     {
@@ -195,6 +200,7 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
         [
             new NavigationItemModel
             {
+                Title = ResolveNavTitle("SideOverview", "概览"),
                 UnSelectedIcon = IconTypes.Home,
                 SelectedIcon = IconTypes.HomeSolid,
                 Uri = nameof(IndexPage),
@@ -202,6 +208,7 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
             },
             new NavigationItemModel
             {
+                Title = ResolveNavTitle("SideStatistics", "统计"),
                 UnSelectedIcon = IconTypes.ZeroBars,
                 SelectedIcon = IconTypes.ZeroBars,
                 Uri = nameof(ChartPage),
@@ -209,6 +216,7 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
             },
             new NavigationItemModel
             {
+                Title = ResolveNavTitle("SideDetails", "详细"),
                 UnSelectedIcon = IconTypes.BulletedList,
                 SelectedIcon = IconTypes.BulletedList,
                 Uri = nameof(DataPage),
@@ -216,12 +224,50 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
             },
             new NavigationItemModel
             {
+                Title = ResolveNavTitle("SideSort", "分类"),
                 UnSelectedIcon = IconTypes.Folder,
                 SelectedIcon = IconTypes.FolderFill,
                 Uri = nameof(CategoryPage),
                 ID = 3,
             }
         ];
+    }
+
+    private void OnConfigChanged(object? sender, Shared.Event.ConfigChangedEventArgs e)
+    {
+        if (!e.HasChange("General.Language")) return;
+        if (Avalonia.Application.Current == null)
+        {
+            RefreshNavigationTitles();
+            return;
+        }
+        Dispatcher.UIThread.Post(RefreshNavigationTitles);
+    }
+
+    private void RefreshNavigationTitles()
+    {
+        if (Items == null) return;
+        foreach (var item in Items)
+        {
+            item.Title = item.Uri switch
+            {
+                nameof(IndexPage) => ResolveNavTitle("SideOverview", "概览"),
+                nameof(ChartPage) => ResolveNavTitle("SideStatistics", "统计"),
+                nameof(DataPage) => ResolveNavTitle("SideDetails", "详细"),
+                nameof(CategoryPage) => ResolveNavTitle("SideSort", "分类"),
+                _ => item.Title
+            };
+        }
+    }
+
+    private static string ResolveNavTitle(string resourceKey, string fallback)
+    {
+        var app = Avalonia.Application.Current;
+        if (app != null && app.CheckAccess() && app.Resources.TryGetResource(resourceKey, app.ActualThemeVariant, out var value) && value is string s && !string.IsNullOrEmpty(s))
+        {
+            return s;
+        }
+        return fallback;
     }
 
 
@@ -341,6 +387,7 @@ public class MainViewModel : MainWindowModel, IToastService, INavigationService,
 
     public void Dispose()
     {
+        _appConfig.ConfigChanged -= OnConfigChanged;
         if (_searchService != null)
         {
             _searchService.SearchToggleRequested -= OnSearchToggle;

@@ -6,7 +6,6 @@
                     xmlns:controls="using:ShiJian.Client.Controls.Select"
                     xmlns:behaviors="using:ShiJian.Client.Behaviors"
                     xmlns:select="clr-namespace:ShiJian.Client.Themes.Select">
-    <SolidColorBrush x:Key="ThemeLightBrush" Color="{DynamicResource ThemeColor}" Opacity=".15" />
     <select:DateFormatConverter x:Key="DateFormatConverter" />
     <converter:MultiValueToBoolConverter x:Key="MultiValueToBoolConverter" />
     <DataTemplate x:Key="DayViewTemplate" x:DataType="controls:DayModel">
@@ -24,7 +23,7 @@
                Margin="0,0,0,0"
                Width="35"
                Height="35"
-               CornerRadius="5">
+               CornerRadius="{StaticResource RadiusSmall}">
 
                <Border.Styles>
                    <Style Selector="Border">
@@ -32,7 +31,7 @@
                    </Style>
 
                    <Style Selector="Border:pointerover">
-                       <Setter Property="Background" Value="{DynamicResource ThemeLightBrush}"/>
+                       <Setter Property="Background" Value="{DynamicResource ThemeTintBrush}"/>
                    </Style>
 
                    <Style Selector="Border:disabled TextBlock">
@@ -43,6 +42,7 @@
 
            <Grid>
                <TextBlock x:DataType="controls:DayModel"
+                          FontFeatures="tnum"
                           VerticalAlignment="Center"
                           HorizontalAlignment="Center"
                           Text="{Binding Day,
@@ -77,7 +77,7 @@
             Height="55">
 
           <Border Width="45"
-                  CornerRadius="8"
+                  CornerRadius="{StaticResource RadiusMedium}"
                   Height="45">
               <Border.Styles>
                   <Style Selector="Border">
@@ -85,7 +85,7 @@
                   </Style>
 
                   <Style Selector="Border:pointerover">
-                      <Setter Property="Background" Value="{DynamicResource ThemeLightBrush}"/>
+                      <Setter Property="Background" Value="{DynamicResource ThemeTintBrush}"/>
                   </Style>
 
                   <Style Selector="Border:disabled TextBlock">
@@ -106,6 +106,7 @@
 
                <Grid>
                    <TextBlock x:DataType="controls:DayModel"
+                              FontFeatures="tnum"
                               VerticalAlignment="Center"
                               HorizontalAlignment="Center"
                               Text="{Binding Day,
@@ -140,7 +141,7 @@
             Width="55"
             Height="55">
             <Border Width="45"
-                    CornerRadius="8"
+                    CornerRadius="{StaticResource RadiusMedium}"
                     Height="45">
                 <Border.Styles>
                     <Style Selector="Border">
@@ -148,12 +149,13 @@
                     </Style>
 
                     <Style Selector="Border:pointerover">
-                        <Setter Property="Background" Value="{DynamicResource ThemeLightBrush}"/>
+                        <Setter Property="Background" Value="{DynamicResource ThemeTintBrush}"/>
                     </Style>
                 </Border.Styles>
 
                 <Grid>
                     <TextBlock x:DataType="controls:DayModel"
+                               FontFeatures="tnum"
                                VerticalAlignment="Center"
                                HorizontalAlignment="Center"
                                Text="{Binding Day,
@@ -245,7 +247,8 @@
 
             <Style Selector="controls|DateSelect:pointerover">
                 <Style Selector="^ /template/ Border#Main">
-                    <Setter Property="Background" Value="{DynamicResource DatePickerHoverGlassBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
                 </Style>
 
                 <Style Selector="^ /template/ base|Icon#Icon">
@@ -259,17 +262,19 @@
                         HorizontalAlignment="Left">
                     <Grid>
                         <Border x:Name="Main" Margin="0,0,0,0"
-                                Background="{DynamicResource DatePickerGlassBackgroundBrush}"
-                                HorizontalAlignment="Left" Padding="3,3"
-                                CornerRadius="8"
-                                BorderBrush="{DynamicResource DatePickerGlassBorderBrush}"
+                                Background="{DynamicResource Surface3Brush}"
+                                HorizontalAlignment="Left" Padding="4,3"
+                                MinHeight="34"
+                                CornerRadius="{StaticResource RadiusSmall}"
+                                BorderBrush="{DynamicResource ButtonBorderBrush}"
                                 BorderThickness="1">
                             <StackPanel Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
                                 <button:IconButton Icon="ChevronLeft" FontSize="10"
-                                                   Width="22" Height="22"
+                                                   Width="26" Height="26"
+                                                   CornerRadius="{StaticResource RadiusSmall}"
                                                    VerticalAlignment="Center"
                                                    Command="{Binding GoPreviousCommand, RelativeSource={RelativeSource TemplatedParent}}" />
-                                <Button Padding="8,5"
+                                <Button Padding="8,4"
                                         MinWidth="96"
                                         Background="Transparent"
                                         Cursor="Hand"
@@ -278,7 +283,7 @@
                                         <ControlTemplate TargetType="Button">
                                             <Border Padding="{TemplateBinding Padding}"
                                                     MinWidth="{TemplateBinding MinWidth}"
-                                                    CornerRadius="6"
+                                                    CornerRadius="{StaticResource RadiusSmall}"
                                                     Background="{TemplateBinding Background}">
                                                 <ContentPresenter Content="{TemplateBinding Content}"
                                                                   ContentTemplate="{TemplateBinding ContentTemplate}"
@@ -295,19 +300,21 @@
                                     <StackPanel Orientation="Horizontal"
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center">
-                                        <base:Icon x:Name="Icon" IconType="Calendar"
-                                                   Foreground="{DynamicResource StandardTextBrush}" />
-                                        <TextBlock Foreground="{DynamicResource StandardTextBrush}"
-                                                   Text="{TemplateBinding DateStr}" VerticalAlignment="Center" Margin="5,0,0,0" />
+                                        <base:Icon x:Name="Icon" IconType="Calendar" FontSize="13"
+                                                   Foreground="{DynamicResource SubTextBrush}" />
+                                        <TextBlock Foreground="{DynamicResource DefaultTextBrush}"
+                                                   FontSize="13" FontWeight="Medium" FontFeatures="tnum"
+                                                   Text="{TemplateBinding DateStr}" VerticalAlignment="Center" Margin="6,0,0,0" />
                                     </StackPanel>
                                 </Button>
                                 <button:IconButton Icon="ChevronRight" FontSize="10"
-                                                   Width="24" Height="24"
+                                                   Width="26" Height="26"
+                                                   CornerRadius="{StaticResource RadiusSmall}"
                                                    VerticalAlignment="Center"
                                                    IsVisible="{Binding CanGoNext, RelativeSource={RelativeSource TemplatedParent}}"
                                                    Command="{Binding GoNextCommand, RelativeSource={RelativeSource TemplatedParent}}" />
                                 <!-- 占位元素，当不能往后时显示，保持布局稳定 -->
-                                <Border Width="24" Height="24"
+                                <Border Width="26" Height="26"
                                         IsVisible="{Binding !CanGoNext, RelativeSource={RelativeSource TemplatedParent}}" />
                             </StackPanel>
                         </Border>
@@ -324,18 +331,13 @@
                             </Interaction.Behaviors>
                             <Border
                                 x:Name="SelectContainer"
-                                CornerRadius="12"
+                                CornerRadius="{StaticResource RadiusMedium}"
                                 BorderBrush="{DynamicResource PopupBorderBrush}"
                                 BorderThickness="1"
+                                BoxShadow="{DynamicResource Elevation2}"
                                 Background="{DynamicResource PopupBackgroundBrush}"
                                 Padding="12"
-                                Margin="10">
-                                <Border.Effect>
-                                    <DropShadowDirectionEffect
-                                        BlurRadius="10" ShadowDepth="2"
-                                        Direction="315" Color="Gray"
-                                        Opacity=".1" />
-                                </Border.Effect>
+                                Margin="8">
 
                                 <Grid>
                                     <Grid.RowDefinitions>
@@ -408,11 +410,11 @@
                                                 <RowDefinition Height="auto" />
                                             </Grid.RowDefinitions>
 
-                                            <Border Grid.Row="0" Margin="0,15,0,0"
+                                            <Border Grid.Row="0" Margin="0,12,0,0"
                                                     IsVisible="False"
                                                     x:Name="DayHeader"
-                                                    BorderBrush="{DynamicResource SettingPanelSpliteLineBrush}"
-                                                    BorderThickness="0,0,0,.5" Padding="0,0,0,10">
+                                                    BorderBrush="{DynamicResource DividerSubtleBrush}"
+                                                    BorderThickness="0,0,0,1" Padding="0,0,0,8">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="35" />

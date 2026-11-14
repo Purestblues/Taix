@@ -22,17 +22,17 @@ namespace ShiJian.Client.Librarys;
 public static class ChartColorHelper
 {
     /// <summary>分类缺失时的兜底色</summary>
-    private const string FallbackColor = "#C6C1D6";
+    private const string FallbackColor = "#7E8B9B";
 
     /// <summary>主题色拿不到时的兜底（与 Theme.axaml 的默认 ThemeColor 一致）</summary>
-    private const string FallbackAccent = "#C08AC9";
+    private const string FallbackAccent = "#527CE6";
 
     /// <summary>图形元素的最低对比度（WCAG 2.1 AA 对非文本图形的要求）</summary>
     public const double TargetContrast = 3d;
 
     /// <summary>主题背景拿不到时的浅色 / 深色兜底（与 ThemeServicer 的实色背景一致）</summary>
-    private static readonly Color LightBackground = Color.Parse("#EDEDF0");
-    private static readonly Color DarkBackground = Color.Parse("#131315");
+    private static readonly Color LightBackground = Color.Parse("#ECEFF4");
+    private static readonly Color DarkBackground = Color.Parse("#181A20");
 
     private const int AdjustIterations = 14;
 

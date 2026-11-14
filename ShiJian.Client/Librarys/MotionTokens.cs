@@ -23,8 +23,8 @@ public static class MotionTokens
     /// <summary>默认：卡片、面板、展开收起、页面切换</summary>
     public static readonly TimeSpan M = TimeSpan.FromMilliseconds(225);
 
-    /// <summary>大块移动：侧栏折叠、界面级变化</summary>
-    public static readonly TimeSpan L = TimeSpan.FromMilliseconds(375);
+    /// <summary>大块移动 / 图表生长上限：严格控制在 300ms 以内</summary>
+    public static readonly TimeSpan L = TimeSpan.FromMilliseconds(260);
 
     // ── 页面切换（三者并行，总时长 = 225ms，不是 225+180） ──
     /// <summary>旧页淡出：极快，只为不硬切</summary>

@@ -34,37 +34,37 @@
                 <Style Selector="^ /template/ TextBlock#NameTextObj">
                     <Setter Property="Transitions">
                         <Transitions>
-                            <BrushTransition Property="Foreground" Duration="0.3" />
+                            <BrushTransition Property="Foreground" Duration="0:0:0.15" />
                         </Transitions>
                     </Setter>
                 </Style>
 
 
                 <Style Selector="^:pointerover /template/ TextBlock#NameTextObj">
-                    <Setter Property="Foreground" Value="{DynamicResource ThemeColor}" />
+                    <Setter Property="Foreground" Value="{DynamicResource ThemeBrush}" />
                 </Style>
 
                 <Style Selector="^ /template/ Border#IconBorder">
                     <Setter Property="Transitions">
                         <Transitions>
-                            <BrushTransition Property="BorderBrush" Duration="0.3" />
-                            <BrushTransition Property="Background" Duration="0.3" />
+                            <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+                            <BrushTransition Property="Background" Duration="0:0:0.15" />
                         </Transitions>
                     </Setter>
                 </Style>
 
                 <Style Selector="^:pointerover /template/ Border#IconBorder">
-                    <Setter Property="BorderBrush" Value="{DynamicResource ThemeColor}" />
-                    <Setter Property="Background" Value="{DynamicResource HoverBackgroundColor}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
+                    <Setter Property="Background" Value="{DynamicResource Surface3Brush}" />
                 </Style>
             </Style>
         </Styles>
         <Setter Property="Template">
 
             <ControlTemplate>
-                <!-- 扁平行：底部 1px 发丝线，无圆角无阴影（相邻行由 BorderThickness 共享一条线） -->
-                <Border BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1"
-                        Padding="6,7" Background="{TemplateBinding Background}">
+                <!-- 扁平行：底部 1px 极淡发丝线，无圆角无阴影（相邻行由 BorderThickness 共享一条线） -->
+                <Border BorderBrush="{DynamicResource DividerSubtleBrush}" BorderThickness="0,0,0,1"
+                        Padding="8,8" Background="{TemplateBinding Background}">
                 <Grid>
                     <Grid x:Name="Normal">
                         <Grid.ColumnDefinitions>
@@ -171,6 +171,7 @@
                                     VerticalAlignment="Center" />
 
                                 <TextBlock x:Name="ValueTextObj" Grid.Column="1" VerticalAlignment="Center"
+                                           FontFeatures="tnum"
                                            Foreground="{DynamicResource SubTextBrush}" FontSize="12" Margin="6,0,0,0" />
                             </Grid>
 

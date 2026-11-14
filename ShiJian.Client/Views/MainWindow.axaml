@@ -118,7 +118,7 @@
             </Setter>
         </Style>
         <Style Selector="ListBox#SearchResultList ListBoxItem.category-card-row:pointerover Border.category-card">
-            <Setter Property="BorderBrush" Value="{DynamicResource SettingPanelSpliteLineBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderHoverBrush}" />
         </Style>
         <Style Selector="ListBox#SearchResultList ListBoxItem.category-card-row:selected Border.category-card">
             <Setter Property="Background" Value="{DynamicResource ListItemSelectedBrush}" />
@@ -126,9 +126,7 @@
         </Style>
 
         <Style Selector="Border.total-pill">
-            <Setter Property="Background">
-                <SolidColorBrush Color="{DynamicResource ThemeColor}" Opacity="0.14" />
-            </Setter>
+            <Setter Property="Background" Value="{DynamicResource ThemeTintBrush}" />
             <Setter Property="CornerRadius" Value="999" />
             <Setter Property="Padding" Value="8,2" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -259,6 +257,32 @@
         <Style Selector="Button.palette-esc:pointerover TextBlock">
             <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
         </Style>
+        <Style Selector="Button.sidebar-search">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource SubTextBrush}" />
+        </Style>
+        <Style Selector="Button.sidebar-search /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="{StaticResource RadiusMedium}" />
+        </Style>
+        <Style Selector="Button.sidebar-search:pointerover">
+            <Setter Property="Foreground" Value="{DynamicResource DefaultTextBrush}" />
+        </Style>
+        <Style Selector="Button.sidebar-search:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource HoverBackgroundBrush}" />
+        </Style>
+        <Style Selector="Button.sidebar-search.compact">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
     </ui:DefaultWindow.Styles>
 
     <Grid>
@@ -268,10 +292,14 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Grid x:Name="NavigationHost" Grid.Column="0" Width="80" Margin="0,40,0,15">
-            <DockPanel>
+            <Grid x:Name="NavigationHost" Grid.Column="0" Width="{Binding SidebarWidth}" Margin="0,36,0,0">
+                <Grid.Transitions>
+                    <Transitions>
+                        <DoubleTransition Property="Width" Duration="0:0:0.225" Easing="CubicEaseOut" />
+                    </Transitions>
+                </Grid.Transitions>
                 <na:Navigation x:Name="Navigation"
-                               Width="80"
+                               IsCompact="{Binding IsSidebarCollapsed}"
                                Data="{Binding Items,Mode=TwoWay}"
                                SelectedItem="{Binding NavSelectedItem,Mode=TwoWay}">
 
@@ -282,39 +310,88 @@
                         </ia:EventTriggerBehavior>
                     </i:Interaction.Behaviors>
 
+                    <na:Navigation.TopExtContent>
+                        <Grid Height="30" Margin="6,0,6,6">
+                            <TextBlock Text="工作台"
+                                       FontSize="11"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource SubTextBrush}"
+                                       VerticalAlignment="Center"
+                                       Margin="6,0,0,0"
+                                       IsVisible="{Binding !IsSidebarCollapsed}" />
+                            <button:IconButton Icon="{Binding SidebarCollapseIcon}"
+                                               Width="28"
+                                               Height="28"
+                                               FontSize="12"
+                                               CornerRadius="{StaticResource RadiusSmall}"
+                                               HorizontalAlignment="Right"
+                                               VerticalAlignment="Center"
+                                               Command="{Binding ToggleSidebarCommand}" />
+                        </Grid>
+                    </na:Navigation.TopExtContent>
+
                     <na:Navigation.BottomExtContent>
-                        <na:NavigationItem Icon="Settings"
-                                           SelectedIcon="SettingsSolid"
-                                           Title="{DynamicResource SideSetting}"
-                                           Uri="SettingPage"
-                                           IsSelected="{Binding IsSettingSelected, Mode=OneWay}"
-                                           Command="{Binding GotoPageCommand}"
-                                           CommandParameter="SettingPage" />
+                        <StackPanel Spacing="4">
+                            <Button Classes="sidebar-search"
+                                    Classes.compact="{Binding IsSidebarCollapsed}"
+                                    Command="{Binding OpenSearchCommand}"
+                                    ToolTip.Tip="{DynamicResource Search}">
+                                <DockPanel LastChildFill="True">
+                                    <Border DockPanel.Dock="Right"
+                                            Background="{DynamicResource Surface2Brush}"
+                                            BorderBrush="{DynamicResource CardBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource RadiusXs}"
+                                            Padding="5,1"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding !IsSidebarCollapsed}">
+                                        <TextBlock Text="Ctrl+K"
+                                                   FontSize="10"
+                                                   Foreground="{DynamicResource SubTextBrush}" />
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <base:Icon IconType="Search"
+                                                   FontSize="15"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="{DynamicResource Search}"
+                                                   FontSize="13"
+                                                   Margin="12,0,0,0"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding !IsSidebarCollapsed}" />
+                                    </StackPanel>
+                                </DockPanel>
+                            </Button>
+
+                            <na:NavigationItem Icon="Settings"
+                                               SelectedIcon="SettingsSolid"
+                                               Title="{DynamicResource SideSetting}"
+                                               Uri="SettingPage"
+                                               IsCompact="{Binding IsSidebarCollapsed}"
+                                               IsSelected="{Binding IsSettingSelected, Mode=OneWay}"
+                                               Command="{Binding GotoPageCommand}"
+                                               CommandParameter="SettingPage" />
+                        </StackPanel>
                     </na:Navigation.BottomExtContent>
                 </na:Navigation>
-            </DockPanel>
-        </Grid>
+            </Grid>
 
-        <Border x:Name="PageHost" Grid.Column="1" Background="{DynamicResource WindowContentBackground}" Margin="0,40,10,10"
-                CornerRadius="{StaticResource RadiusSmall}"
-                BorderThickness="1,1,1,1"
-                BorderBrush="{DynamicResource WindowContentBorder}" ClipToBounds="True">
-            <Grid>
-                <!-- 背景光晕：只做氛围，不承载任何交互；页面内容盖在它上面 -->
-                <Border IsHitTestVisible="False" Background="{DynamicResource ContentGlowTopBrush}" />
-                <Border IsHitTestVisible="False" Background="{DynamicResource ContentGlowBottomBrush}" />
-
+            <Border x:Name="PageHost" Grid.Column="1"
+                    Background="{DynamicResource Surface0Brush}"
+                    Margin="0,36,0,0"
+                    CornerRadius="8,0,0,0"
+                    BorderThickness="1,1,0,0"
+                    BorderBrush="{DynamicResource DividerSubtleBrush}"
+                    ClipToBounds="True">
                 <control:PageContainer IndexUriList="{Binding IndexUriList}"
                                        Instance="{Binding PageContainer,Mode=TwoWay}"
                                        Uri="{Binding Uri,Mode=TwoWay}"
                                        Title="{Binding Title,Mode=TwoWay}" />
-            </Grid>
             </Border>
         </Grid>
 
         <Grid x:Name="SearchOverlay"
               ZIndex="500"
-              Margin="0,40,0,0"
+              Margin="0,36,0,0"
               IsVisible="{Binding IsSearchOpen}">
             <Border Background="{DynamicResource ScrimBrush}"
                     PointerReleased="OnSearchMaskPointerReleased" />
@@ -322,13 +399,15 @@
             <!-- 搜索面板 -->
             <Border x:DataType="vm:SearchPaletteViewModel"
                     DataContext="{Binding SearchVm}"
-                    Width="640" Height="480"
-                    CornerRadius="8"
-                    Background="{DynamicResource SearchSurfaceBrush}"
-                    BorderBrush="{DynamicResource SearchBorderLightBrush}"
+                    Width="560" Height="430" MaxHeight="450"
+                    Margin="0,36,0,20"
+                    CornerRadius="{StaticResource RadiusLarge}"
+                    Background="{DynamicResource PopupBackgroundBrush}"
+                    BorderBrush="{DynamicResource PopupBorderBrush}"
                     BorderThickness="1"
+                    BoxShadow="{DynamicResource Elevation3}"
                     HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
+                    VerticalAlignment="Top"
                     ClipToBounds="True">
                 <Grid RowDefinitions="56,Auto,*,Auto">
                     <!-- 顶部搜索行：图标 + 输入框 + 清除 + 关闭 -->

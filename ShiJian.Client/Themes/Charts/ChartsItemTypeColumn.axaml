@@ -6,13 +6,13 @@
     <ControlTheme x:Key="{x:Type controls:ChartItemTypeColumn}"
                   TargetType="controls:ChartItemTypeColumn">
         <Styles>
-            <Style Selector="controls|ChartItemTypeColumn /template/ Border#_valueContainer">
+            <Style Selector="controls|ChartItemTypeColumn /template/ Border#ValueContainer">
                 <Setter Property="Transitions">
-                    <BrushTransition Property="Background" Duration="0.2" />
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
                 </Setter>
             </Style>
 
-            <Style Selector="controls|ChartItemTypeColumn:pointerover /template/ Border#_valueContainer">
+            <Style Selector="controls|ChartItemTypeColumn:pointerover /template/ Border#ValueContainer">
                 <Setter Property="Background" Value="{DynamicResource RowHoverBrush}" />
             </Style>
         </Styles>
@@ -26,7 +26,7 @@
                         <RowDefinition Height="30" />
                     </Grid.RowDefinitions>
 
-                    <Border x:Name="ValueContainer" Background="Transparent">
+                    <Border x:Name="ValueContainer" Background="Transparent" CornerRadius="4">
                         <Rectangle
                             x:Name="ValueBlockObj"
                             RadiusX="4"
@@ -38,6 +38,7 @@
                     </Border>
 
                     <TextBlock Grid.Row="1" FontSize="12"
+                               FontFeatures="tnum"
                                HorizontalAlignment="Center" Margin="0,10,0,0"
                                Text="{TemplateBinding ColumnName}"
                                Foreground="{DynamicResource SubTextBrush}" />

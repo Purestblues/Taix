@@ -295,7 +295,7 @@ public static class ResourceStrings
 
     private static string GetStringValue(string key)
     {
-        if (Application.Current == null) return string.Empty;
-        return Application.Current.FindResource(key) as string ?? string.Empty;
+        if (Application.Current is not { } app || !app.CheckAccess()) return string.Empty;
+        return app.FindResource(key) as string ?? string.Empty;
     }
 }

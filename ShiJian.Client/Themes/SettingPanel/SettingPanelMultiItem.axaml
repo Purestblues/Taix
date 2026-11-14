@@ -8,18 +8,19 @@
     <ControlTheme x:Key="{x:Type controls:SettingPanelMultiItem}" TargetType="controls:SettingPanelMultiItem">
         <Setter Property="Template">
             <ControlTemplate>
-                <Border Background="Transparent" x:Name="Border" CornerRadius="6">
+                <Border Background="Transparent" x:Name="Border" CornerRadius="{StaticResource RadiusMedium}">
                     <exp:Expander Header="{TemplateBinding Title}" IsExpanded="True">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="auto" />
                                 <RowDefinition Height="auto" />
                             </Grid.RowDefinitions>
-                            <StackPanel x:Name="Container" />
+                            <StackPanel x:Name="Container" Spacing="4" />
 
-                            <btn:Button Margin="0,10" Grid.Row="1" Content="删除此项"
-                                        Icon="Delete" Width="80" Background="{DynamicResource DangerBrush}"
-                                        Foreground="White"
+                            <btn:Button Margin="0,10,0,0" Grid.Row="1" Content="删除此项"
+                                        Icon="Delete" Padding="12,0"
+                                        HorizontalAlignment="Left"
+                                        Classes="danger"
                                         Command="{TemplateBinding OnRemoveAction}" />
                         </Grid>
                     </exp:Expander>
