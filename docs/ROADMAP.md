@@ -35,6 +35,15 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
 | G12 | 榜单进度条不显示 / 滚动后消失 | 宽度靠代码手算（`容器宽*0.95 - 文字宽`），依赖「布局已完成」与「尺寸还会再变一次」两个假设；虚拟化复用的行尺寸不再变化，宽度永久停在 0 | 切页瞬间、快速滚动后榜单只剩文字没有条。`fork.7` 已修为布局驱动的 `RatioBar` |
 | G13 | 设置页折叠头不可点 | `SettingPanelMultiItem` 的 `Expander` 头部没渲染展开箭头，标题区也没有点击热区 | 用户只能靠右侧 `...` 菜单操作，折叠功能实际不可达。**`fork.8` 已修控件层**（整条头部可点 + 箭头随状态转向），但注意：当前设置页两块 `SettingPanel` 传的都是单对象（走 `RenderSinglePanel`），多例面板没有实例化，所以这项在生产 UI 里**没有可见触点**，属于潜伏缺陷的提前修 |
 | G11 | 自绘图表用 Tab 走不到 | 原记录归因为 Avalonia 12 的 Tab 遍历不把自定义 `Control` 当候选，但 2026-11-11 在 Avalonia 12.1.1 headless 下逐层（StackPanel / ScrollViewer / ContentPresenter / ItemsControl 模板）都走到了，`Focusable` + `IsTabStop` + `GotFocus→InvalidateVisual` 三件套齐全 | 现已新增 `ChartTabNavigationTests` 锁住「Tab / Shift+Tab 能进出四类图表」；若实机仍复现，需要补充具体页面与操作序列 |
+| G14 | 概览页「今日」偶发空白/异常（**P0**） | `IndexPageViewModel.LoadRangeAsync:277`（`Skip`/`Take` 链路）偶发 `System.ArgumentOutOfRangeException` | 默认首屏指标卡与图表空白，切换周期后恢复 |
+| G15 | 统计页堆叠柱图图例纵向裁切（**P1**） | `Views/ChartPage.axaml:239` `ColumnChart` 固定 `Height="310"`，未为多行折行图例留足动态高度 | 「周 / 年」视图底部 3 排图例被横向边缘切掉一行 |
+| G16 | 分类汇总柱图参考线文字重叠（**P1**） | `ColumnChart.cs:487-494` `midY` 与 `avgY` 直接按数值坐标绘制文本，未做标签碰撞避让 | 中位线与平均值时长标注重叠难辨（如 `2h21m`/`2h48m`） |
+| G17 | 详细页年视图热力图纵轴重叠（**P1**） | `HeatGrid.cs:197-206` 按固定绘图高度均分 12 行（`1月`–`12月`），行高小于字体高度 | 12 个月份标签相互挤压粘连，可读性差 |
+| G18 | 分类关联弹窗搜索无效与脏数据（**P1**） | ① 「选择站点」`CategoryWebSiteListPageViewModel.DoSearch` 用 `WildcardHelper.IsMatch` 整串匹配；② 「选择应用」仅 `KeyUp` 触发且存在空名称/重复应用项 | 输入关键词无法筛出目标应用或站点，列表头部存在空白行 |
+| G19 | 侧边栏高亮态在设置/详情跳页后不同步（**P1**） | `MainWindow.axaml:289` 设置项 `Uri="SettingsPage"` 与 `CommandParameter="SettingPage"` 不一致，且全局搜索跳详情未清理旧导航选中态 | 当前所在页与侧边栏紫色高亮指示不一致 |
+| G20 | 概览页自定义日期胶囊点击无响应（**P2**） | `IndexPage` 自定义宿主的 `DateSelect` 居中胶囊点击未弹出日历（箭头可正常加减日期） | 只能逐天点击左右箭头调整起止日期，无法直选跨月日期 |
+| G21 | 分类「应用与网站」局部蓝底占位（**P2**） | 部分实体在分类实体页与概览/详细页图标管线不一致；同时 `Imager` 解码坏 `.ico` 持续产生 `NullReferenceException` 降级日志 | 部分实体卡显示蓝底默认占位，日志有降级噪音 |
+| G22 | 设置与全局搜索 3 处细节瑕疵（**P2**） | ① 新建合并组选满 2 项未清空红字错误；② WebDAV 开关 `Toggle` 未绑定中文 `OffText`；③ `Ctrl+K` 底栏 `[↑↓]`/`[Esc]` 与提示文案重复 | 轻微表单校验困惑与文案不一致 |
 
 ## 里程碑
 
@@ -246,7 +255,21 @@ G1 / G3 / G6 已在 M1 修复，G4 核验为「已经具备」；G8 / G9 已在 
       1. [x] 默认永久保留（移除界面 1 年保留选项与服务端 `AppSessions` 过期清理，已实现，未发版）；
       2. [x] 支持数据自由导入/导出（`.shijian-backup` 基于 SQLite `VACUUM INTO` 一致性快照 + `manifest.json` + SHA-256 校验 + 图标打包，支持 `merge`/`replace` 与导入前本地自动回滚快照，保留可选 CSV 表格导出）；
       3. [x] 新增 WebDAV 云同步功能（支持坚果云/Nextcloud 等标准 WebDAV 服务器测试连接、手动/启动/每小时/每天定时同步、跨设备增量合并与云端历史选择恢复）。
-- [ ] **N14** 全站 UI 设计语言重做：重做卡片设计、圆角、材质、Dock 栏样式、字体与配色等整体设计语言（待功能结构定型后单开大版本推进）
+- [ ] **N14** 全站 UI 设计语言重做：重做卡片设计、圆角、材质、Dock 栏样式、字体与配色等整体设计语言（待功能结构与 `M7.5` 实测缺陷收口定型后单开大版本推进）
+
+### M7.5 · `/gui-verify` 全功能实测缺陷收口（`fork.14.5`，待开工）
+
+> 对应 2026-11-14 全功能模拟点击与输入验证报告（完整上下文与改进方案见 [`docs/PLAN-2026-11.md`](PLAN-2026-11.md) 第九节）。
+
+- [ ] **G14 [P0]** 修复概览页「今日」`IndexPageViewModel.LoadRangeAsync`（第 277 行 `Skip`/`Take`）偶发 `ArgumentOutOfRangeException`：加非负边界兜底、排查并发状态竞争、补全异常提示兜底与单测
+- [ ] **G15 [P1]** 修复统计页 `ColumnChart`（`ChartPage.axaml:239`）固定 `Height="310"` 裁切多行图例：改为随图例行数自适应高度
+- [ ] **G16 [P1]** 修复 `ColumnChart` 参考线（`midY` / `avgY` / `Maximum`）标签垂直碰撞重叠：引入最小行距避让逻辑
+- [ ] **G17 [P1]** 修复详细页年视图 `HeatGrid` 12 行（`1月`–`12月`）行高过密与标签挤压：设定最小行高或合理高度分配策略
+- [ ] **G18 [P1]** 修复 `选择应用` / `选择站点` 弹窗搜索：站点侧改用默认子串 `Contains` 匹配、应用侧对齐实时防抖过滤，并清洗空名称与重复项
+- [ ] **G19 [P1]** 修复侧边栏高亮不同步：统一设置项 `Uri="SettingPage"`，并在 `MainViewModel` 监听页面路由同步清除或切换主导航激活态
+- [ ] **G20 [P2]** 修复概览页「自定义」日期 `DateSelect` 居中胶囊点击弹出日历面板问题
+- [ ] **G21 [P2]** 排查并统一「分类 → 应用与网站」图标管线与 `Imager` 损坏 `.ico` 缓存降级（减少日志噪音、统一首字母色块回退）
+- [ ] **G22 [P2]** 收口 3 处界面状态/文案细节：① 合并组选满 2 项清除红字报错；② WebDAV 开关补齐中文 `OnText`/`OffText` 绑定；③ `Ctrl+K` 底栏去除重复键名文本
 
 ### M4 · 工程化（3/4 完成）
 
